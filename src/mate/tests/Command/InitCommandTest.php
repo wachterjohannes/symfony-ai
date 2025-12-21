@@ -44,13 +44,13 @@ final class InitCommandTest extends TestCase
 
         $this->assertSame(Command::SUCCESS, $tester->getStatusCode());
         $this->assertDirectoryExists($this->tempDir.'/.mate');
-        $this->assertFileExists($this->tempDir.'/.mate/bridges.php');
+        $this->assertFileExists($this->tempDir.'/.mate/extensions.php');
         $this->assertFileExists($this->tempDir.'/.mate/services.php');
         $this->assertFileExists($this->tempDir.'/mcp.json');
         $this->assertTrue(is_link($this->tempDir.'/.mcp.json'));
         $this->assertSame('mcp.json', readlink($this->tempDir.'/.mcp.json'));
 
-        $content = file_get_contents($this->tempDir.'/.mate/bridges.php');
+        $content = file_get_contents($this->tempDir.'/.mate/extensions.php');
         $this->assertIsString($content);
         $this->assertStringContainsString('mate discover', $content);
         $this->assertStringContainsString('enabled', $content);
@@ -65,7 +65,7 @@ final class InitCommandTest extends TestCase
 
         $output = $tester->getDisplay();
         $this->assertStringContainsString('AI Mate Initialization', $output);
-        $this->assertStringContainsString('bridges.php', $output);
+        $this->assertStringContainsString('extensions.php', $output);
         $this->assertStringContainsString('services.php', $output);
         $this->assertStringContainsString('vendor/bin/mate discover', $output);
         $this->assertStringContainsString('Summary', $output);
@@ -79,14 +79,14 @@ final class InitCommandTest extends TestCase
 
         // Create existing file
         mkdir($this->tempDir.'/.mate', 0755, true);
-        file_put_contents($this->tempDir.'/.mate/bridges.php', '<?php return ["test" => "value"];');
+        file_put_contents($this->tempDir.'/.mate/extensions.php', '<?php return ["test" => "value"];');
 
         // Execute with 'no' response (twice for both files)
         $tester->setInputs(['no', 'no']);
         $tester->execute([]);
 
         // File should still contain original content
-        $content = file_get_contents($this->tempDir.'/.mate/bridges.php');
+        $content = file_get_contents($this->tempDir.'/.mate/extensions.php');
         $this->assertIsString($content);
         $this->assertStringContainsString('test', $content);
         $this->assertStringContainsString('value', $content);
@@ -99,14 +99,14 @@ final class InitCommandTest extends TestCase
 
         // Create existing file
         mkdir($this->tempDir.'/.mate', 0755, true);
-        file_put_contents($this->tempDir.'/.mate/bridges.php', '<?php return ["test" => "value"];');
+        file_put_contents($this->tempDir.'/.mate/extensions.php', '<?php return ["test" => "value"];');
 
         // Execute with 'yes' response (twice for both files)
         $tester->setInputs(['yes', 'yes']);
         $tester->execute([]);
 
         // File should be overwritten with template content
-        $content = file_get_contents($this->tempDir.'/.mate/bridges.php');
+        $content = file_get_contents($this->tempDir.'/.mate/extensions.php');
         $this->assertIsString($content);
         $this->assertStringNotContainsString('test', $content);
         $this->assertStringContainsString('mate discover', $content);
@@ -125,7 +125,7 @@ final class InitCommandTest extends TestCase
 
         // Directory should be created
         $this->assertDirectoryExists($this->tempDir.'/.mate');
-        $this->assertFileExists($this->tempDir.'/.mate/bridges.php');
+        $this->assertFileExists($this->tempDir.'/.mate/extensions.php');
         $this->assertFileExists($this->tempDir.'/.mate/services.php');
     }
 

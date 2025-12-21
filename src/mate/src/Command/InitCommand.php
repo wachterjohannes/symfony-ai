@@ -52,7 +52,7 @@ class InitCommand extends Command
             $actions[] = ['✓', 'Created', '.mate/ directory'];
         }
 
-        $files = ['.mate/bridges.php', '.mate/services.php', '.mate/.gitignore', 'mcp.json'];
+        $files = ['.mate/extensions.php', '.mate/services.php', '.mate/.gitignore', 'mcp.json'];
         foreach ($files as $file) {
             $fullPath = $this->rootDir.'/'.$file;
             if (!file_exists($fullPath)) {
@@ -90,7 +90,7 @@ class InitCommand extends Command
         if (!is_dir($mateUserDir)) {
             mkdir($mateUserDir, 0755, true);
             file_put_contents($mateUserDir.'/.gitignore', '');
-            $actions[] = ['✓', 'Created', 'mate/ directory (for custom bridges)'];
+            $actions[] = ['✓', 'Created', 'mate/ directory (for custom extensions)'];
         } else {
             $actions[] = ['○', 'Exists', 'mate/ directory'];
         }
@@ -106,7 +106,7 @@ class InitCommand extends Command
         $io->comment([
             'Next steps:',
             '  1. Run "composer dump-autoload" to update the autoloader',
-            '  2. Run "vendor/bin/mate discover" to find MCP bridges',
+            '  2. Run "vendor/bin/mate discover" to find MCP extensions',
             '  3. Add your custom MCP tools/resources/prompts to the mate/ directory',
             '  4. Run "vendor/bin/mate serve" to start the MCP server',
         ]);
