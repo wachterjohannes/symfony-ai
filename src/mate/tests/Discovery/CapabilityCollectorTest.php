@@ -27,102 +27,175 @@ final class CapabilityCollectorTest extends TestCase
         $this->fixturesDir = __DIR__.'/Fixtures';
     }
 
-    public function testGetExtensionsToLoad()
-    {
-        $collector = new CapabilityCollector(
-            new NullLogger(),
-            $this->fixturesDir.'/with-ai-mate-config'
-        );
-
-        $extensions = $collector->getExtensionsToLoad(['vendor/package-a', 'vendor/package-b']);
-
-        $this->assertCount(3, $extensions); // package-a, package-b, and _custom
-        $this->assertArrayHasKey('vendor/package-a', $extensions);
-        $this->assertArrayHasKey('vendor/package-b', $extensions);
-        $this->assertArrayHasKey('_custom', $extensions);
-    }
-
-    public function testGetExtensionsToLoadIncludesCustomProject()
-    {
-        $collector = new CapabilityCollector(
-            new NullLogger(),
-            $this->fixturesDir.'/with-ai-mate-config'
-        );
-
-        $extensions = $collector->getExtensionsToLoad([]);
-
-        // _custom is always included
-        $this->assertArrayHasKey('_custom', $extensions);
-    }
-
     public function testCollectCapabilitiesReturnsStructure()
     {
         $collector = new CapabilityCollector(
-            new NullLogger(),
-            $this->fixturesDir.'/with-ai-mate-config'
+            $this->fixturesDir.'/with-ai-mate-config',
+            [],
+            [],
+            new NullLogger()
         );
 
-        $extensions = [
-            'vendor/package-a' => [
-                'dirs' => [$this->fixturesDir.'/with-ai-mate-config/vendor/vendor/package-a/src'],
-                'includes' => [],
-            ],
+        $extension = [
+            'dirs' => ['mate/src'],
+            'includes' => [],
         ];
 
-        $capabilities = $collector->collectCapabilities($extensions);
+        $capabilities = $collector->collectCapabilities('test/extension', $extension);
 
-        $this->assertArrayHasKey('vendor/package-a', $capabilities);
-        $this->assertArrayHasKey('tools', $capabilities['vendor/package-a']);
-        $this->assertArrayHasKey('resources', $capabilities['vendor/package-a']);
-        $this->assertArrayHasKey('prompts', $capabilities['vendor/package-a']);
-        $this->assertArrayHasKey('resource_templates', $capabilities['vendor/package-a']);
+        $this->assertArrayHasKey('tools', $capabilities);
+        $this->assertArrayHasKey('resources', $capabilities);
+        $this->assertArrayHasKey('prompts', $capabilities);
+        $this->assertArrayHasKey('resource_templates', $capabilities);
     }
 
     public function testCollectCapabilitiesWithEmptyDirectories()
     {
         $collector = new CapabilityCollector(
-            new NullLogger(),
-            $this->fixturesDir.'/with-ai-mate-config'
+            $this->fixturesDir.'/with-ai-mate-config',
+            [],
+            [],
+            new NullLogger()
         );
 
-        $extensions = [
-            'vendor/package-a' => [
-                'dirs' => [$this->fixturesDir.'/with-ai-mate-config/vendor/vendor/package-a/src'],
-                'includes' => [],
-            ],
+        $extension = [
+            'dirs' => ['mate/src'],
+            'includes' => [],
         ];
 
-        $capabilities = $collector->collectCapabilities($extensions);
+        $capabilities = $collector->collectCapabilities('test/extension', $extension);
 
         // Empty directories should result in empty capability arrays
-        $this->assertIsArray($capabilities['vendor/package-a']['tools']);
-        $this->assertIsArray($capabilities['vendor/package-a']['resources']);
-        $this->assertIsArray($capabilities['vendor/package-a']['prompts']);
-        $this->assertIsArray($capabilities['vendor/package-a']['resource_templates']);
+        $this->assertIsArray($capabilities['tools']);
+        $this->assertIsArray($capabilities['resources']);
+        $this->assertIsArray($capabilities['prompts']);
+        $this->assertIsArray($capabilities['resource_templates']);
     }
 
-    public function testCollectCapabilitiesWithMultipleExtensions()
+    public function testCollectCapabilitiesWithIncludes()
     {
         $collector = new CapabilityCollector(
-            new NullLogger(),
-            $this->fixturesDir.'/with-ai-mate-config'
+            $this->fixturesDir.'/with-ai-mate-config',
+            [],
+            [],
+            new NullLogger()
         );
 
-        $extensions = [
-            'vendor/package-a' => [
-                'dirs' => [$this->fixturesDir.'/with-ai-mate-config/vendor/vendor/package-a/src'],
-                'includes' => [],
-            ],
-            'vendor/package-b' => [
-                'dirs' => [$this->fixturesDir.'/with-ai-mate-config/vendor/vendor/package-b/src'],
-                'includes' => [],
-            ],
+        $extension = [
+            'dirs' => [],
+            'includes' => ['mate/config.php'],
         ];
 
-        $capabilities = $collector->collectCapabilities($extensions);
+        $capabilities = $collector->collectCapabilities('test/extension', $extension);
 
-        $this->assertCount(2, $capabilities);
-        $this->assertArrayHasKey('vendor/package-a', $capabilities);
-        $this->assertArrayHasKey('vendor/package-b', $capabilities);
+        $this->assertIsArray($capabilities['tools']);
+        $this->assertIsArray($capabilities['resources']);
+        $this->assertIsArray($capabilities['prompts']);
+        $this->assertIsArray($capabilities['resource_templates']);
+    }
+
+    public function testCollectCapabilitiesFormatsTools()
+    {
+        $collector = new CapabilityCollector(
+            $this->fixturesDir.'/with-ai-mate-config',
+            [],
+            [],
+            new NullLogger()
+        );
+
+        $extension = [
+            'dirs' => ['mate/src'],
+            'includes' => [],
+        ];
+
+        $capabilities = $collector->collectCapabilities('test/extension', $extension);
+
+        $this->assertIsArray($capabilities['tools']);
+        foreach ($capabilities['tools'] as $name => $tool) {
+            $this->assertIsString($name);
+            $this->assertArrayHasKey('name', $tool);
+            $this->assertArrayHasKey('description', $tool);
+            $this->assertArrayHasKey('handler', $tool);
+            $this->assertArrayHasKey('input_schema', $tool);
+        }
+    }
+
+    public function testCollectCapabilitiesFormatsResources()
+    {
+        $collector = new CapabilityCollector(
+            $this->fixturesDir.'/with-ai-mate-config',
+            [],
+            [],
+            new NullLogger()
+        );
+
+        $extension = [
+            'dirs' => ['mate/src'],
+            'includes' => [],
+        ];
+
+        $capabilities = $collector->collectCapabilities('test/extension', $extension);
+
+        $this->assertIsArray($capabilities['resources']);
+        foreach ($capabilities['resources'] as $uri => $resource) {
+            $this->assertIsString($uri);
+            $this->assertArrayHasKey('uri', $resource);
+            $this->assertArrayHasKey('name', $resource);
+            $this->assertArrayHasKey('description', $resource);
+            $this->assertArrayHasKey('handler', $resource);
+            $this->assertArrayHasKey('mime_type', $resource);
+        }
+    }
+
+    public function testCollectCapabilitiesFormatsPrompts()
+    {
+        $collector = new CapabilityCollector(
+            $this->fixturesDir.'/with-ai-mate-config',
+            [],
+            [],
+            new NullLogger()
+        );
+
+        $extension = [
+            'dirs' => ['mate/src'],
+            'includes' => [],
+        ];
+
+        $capabilities = $collector->collectCapabilities('test/extension', $extension);
+
+        $this->assertIsArray($capabilities['prompts']);
+        foreach ($capabilities['prompts'] as $name => $prompt) {
+            $this->assertIsString($name);
+            $this->assertArrayHasKey('name', $prompt);
+            $this->assertArrayHasKey('description', $prompt);
+            $this->assertArrayHasKey('handler', $prompt);
+            $this->assertArrayHasKey('arguments', $prompt);
+        }
+    }
+
+    public function testCollectCapabilitiesFormatsResourceTemplates()
+    {
+        $collector = new CapabilityCollector(
+            $this->fixturesDir.'/with-ai-mate-config',
+            [],
+            [],
+            new NullLogger()
+        );
+
+        $extension = [
+            'dirs' => ['mate/src'],
+            'includes' => [],
+        ];
+
+        $capabilities = $collector->collectCapabilities('test/extension', $extension);
+
+        $this->assertIsArray($capabilities['resource_templates']);
+        foreach ($capabilities['resource_templates'] as $uriTemplate => $template) {
+            $this->assertIsString($uriTemplate);
+            $this->assertArrayHasKey('uri_template', $template);
+            $this->assertArrayHasKey('name', $template);
+            $this->assertArrayHasKey('description', $template);
+            $this->assertArrayHasKey('handler', $template);
+        }
     }
 }

@@ -50,7 +50,7 @@ bin/mate clear-cache
 ### Core Classes
 - **App**: Console application builder
 - **ContainerFactory**: DI container management with extension discovery
-- **ComposerTypeDiscovery**: Discovers MCP extensions via `extra.ai-mate` in composer.json
+- **ExtensionDiscovery**: Discovers MCP extensions via `extra.ai-mate` in composer.json
 - **FilteredDiscoveryLoader**: Loads MCP capabilities with feature filtering
 - **ServiceDiscovery**: Registers discovered services in the DI container
 

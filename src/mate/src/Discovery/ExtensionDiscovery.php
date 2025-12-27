@@ -29,7 +29,7 @@ use Psr\Log\LoggerInterface;
  * @author Johannes Wachter <johannes@sulu.io>
  * @author Tobias Nyholm <tobias.nyholm@gmail.com>
  */
-final class ComposerTypeDiscovery
+final class ExtensionDiscovery
 {
     /**
      * @var array<string, array{
@@ -39,18 +39,20 @@ final class ComposerTypeDiscovery
      */
     private ?array $installedPackages = null;
 
+    /**
+     * @param array<int, string> $enabledExtensions
+     */
     public function __construct(
         private string $rootDir,
+        private array $enabledExtensions,
         private LoggerInterface $logger,
     ) {
     }
 
     /**
-     * @param string[] $enabledExtensions
-     *
      * @return array<string, array{dirs: string[], includes: string[]}>
      */
-    public function discover(array $enabledExtensions = []): array
+    public function discover(): array
     {
         $installed = $this->getInstalledPackages();
         $extensions = [];
@@ -63,7 +65,7 @@ final class ComposerTypeDiscovery
                 continue;
             }
 
-            if ([] !== $enabledExtensions && !\in_array($packageName, $enabledExtensions, true)) {
+            if ([] !== $this->enabledExtensions && !\in_array($packageName, $this->enabledExtensions, true)) {
                 $this->logger->debug('Skipping package not enabled', ['package' => $packageName]);
 
                 continue;
@@ -79,15 +81,25 @@ final class ComposerTypeDiscovery
             }
         }
 
+        $extensions['_custom'] = $this->discoverRootProject();
+
         return $extensions;
     }
 
     /**
      * @return array{dirs: array<string>, includes: array<string>}
      */
-    public function discoverRootProject(): array
+    private function discoverRootProject(): array
     {
-        $composerContent = file_get_contents($this->rootDir.'/composer.json');
+        $composerPath = $this->rootDir.'/composer.json';
+        if (!file_exists($composerPath)) {
+            return [
+                'dirs' => [],
+                'includes' => [],
+            ];
+        }
+
+        $composerContent = file_get_contents($composerPath);
         if (false === $composerContent) {
             return [
                 'dirs' => [],

@@ -37,6 +37,7 @@ final class DebugCapabilitiesCommandTest extends TestCase
         $container = new ContainerBuilder();
         $container->setParameter('mate.root_dir', $rootDir);
         $container->setParameter('mate.enabled_extensions', ['vendor/package-a', 'vendor/package-b']);
+        $container->setParameter('mate.disabled_features', []);
 
         $command = new DebugCapabilitiesCommand(new NullLogger(), $container);
         $tester = new CommandTester($command);
@@ -55,6 +56,7 @@ final class DebugCapabilitiesCommandTest extends TestCase
         $container = new ContainerBuilder();
         $container->setParameter('mate.root_dir', $rootDir);
         $container->setParameter('mate.enabled_extensions', []);
+        $container->setParameter('mate.disabled_features', []);
 
         $command = new DebugCapabilitiesCommand(new NullLogger(), $container);
         $tester = new CommandTester($command);
@@ -72,6 +74,7 @@ final class DebugCapabilitiesCommandTest extends TestCase
         $container = new ContainerBuilder();
         $container->setParameter('mate.root_dir', $rootDir);
         $container->setParameter('mate.enabled_extensions', []);
+        $container->setParameter('mate.disabled_features', []);
 
         $command = new DebugCapabilitiesCommand(new NullLogger(), $container);
         $tester = new CommandTester($command);
@@ -98,6 +101,7 @@ final class DebugCapabilitiesCommandTest extends TestCase
         $container = new ContainerBuilder();
         $container->setParameter('mate.root_dir', $rootDir);
         $container->setParameter('mate.enabled_extensions', ['vendor/package-a', 'vendor/package-b']);
+        $container->setParameter('mate.disabled_features', []);
 
         $command = new DebugCapabilitiesCommand(new NullLogger(), $container);
         $tester = new CommandTester($command);
@@ -117,6 +121,7 @@ final class DebugCapabilitiesCommandTest extends TestCase
         $container = new ContainerBuilder();
         $container->setParameter('mate.root_dir', $rootDir);
         $container->setParameter('mate.enabled_extensions', []);
+        $container->setParameter('mate.disabled_features', []);
 
         $command = new DebugCapabilitiesCommand(new NullLogger(), $container);
         $tester = new CommandTester($command);
@@ -133,6 +138,7 @@ final class DebugCapabilitiesCommandTest extends TestCase
         $container = new ContainerBuilder();
         $container->setParameter('mate.root_dir', $rootDir);
         $container->setParameter('mate.enabled_extensions', []);
+        $container->setParameter('mate.disabled_features', []);
 
         $command = new DebugCapabilitiesCommand(new NullLogger(), $container);
         $tester = new CommandTester($command);
@@ -148,6 +154,7 @@ final class DebugCapabilitiesCommandTest extends TestCase
         $container = new ContainerBuilder();
         $container->setParameter('mate.root_dir', $rootDir);
         $container->setParameter('mate.enabled_extensions', []);
+        $container->setParameter('mate.disabled_features', []);
 
         $command = new DebugCapabilitiesCommand(new NullLogger(), $container);
         $tester = new CommandTester($command);
@@ -164,6 +171,7 @@ final class DebugCapabilitiesCommandTest extends TestCase
         $container = new ContainerBuilder();
         $container->setParameter('mate.root_dir', $rootDir);
         $container->setParameter('mate.enabled_extensions', ['vendor/package-a']);
+        $container->setParameter('mate.disabled_features', []);
 
         $command = new DebugCapabilitiesCommand(new NullLogger(), $container);
         $tester = new CommandTester($command);
@@ -182,6 +190,7 @@ final class DebugCapabilitiesCommandTest extends TestCase
         $container = new ContainerBuilder();
         $container->setParameter('mate.root_dir', $rootDir);
         $container->setParameter('mate.enabled_extensions', []);
+        $container->setParameter('mate.disabled_features', []);
 
         $command = new DebugCapabilitiesCommand(new NullLogger(), $container);
         $tester = new CommandTester($command);

@@ -13,13 +13,13 @@ namespace Symfony\AI\Mate\Tests\Discovery;
 
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
-use Symfony\AI\Mate\Discovery\ComposerTypeDiscovery;
+use Symfony\AI\Mate\Discovery\ExtensionDiscovery;
 
 /**
  * @author Johannes Wachter <johannes@sulu.io>
  * @author Tobias Nyholm <tobias.nyholm@gmail.com>
  */
-final class ComposerTypeDiscoveryTest extends TestCase
+final class ExtensionDiscoveryTest extends TestCase
 {
     private string $fixturesDir;
 
@@ -30,16 +30,18 @@ final class ComposerTypeDiscoveryTest extends TestCase
 
     public function testDiscoverPackagesWithAiMateConfig()
     {
-        $discovery = new ComposerTypeDiscovery(
+        $discovery = new ExtensionDiscovery(
             $this->fixturesDir.'/with-ai-mate-config',
+            [],
             new NullLogger()
         );
 
         $extensions = $discovery->discover();
 
-        $this->assertCount(2, $extensions);
+        $this->assertCount(3, $extensions);
         $this->assertArrayHasKey('vendor/package-a', $extensions);
         $this->assertArrayHasKey('vendor/package-b', $extensions);
+        $this->assertArrayHasKey('_custom', $extensions);
 
         // Check package-a structure
         $this->assertArrayHasKey('dirs', $extensions['vendor/package-a']);
@@ -50,76 +52,86 @@ final class ComposerTypeDiscoveryTest extends TestCase
 
     public function testIgnoresPackagesWithoutAiMateConfig()
     {
-        $discovery = new ComposerTypeDiscovery(
+        $discovery = new ExtensionDiscovery(
             $this->fixturesDir.'/without-ai-mate-config',
+            [],
             new NullLogger()
         );
 
         $extensions = $discovery->discover();
 
-        $this->assertCount(0, $extensions);
+        $this->assertCount(1, $extensions);
+        $this->assertArrayHasKey('_custom', $extensions);
     }
 
     public function testIgnoresPackagesWithoutExtraSection()
     {
-        $discovery = new ComposerTypeDiscovery(
+        $discovery = new ExtensionDiscovery(
             $this->fixturesDir.'/no-extra-section',
+            [],
             new NullLogger()
         );
 
         $extensions = $discovery->discover();
 
-        $this->assertCount(0, $extensions);
+        $this->assertCount(1, $extensions);
+        $this->assertArrayHasKey('_custom', $extensions);
     }
 
     public function testWhitelistFiltering()
     {
-        $discovery = new ComposerTypeDiscovery(
-            $this->fixturesDir.'/with-ai-mate-config',
-            new NullLogger()
-        );
-
         $enabledExtensions = [
             'vendor/package-a',
         ];
 
-        $extensions = $discovery->discover($enabledExtensions);
+        $discovery = new ExtensionDiscovery(
+            $this->fixturesDir.'/with-ai-mate-config',
+            $enabledExtensions,
+            new NullLogger()
+        );
 
-        $this->assertCount(1, $extensions);
+        $extensions = $discovery->discover();
+
+        $this->assertCount(2, $extensions);
         $this->assertArrayHasKey('vendor/package-a', $extensions);
         $this->assertArrayNotHasKey('vendor/package-b', $extensions);
+        $this->assertArrayHasKey('_custom', $extensions);
     }
 
     public function testWhitelistWithMultiplePackages()
     {
-        $discovery = new ComposerTypeDiscovery(
-            $this->fixturesDir.'/with-ai-mate-config',
-            new NullLogger()
-        );
-
         $enabledExtensions = [
             'vendor/package-a',
             'vendor/package-b',
         ];
 
-        $extensions = $discovery->discover($enabledExtensions);
-
-        $this->assertCount(2, $extensions);
-        $this->assertArrayHasKey('vendor/package-a', $extensions);
-        $this->assertArrayHasKey('vendor/package-b', $extensions);
-    }
-
-    public function testExtractsIncludeFiles()
-    {
-        $discovery = new ComposerTypeDiscovery(
-            $this->fixturesDir.'/with-includes',
+        $discovery = new ExtensionDiscovery(
+            $this->fixturesDir.'/with-ai-mate-config',
+            $enabledExtensions,
             new NullLogger()
         );
 
         $extensions = $discovery->discover();
 
-        $this->assertCount(1, $extensions);
+        $this->assertCount(3, $extensions);
+        $this->assertArrayHasKey('vendor/package-a', $extensions);
+        $this->assertArrayHasKey('vendor/package-b', $extensions);
+        $this->assertArrayHasKey('_custom', $extensions);
+    }
+
+    public function testExtractsIncludeFiles()
+    {
+        $discovery = new ExtensionDiscovery(
+            $this->fixturesDir.'/with-includes',
+            [],
+            new NullLogger()
+        );
+
+        $extensions = $discovery->discover();
+
+        $this->assertCount(2, $extensions);
         $this->assertArrayHasKey('vendor/package-with-includes', $extensions);
+        $this->assertArrayHasKey('_custom', $extensions);
 
         $includes = $extensions['vendor/package-with-includes']['includes'];
         $this->assertNotEmpty($includes);
@@ -128,20 +140,23 @@ final class ComposerTypeDiscoveryTest extends TestCase
 
     public function testHandlesMissingInstalledJson()
     {
-        $discovery = new ComposerTypeDiscovery(
+        $discovery = new ExtensionDiscovery(
             $this->fixturesDir.'/no-installed-json',
+            [],
             new NullLogger()
         );
 
         $extensions = $discovery->discover();
 
-        $this->assertCount(0, $extensions);
+        $this->assertCount(1, $extensions);
+        $this->assertArrayHasKey('_custom', $extensions);
     }
 
     public function testHandlesPackagesWithoutType()
     {
-        $discovery = new ComposerTypeDiscovery(
+        $discovery = new ExtensionDiscovery(
             $this->fixturesDir.'/mixed-types',
+            [],
             new NullLogger()
         );
 

@@ -19,7 +19,7 @@ use Mcp\Server\Session\FileSessionStore;
 use Mcp\Server\Transport\StdioTransport;
 use Psr\Log\LoggerInterface;
 use Symfony\AI\Mate\App;
-use Symfony\AI\Mate\Discovery\ComposerTypeDiscovery;
+use Symfony\AI\Mate\Discovery\ExtensionDiscovery;
 use Symfony\AI\Mate\Discovery\FilteredDiscoveryLoader;
 use Symfony\AI\Mate\Discovery\ServiceDiscovery;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -37,7 +37,9 @@ use Symfony\Component\DependencyInjection\ContainerBuilder;
 #[AsCommand('serve', 'Starts the MCP server with stdio transport')]
 class ServeCommand extends Command
 {
-    private ComposerTypeDiscovery $discovery;
+    private ExtensionDiscovery $extensionDiscovery;
+    private string $rootDir;
+    private string $cacheDir;
 
     public function __construct(
         private LoggerInterface $logger,
@@ -46,7 +48,16 @@ class ServeCommand extends Command
         parent::__construct(self::getDefaultName());
         $rootDir = $container->getParameter('mate.root_dir');
         \assert(\is_string($rootDir));
-        $this->discovery = new ComposerTypeDiscovery($rootDir, $logger);
+        $this->rootDir = $rootDir;
+
+        $cacheDir = $container->getParameter('mate.cache_dir');
+        \assert(\is_string($cacheDir));
+        $this->cacheDir = $cacheDir;
+
+        $enabledExtensions = $this->container->getParameter('mate.enabled_extensions');
+        \assert(\is_array($enabledExtensions));
+
+        $this->extensionDiscovery = new ExtensionDiscovery($rootDir, $enabledExtensions, $logger);
     }
 
     public static function getDefaultName(): string
@@ -61,32 +72,30 @@ class ServeCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $rootDir = $this->container->getParameter('mate.root_dir');
-        \assert(\is_string($rootDir));
-
-        $cacheDir = $this->container->getParameter('mate.cache_dir');
-        \assert(\is_string($cacheDir));
-
         $discovery = new Discoverer($this->logger);
-        $extensions = $this->getExtensionsToLoad();
-        (new ServiceDiscovery())->registerServices($discovery, $this->container, $rootDir, $extensions);
+        $extensions = $this->extensionDiscovery->discover();
+        (new ServiceDiscovery())->registerServices($discovery, $this->container, $this->rootDir, $extensions);
 
-        $disabledVendorFeatures = $this->container->getParameter('mate.disabled_features') ?? [];
-        \assert(\is_array($disabledVendorFeatures));
-        /* @var array<string, array<string, array{enabled: bool}>> $disabledVendorFeatures */
+        $disabledFeatures = $this->container->getParameter('mate.disabled_features') ?? [];
+        \assert(\is_array($disabledFeatures));
+        /* @var array<string, array<string, array{enabled: bool}>> $disabledFeatures */
 
         $this->container->compile();
 
         $loader = new FilteredDiscoveryLoader(
-            basePath: $rootDir,
+            basePath: $this->rootDir,
             extensions: $extensions,
-            disabledFeatures: $disabledVendorFeatures,
+            disabledFeatures: $disabledFeatures,
             discoverer: $discovery,
             logger: $this->logger
         );
 
         $server = Server::builder()
-            ->setProtocolVersion(ProtocolVersion::tryFrom($this->container->getParameter('mate.mcp_protocol_version') ?? ProtocolVersion::V2025_03_26->value) ?? ProtocolVersion::V2025_03_26)
+            ->setProtocolVersion(
+                ProtocolVersion::tryFrom(
+                    $this->container->getParameter('mate.mcp_protocol_version') ?? ProtocolVersion::V2025_03_26->value
+                ) ?? ProtocolVersion::V2025_03_26
+            )
             ->setServerInfo(
                 App::NAME,
                 App::VERSION,
@@ -96,37 +105,13 @@ class ServeCommand extends Command
             )
             ->setContainer($this->container)
             ->addLoader($loader)
-            ->setSession(new FileSessionStore($cacheDir.'/sessions'))
+            ->setSession(new FileSessionStore($this->cacheDir.'/sessions'))
             ->setLogger($this->logger)
             ->build();
 
         $server->run(new StdioTransport());
 
         return Command::SUCCESS;
-    }
-
-    /**
-     * @return array<string, array{dirs: string[], includes: string[]}>
-     */
-    private function getExtensionsToLoad(): array
-    {
-        $rootDir = $this->container->getParameter('mate.root_dir');
-        \assert(\is_string($rootDir));
-
-        $packageNames = $this->container->getParameter('mate.enabled_extensions');
-        \assert(\is_array($packageNames));
-        /** @var array<int, string> $packageNames */
-
-        /** @var array<string, array{dirs: array<string>, includes: array<string>}> $extensions */
-        $extensions = [];
-
-        foreach ($this->discovery->discover($packageNames) as $packageName => $data) {
-            $extensions[$packageName] = $data;
-        }
-
-        $extensions['_custom'] = $this->discovery->discoverRootProject();
-
-        return $extensions;
     }
 
     /**

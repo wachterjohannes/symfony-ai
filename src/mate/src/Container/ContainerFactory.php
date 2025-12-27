@@ -12,7 +12,7 @@
 namespace Symfony\AI\Mate\Container;
 
 use Psr\Log\LoggerInterface;
-use Symfony\AI\Mate\Discovery\ComposerTypeDiscovery;
+use Symfony\AI\Mate\Discovery\ExtensionDiscovery;
 use Symfony\AI\Mate\Exception\MissingDependencyException;
 use Symfony\Component\Config\FileLocator;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
@@ -46,16 +46,18 @@ final class ContainerFactory
         $logger = $container->get(LoggerInterface::class);
         \assert($logger instanceof LoggerInterface);
 
-        $discovery = new ComposerTypeDiscovery($this->rootDir, $logger);
+        $extensionDiscovery = new ExtensionDiscovery($this->rootDir, $enabledExtensions, $logger);
 
         if ([] !== $enabledExtensions) {
-            foreach ($discovery->discover($enabledExtensions) as $packageName => $data) {
-                $this->loadExtensionIncludes($container, $logger, $packageName, $data['includes']);
+            foreach ($extensionDiscovery->discover() as $extensionName => $data) {
+                if ('_custom' === $extensionName) {
+                    $this->loadUserServices($data, $container);
+
+                    continue;
+                }
+                $this->loadExtensionIncludes($container, $logger, $extensionName, $data['includes']);
             }
         }
-
-        $rootProject = $discovery->discoverRootProject();
-        $this->loadUserServices($rootProject, $container);
 
         $this->loadUserEnvVar($container);
 

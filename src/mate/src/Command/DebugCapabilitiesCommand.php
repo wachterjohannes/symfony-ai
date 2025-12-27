@@ -13,35 +13,48 @@ namespace Symfony\AI\Mate\Command;
 
 use Psr\Log\LoggerInterface;
 use Symfony\AI\Mate\Discovery\CapabilityCollector;
+use Symfony\AI\Mate\Discovery\ExtensionDiscovery;
 use Symfony\AI\Mate\Exception\InvalidArgumentException;
+use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
-use Symfony\Component\DependencyInjection\ContainerBuilder;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
  * Display all MCP capabilities grouped by extension.
  *
- * @phpstan-import-type CapabilitiesByExtension from CapabilityCollector
+ * @phpstan-import-type Capabilities from CapabilityCollector
+ *
+ * @phpstan-type CapabilitiesByExtension array<string, Capabilities>
  *
  * @author Johannes Wachter <johannes@sulu.io>
  */
+#[AsCommand('debug:capabilities', 'Display all MCP capabilities grouped by extension')]
 class DebugCapabilitiesCommand extends Command
 {
+    private ExtensionDiscovery $extensionDiscovery;
     private CapabilityCollector $collector;
 
     public function __construct(
         LoggerInterface $logger,
-        private ContainerBuilder $container,
+        private ContainerInterface $container,
     ) {
         parent::__construct(self::getDefaultName());
 
         $rootDir = $container->getParameter('mate.root_dir');
         \assert(\is_string($rootDir));
 
-        $this->collector = new CapabilityCollector($logger, $rootDir);
+        $enabledExtensions = $this->container->getParameter('mate.enabled_extensions');
+        \assert(\is_array($enabledExtensions));
+
+        $disabledFeatures = $this->container->getParameter('mate.disabled_features') ?? [];
+        \assert(\is_array($disabledFeatures));
+
+        $this->extensionDiscovery = new ExtensionDiscovery($rootDir, $enabledExtensions, $logger);
+        $this->collector = new CapabilityCollector($rootDir, $enabledExtensions, $disabledFeatures, $logger);
     }
 
     public static function getDefaultName(): string
@@ -91,11 +104,11 @@ HELP
     {
         $io = new SymfonyStyle($input, $output);
 
-        $enabledExtensions = $this->container->getParameter('mate.enabled_extensions');
-        \assert(\is_array($enabledExtensions));
-
-        $extensions = $this->collector->getExtensionsToLoad($enabledExtensions);
-        $capabilities = $this->collector->collectCapabilities($extensions);
+        $extensions = $this->extensionDiscovery->discover();
+        $capabilities = [];
+        foreach ($extensions as $extensionName => $extension) {
+            $capabilities[$extensionName] = $this->collector->collectCapabilities($extensionName, $extension);
+        }
 
         $extensionFilter = $input->getOption('extension');
         $typeFilter = $input->getOption('type');
@@ -184,7 +197,6 @@ HELP
 
             $io->section($displayName);
 
-            // Tools
             $tools = $capabilities['tools'] ?? [];
             if (\count($tools) > 0) {
                 $io->text(\sprintf('<info>Tools (%d)</info>', \count($tools)));
@@ -199,7 +211,6 @@ HELP
                 $totalTools += \count($tools);
             }
 
-            // Resources
             $resources = $capabilities['resources'] ?? [];
             if (\count($resources) > 0) {
                 $io->text(\sprintf('<info>Resources (%d)</info>', \count($resources)));
@@ -217,7 +228,6 @@ HELP
                 $totalResources += \count($resources);
             }
 
-            // Prompts
             $prompts = $capabilities['prompts'] ?? [];
             if (\count($prompts) > 0) {
                 $io->text(\sprintf('<info>Prompts (%d)</info>', \count($prompts)));
@@ -232,7 +242,6 @@ HELP
                 $totalPrompts += \count($prompts);
             }
 
-            // Resource Templates
             $templates = $capabilities['resource_templates'] ?? [];
             if (\count($templates) > 0) {
                 $io->text(\sprintf('<info>Resource Templates (%d)</info>', \count($templates)));
@@ -248,7 +257,6 @@ HELP
             }
         }
 
-        // Summary
         $io->section('Summary');
         $io->text(\sprintf('Extensions: %d', \count($capabilitiesByExtension)));
         $io->text(\sprintf('Tools: %d', $totalTools));

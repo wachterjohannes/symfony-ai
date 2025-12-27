@@ -12,8 +12,8 @@
 namespace Symfony\AI\Mate\Command;
 
 use Psr\Log\LoggerInterface;
-use Symfony\AI\Mate\Discovery\ComposerTypeDiscovery;
 use Symfony\Component\Console\Attribute\AsCommand;
+use Symfony\AI\Mate\Discovery\ExtensionDiscovery;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -56,9 +56,10 @@ class DiscoverCommand extends Command
         $io->text('Scanning for packages with <info>extra.ai-mate</info> configuration...');
         $io->newLine();
 
-        $discovery = new ComposerTypeDiscovery($this->rootDir, $this->logger);
+        $extensionDiscovery = new ExtensionDiscovery($this->rootDir, [], $this->logger);
 
-        $extensions = $discovery->discover([]);
+        $extensions = $extensionDiscovery->discover();
+        unset($extensions['_custom']);
 
         $count = \count($extensions);
         if (0 === $count) {
