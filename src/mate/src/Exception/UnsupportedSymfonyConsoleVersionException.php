@@ -17,10 +17,14 @@ namespace Symfony\AI\Mate\Exception;
  * @author Johannes Wachter <johannes@sulu.io>
  * @author Tobias Nyholm <tobias.nyholm@gmail.com>
  */
-class UnsupportedVersionException extends RuntimeException
+class UnsupportedSymfonyConsoleVersionException extends RuntimeException
 {
-    public static function forConsole(): self
+    public function __construct(?\Throwable $previous = null)
     {
-        return new self('Unsupported version of symfony/console. We cannot add commands.');
+        parent::__construct(
+            'Unsupported version of symfony/console. We cannot add commands.',
+            0,
+            $previous
+        );
     }
 }

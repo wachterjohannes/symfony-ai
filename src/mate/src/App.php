@@ -21,7 +21,7 @@ use Symfony\AI\Mate\Command\DiscoverCommand;
 use Symfony\AI\Mate\Command\InitCommand;
 use Symfony\AI\Mate\Command\ServeCommand;
 use Symfony\AI\Mate\Command\StopCommand;
-use Symfony\AI\Mate\Exception\UnsupportedVersionException;
+use Symfony\AI\Mate\Exception\UnsupportedSymfonyConsoleVersionException;
 use Symfony\Component\Console\Application;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -76,7 +76,7 @@ final class App
         } elseif (method_exists($application, 'add')) {
             $application->add($command);
         } else {
-            throw UnsupportedVersionException::forConsole();
+            throw new UnsupportedSymfonyConsoleVersionException();
         }
     }
 }

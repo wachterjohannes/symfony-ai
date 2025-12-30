@@ -222,7 +222,7 @@ final class ContainerFactory
         }
 
         if (!class_exists(Dotenv::class)) {
-            throw MissingDependencyException::forDotenv();
+            throw new MissingDependencyException('Symfony Dotenv', 'symfony/dotenv');
         }
 
         $extra = [];

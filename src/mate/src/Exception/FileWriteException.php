@@ -18,8 +18,8 @@ namespace Symfony\AI\Mate\Exception;
  */
 class FileWriteException extends RuntimeException
 {
-    public static function forLogFile(string $path): self
+    public function __construct(string $path, ?\Throwable $previous = null)
     {
-        return new self(\sprintf('Failed to write to log file: %s', $path));
+        parent::__construct(\sprintf('Failed to write to log file: %s', $path), 0, $previous);
     }
 }

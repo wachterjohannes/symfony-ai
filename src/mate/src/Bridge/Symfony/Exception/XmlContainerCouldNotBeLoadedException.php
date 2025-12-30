@@ -20,13 +20,12 @@ use Symfony\AI\Mate\Exception\InvalidArgumentException;
  */
 class XmlContainerCouldNotBeLoadedException extends InvalidArgumentException
 {
-    public static function forContainerDoesNotExist(string $path): self
+    public function __construct(string $path, bool $cannotBeParsed = false, ?\Throwable $previous = null)
     {
-        return new self(\sprintf('Container "%s" does not exist', $path));
-    }
+        $message = $cannotBeParsed
+            ? \sprintf('Container "%s" cannot be parsed', $path)
+            : \sprintf('Container "%s" does not exist', $path);
 
-    public static function forContainerCannotBeParsed(string $path): self
-    {
-        return new self(\sprintf('Container "%s" cannot be parsed', $path));
+        parent::__construct($message, 0, $previous);
     }
 }

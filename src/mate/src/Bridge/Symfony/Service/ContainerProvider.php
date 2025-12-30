@@ -136,21 +136,21 @@ class ContainerProvider
     private function parseXml(string $containerXmlPath): \SimpleXMLElement
     {
         if ('' === $containerXmlPath) {
-            throw XmlContainerPathIsNotConfiguredException::emptyPath();
+            throw new XmlContainerPathIsNotConfiguredException();
         }
 
         if (!file_exists($containerXmlPath)) {
-            throw FileNotFoundException::forContainerXml($containerXmlPath);
+            throw new FileNotFoundException($containerXmlPath);
         }
 
         $fileContents = file_get_contents($containerXmlPath);
         if (false === $fileContents) {
-            throw XmlContainerCouldNotBeLoadedException::forContainerDoesNotExist($containerXmlPath);
+            throw new XmlContainerCouldNotBeLoadedException($containerXmlPath, false);
         }
 
         $xml = @simplexml_load_string($fileContents);
         if (false === $xml) {
-            throw XmlContainerCouldNotBeLoadedException::forContainerCannotBeParsed($containerXmlPath);
+            throw new XmlContainerCouldNotBeLoadedException($containerXmlPath, true);
         }
 
         return $xml;
