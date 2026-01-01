@@ -173,6 +173,15 @@ final class LogReader
             return [];
         }
 
+        // Check file size to avoid loading extremely large files into memory
+        // 10MB threshold - files larger than this use streaming approach
+        $maxMemoryLoadSize = 10 * 1024 * 1024;
+        $fileSize = filesize($file);
+
+        if (false === $fileSize || $fileSize > $maxMemoryLoadSize) {
+            return $this->tailFromLargeFile($file, $lines, $level);
+        }
+
         $entries = [];
         $allLines = file($file, \FILE_IGNORE_NEW_LINES | \FILE_SKIP_EMPTY_LINES);
         if (false === $allLines) {
@@ -210,6 +219,53 @@ final class LogReader
         }
 
         return array_keys($channels);
+    }
+
+    /**
+     * Read last N lines from a large file using streaming approach.
+     *
+     * @return LogEntry[]
+     */
+    private function tailFromLargeFile(string $file, int $lines, ?string $level = null): array
+    {
+        $handle = fopen($file, 'r');
+        if (false === $handle) {
+            return [];
+        }
+
+        try {
+            $buffer = [];
+            $lineNumber = 0;
+            $relativePath = $this->getRelativePath($file);
+
+            while (false !== ($line = fgets($handle))) {
+                ++$lineNumber;
+                $buffer[] = ['line' => $line, 'number' => $lineNumber];
+
+                // Keep buffer size at 2x the requested lines to account for filtered entries
+                if (\count($buffer) > $lines * 2) {
+                    array_shift($buffer);
+                }
+            }
+
+            $entries = [];
+            for ($i = \count($buffer) - 1; $i >= 0 && \count($entries) < $lines; --$i) {
+                $entry = $this->parser->parse($buffer[$i]['line'], $relativePath, $buffer[$i]['number']);
+                if (null === $entry) {
+                    continue;
+                }
+
+                if (null !== $level && strtoupper($level) !== $entry->level) {
+                    continue;
+                }
+
+                $entries[] = $entry;
+            }
+
+            return array_reverse($entries);
+        } finally {
+            fclose($handle);
+        }
     }
 
     private function getRelativePath(string $filePath): string
