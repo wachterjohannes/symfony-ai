@@ -136,21 +136,21 @@ class ContainerProvider
     private function parseXml(string $containerXmlPath): \SimpleXMLElement
     {
         if ('' === $containerXmlPath) {
-            throw new XmlContainerPathIsNotConfiguredException();
+            throw new XmlContainerPathIsNotConfiguredException('Failed to configure path to Symfony container. You passed an empty string.');
         }
 
         if (!file_exists($containerXmlPath)) {
-            throw new FileNotFoundException($containerXmlPath);
+            throw new FileNotFoundException(\sprintf('Container XML at "%s" does not exist', $containerXmlPath));
         }
 
         $fileContents = file_get_contents($containerXmlPath);
         if (false === $fileContents) {
-            throw new XmlContainerCouldNotBeLoadedException($containerXmlPath, false);
+            throw new XmlContainerCouldNotBeLoadedException(\sprintf('Container "%s" does not exist', $containerXmlPath));
         }
 
         $xml = @simplexml_load_string($fileContents);
         if (false === $xml) {
-            throw new XmlContainerCouldNotBeLoadedException($containerXmlPath, true);
+            throw new XmlContainerCouldNotBeLoadedException(\sprintf('Container "%s" cannot be parsed', $containerXmlPath));
         }
 
         return $xml;

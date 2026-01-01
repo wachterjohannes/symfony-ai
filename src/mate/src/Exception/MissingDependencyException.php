@@ -19,12 +19,8 @@ namespace Symfony\AI\Mate\Exception;
  */
 class MissingDependencyException extends RuntimeException
 {
-    public function __construct(string $packageName, string $composerPackage, ?\Throwable $previous = null)
+    public function __construct(string $message = '', int $code = 0, ?\Throwable $previous = null)
     {
-        parent::__construct(
-            \sprintf('Cannot load any environment file with out %s. Please run run "composer require %s" and try again.', $packageName, $composerPackage),
-            0,
-            $previous
-        );
+        parent::__construct($message, $code, $previous);
     }
 }

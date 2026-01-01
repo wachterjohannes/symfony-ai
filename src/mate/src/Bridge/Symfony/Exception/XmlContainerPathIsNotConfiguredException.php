@@ -20,12 +20,8 @@ use Symfony\AI\Mate\Exception\InvalidArgumentException;
  */
 class XmlContainerPathIsNotConfiguredException extends InvalidArgumentException
 {
-    public function __construct(?\Throwable $previous = null)
+    public function __construct(string $message = '', int $code = 0, ?\Throwable $previous = null)
     {
-        parent::__construct(
-            'Failed to configure path to Symfony container. You passed an empty string',
-            0,
-            $previous
-        );
+        parent::__construct($message, $code, $previous);
     }
 }

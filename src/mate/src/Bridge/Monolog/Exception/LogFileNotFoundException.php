@@ -20,8 +20,8 @@ use Symfony\AI\Mate\Exception\InvalidArgumentException;
  */
 class LogFileNotFoundException extends InvalidArgumentException
 {
-    public function __construct(string $path, ?\Throwable $previous = null)
+    public function __construct(string $message = '', int $code = 0, ?\Throwable $previous = null)
     {
-        parent::__construct(\sprintf('Log file not found: "%s"', $path), 0, $previous);
+        parent::__construct($message, $code, $previous);
     }
 }

@@ -20,8 +20,8 @@ use Symfony\AI\Mate\Exception\InvalidArgumentException;
  */
 class FileNotFoundException extends InvalidArgumentException
 {
-    public function __construct(string $path, ?\Throwable $previous = null)
+    public function __construct(string $message = '', int $code = 0, ?\Throwable $previous = null)
     {
-        parent::__construct(\sprintf('Container XML at "%s" does not exist', $path), 0, $previous);
+        parent::__construct($message, $code, $previous);
     }
 }
