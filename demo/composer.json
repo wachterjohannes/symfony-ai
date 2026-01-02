@@ -54,6 +54,7 @@
         "phpunit/phpunit": "^12.1",
         "symfony/ai-mate": "^0.1",
         "symfony/ai-monolog-mate-extension": "^0.1",
+        "symfony/ai-profiler-mate-extension": "^0.1",
         "symfony/ai-symfony-mate-extension": "^0.1",
         "symfony/browser-kit": "^8.0",
         "symfony/css-selector": "^8.0",
