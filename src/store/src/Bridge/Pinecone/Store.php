@@ -17,7 +17,11 @@ use Symfony\AI\Platform\Vector\Vector;
 use Symfony\AI\Store\Document\Metadata;
 use Symfony\AI\Store\Document\VectorDocument;
 use Symfony\AI\Store\Exception\InvalidArgumentException;
+use Symfony\AI\Store\Exception\UnsupportedQueryTypeException;
 use Symfony\AI\Store\ManagedStoreInterface;
+use Symfony\AI\Store\Query\Filter\EqualFilter;
+use Symfony\AI\Store\Query\QueryInterface;
+use Symfony\AI\Store\Query\VectorQuery;
 use Symfony\AI\Store\StoreInterface;
 
 /**
@@ -112,13 +116,24 @@ final class Store implements ManagedStoreInterface, StoreInterface
         }
     }
 
-    public function query(Vector $vector, array $options = []): iterable
+    public function supports(string $queryClass): bool
     {
+        return VectorQuery::class === $queryClass;
+    }
+
+    public function query(QueryInterface $query, array $options = []): iterable
+    {
+        if (!$query instanceof VectorQuery) {
+            throw new UnsupportedQueryTypeException($query->getType(), $this);
+        }
+
+        $filter = $this->buildFilter($query->getFilter(), $options);
+
         $result = $this->getVectors()->query(
-            vector: $vector->getData(),
+            vector: $query->getVector()->getData(),
             namespace: $options['namespace'] ?? $this->namespace,
-            filter: $options['filter'] ?? $this->filter,
-            topK: $options['topK'] ?? $this->topK,
+            filter: $filter,
+            topK: $options['topK'] ?? $options['limit'] ?? $this->topK,
             includeValues: true,
         );
 
@@ -138,6 +153,23 @@ final class Store implements ManagedStoreInterface, StoreInterface
             ->control()
             ->index($this->indexName)
             ->delete();
+    }
+
+    private function buildFilter($queryFilter, array $options): array
+    {
+        $filter = $this->filter;
+
+        if ($queryFilter instanceof EqualFilter) {
+            $filterCondition = [$queryFilter->getField() => ['$eq' => $queryFilter->getValue()]];
+
+            if ([] === $filter) {
+                $filter = $filterCondition;
+            } else {
+                $filter = ['$and' => [$filter, $filterCondition]];
+            }
+        }
+
+        return $filter;
     }
 
     private function getVectors(): VectorResource

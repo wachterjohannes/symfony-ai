@@ -17,7 +17,13 @@ use Symfony\AI\Store\Distance\DistanceCalculator;
 use Symfony\AI\Store\Document\Metadata;
 use Symfony\AI\Store\Document\VectorDocument;
 use Symfony\AI\Store\Exception\InvalidArgumentException;
+use Symfony\AI\Store\Exception\UnsupportedQueryTypeException;
 use Symfony\AI\Store\ManagedStoreInterface;
+use Symfony\AI\Store\Query\Filter\EqualFilter;
+use Symfony\AI\Store\Query\HybridQuery;
+use Symfony\AI\Store\Query\QueryInterface;
+use Symfony\AI\Store\Query\TextQuery;
+use Symfony\AI\Store\Query\VectorQuery;
 use Symfony\AI\Store\StoreInterface;
 use Symfony\Contracts\Cache\CacheInterface;
 
@@ -96,6 +102,15 @@ final class Store implements ManagedStoreInterface, StoreInterface
         $this->cache->save($cacheItem);
     }
 
+    public function supports(string $queryClass): bool
+    {
+        return \in_array($queryClass, [
+            VectorQuery::class,
+            TextQuery::class,
+            HybridQuery::class,
+        ], true);
+    }
+
     /**
      * @param array{
      *     maxItems?: positive-int,
@@ -103,7 +118,57 @@ final class Store implements ManagedStoreInterface, StoreInterface
      * } $options If maxItems is provided, only the top N results will be returned.
      *            If filter is provided, only documents matching the filter will be considered.
      */
-    public function query(Vector $vector, array $options = []): iterable
+    public function query(QueryInterface $query, array $options = []): iterable
+    {
+        return match (true) {
+            $query instanceof VectorQuery => $this->queryVector($query, $options),
+            $query instanceof TextQuery => $this->queryText($query, $options),
+            $query instanceof HybridQuery => $this->queryHybrid($query, $options),
+            default => throw new UnsupportedQueryTypeException($query->getType(), $this),
+        };
+    }
+
+    public function drop(array $options = []): void
+    {
+        $this->cache->clear();
+    }
+
+    /**
+     * @param array{
+     *     maxItems?: positive-int,
+     *     filter?: callable(VectorDocument): bool,
+     * } $options
+     */
+    private function queryVector(VectorQuery $query, array $options): iterable
+    {
+        $documents = $this->cache->get($this->cacheKey, static fn (): array => []);
+
+        if ([] === $documents) {
+            return;
+        }
+
+        $vectorDocuments = array_map(static fn (array $document): VectorDocument => new VectorDocument(
+            id: $document['id'],
+            vector: new Vector($document['vector']),
+            metadata: new Metadata($document['metadata']),
+        ), $documents);
+
+        $vectorDocuments = $this->applyFilter($vectorDocuments, $query->getFilter());
+
+        if (isset($options['filter'])) {
+            $vectorDocuments = array_values(array_filter($vectorDocuments, $options['filter']));
+        }
+
+        yield from $this->distanceCalculator->calculate($vectorDocuments, $query->getVector(), $options['maxItems'] ?? null);
+    }
+
+    /**
+     * @param array{
+     *     maxItems?: positive-int,
+     *     filter?: callable(VectorDocument): bool,
+     * } $options
+     */
+    private function queryText(TextQuery $query, array $options): iterable
     {
         $documents = $this->cache->get($this->cacheKey, static fn (): array => []);
 
@@ -121,11 +186,101 @@ final class Store implements ManagedStoreInterface, StoreInterface
             $vectorDocuments = array_values(array_filter($vectorDocuments, $options['filter']));
         }
 
-        yield from $this->distanceCalculator->calculate($vectorDocuments, $vector, $options['maxItems'] ?? null);
+        $filteredDocuments = array_filter($vectorDocuments, function (VectorDocument $doc) use ($query) {
+            $text = $doc->metadata->getText() ?? '';
+
+            return str_contains(strtolower($text), strtolower($query->getText()));
+        });
+
+        $filteredDocuments = $this->applyFilter($filteredDocuments, $query->getFilter());
+
+        $maxItems = $options['maxItems'] ?? null;
+        $count = 0;
+
+        foreach ($filteredDocuments as $document) {
+            if (null !== $maxItems && $count >= $maxItems) {
+                break;
+            }
+
+            yield $document;
+            ++$count;
+        }
     }
 
-    public function drop(array $options = []): void
+    /**
+     * @param array{
+     *     maxItems?: positive-int,
+     *     filter?: callable(VectorDocument): bool,
+     * } $options
+     */
+    private function queryHybrid(HybridQuery $query, array $options): iterable
     {
-        $this->cache->clear();
+        $vectorResults = iterator_to_array($this->queryVector(
+            new VectorQuery($query->getVector(), $query->getFilter()),
+            $options
+        ));
+
+        $textResults = iterator_to_array($this->queryText(
+            new TextQuery($query->getText(), $query->getFilter()),
+            $options
+        ));
+
+        $mergedResults = [];
+        $seenIds = [];
+
+        foreach ($vectorResults as $doc) {
+            $id = $doc->id->toRfc4122();
+            if (!isset($seenIds[$id])) {
+                $mergedResults[] = new VectorDocument(
+                    id: $doc->id,
+                    vector: $doc->vector,
+                    metadata: $doc->metadata,
+                    score: null !== $doc->score ? $doc->score * $query->getSemanticRatio() : null,
+                );
+                $seenIds[$id] = true;
+            }
+        }
+
+        foreach ($textResults as $doc) {
+            $id = $doc->id->toRfc4122();
+            if (!isset($seenIds[$id])) {
+                $mergedResults[] = $doc;
+                $seenIds[$id] = true;
+            }
+        }
+
+        if (isset($options['filter'])) {
+            $mergedResults = array_values(array_filter($mergedResults, $options['filter']));
+        }
+
+        $maxItems = $options['maxItems'] ?? null;
+        $count = 0;
+
+        foreach ($mergedResults as $document) {
+            if (null !== $maxItems && $count >= $maxItems) {
+                break;
+            }
+
+            yield $document;
+            ++$count;
+        }
+    }
+
+    /**
+     * @param VectorDocument[] $documents
+     *
+     * @return VectorDocument[]
+     */
+    private function applyFilter(array $documents, $filter): array
+    {
+        if (!$filter instanceof EqualFilter) {
+            return $documents;
+        }
+
+        return array_values(array_filter($documents, function (VectorDocument $doc) use ($filter) {
+            $metadata = $doc->metadata->getArrayCopy();
+
+            return isset($metadata[$filter->getField()]) && $metadata[$filter->getField()] === $filter->getValue();
+        }));
     }
 }

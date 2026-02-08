@@ -16,7 +16,11 @@ use Symfony\AI\Platform\Vector\Vector;
 use Symfony\AI\Store\Document\Metadata;
 use Symfony\AI\Store\Document\VectorDocument;
 use Symfony\AI\Store\Exception\InvalidArgumentException;
+use Symfony\AI\Store\Exception\UnsupportedQueryTypeException;
 use Symfony\AI\Store\ManagedStoreInterface;
+use Symfony\AI\Store\Query\Filter\EqualFilter;
+use Symfony\AI\Store\Query\QueryInterface;
+use Symfony\AI\Store\Query\VectorQuery;
 use Symfony\AI\Store\StoreInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
@@ -88,6 +92,11 @@ final class Store implements ManagedStoreInterface, StoreInterface
         );
     }
 
+    public function supports(string $queryClass): bool
+    {
+        return VectorQuery::class === $queryClass;
+    }
+
     /**
      * @param array{
      *     filter?: array<string, mixed>,
@@ -95,16 +104,21 @@ final class Store implements ManagedStoreInterface, StoreInterface
      *     offset?: positive-int
      * } $options
      */
-    public function query(Vector $vector, array $options = []): iterable
+    public function query(QueryInterface $query, array $options = []): iterable
     {
+        if (!$query instanceof VectorQuery) {
+            throw new UnsupportedQueryTypeException($query::class, $this);
+        }
+
         $payload = [
-            'query' => $vector->getData(),
+            'query' => $query->getVector()->getData(),
             'with_payload' => true,
             'with_vector' => true,
         ];
 
-        if (\array_key_exists('filter', $options)) {
-            $payload['filter'] = $options['filter'];
+        $filter = $this->buildFilter($query->getFilter(), $options);
+        if (null !== $filter) {
+            $payload['filter'] = $filter;
         }
 
         if (\array_key_exists('limit', $options)) {
@@ -125,6 +139,22 @@ final class Store implements ManagedStoreInterface, StoreInterface
     public function drop(array $options = []): void
     {
         $this->request('DELETE', \sprintf('collections/%s', $this->collectionName));
+    }
+
+    private function buildFilter($queryFilter, array $options): ?array
+    {
+        if (!$queryFilter instanceof EqualFilter) {
+            return null;
+        }
+
+        return [
+            'must' => [
+                [
+                    'key' => $queryFilter->getField(),
+                    'match' => ['value' => $queryFilter->getValue()],
+                ],
+            ],
+        ];
     }
 
     /**
