@@ -243,21 +243,41 @@ final class Store implements ManagedStoreInterface, StoreInterface
      */
     private function queryText(TextQuery $query, array $options): iterable
     {
+        $texts = $query->getTexts();
+        $tsqueryParts = [];
+        $params = [];
+
+        // Build OR-combined tsquery for multiple texts
+        foreach ($texts as $i => $text) {
+            $paramName = 'search_text_'.$i;
+            $tsqueryParts[] = "plainto_tsquery('english', :{$paramName})";
+            $params[$paramName] = $text;
+        }
+
+        $tsqueryExpression = implode(' || ', $tsqueryParts); // OR operator in PostgreSQL
+        $tsvectorExpression = "to_tsvector('english', metadata->>'text')";
+
         $sql = \sprintf(<<<SQL
             SELECT id, %s AS embedding, metadata,
-                   ts_rank(to_tsvector('english', metadata->>'text'), plainto_tsquery('english', :search_text)) AS score
+                   ts_rank(%s, %s) AS score
             FROM %s
-            WHERE to_tsvector('english', metadata->>'text') @@ plainto_tsquery('english', :search_text)
+            WHERE %s @@ (%s)
             ORDER BY score DESC
             LIMIT %d
             SQL,
             $this->vectorFieldName,
+            $tsvectorExpression,
+            $tsqueryExpression,
             $this->tableName,
+            $tsvectorExpression,
+            $tsqueryExpression,
             $options['limit'] ?? 5,
         );
 
         $statement = $this->connection->prepare($sql);
-        $statement->bindValue(':search_text', $query->getText());
+        foreach ($params as $paramName => $value) {
+            $statement->bindValue(':'.$paramName, $value);
+        }
 
         $statement->execute();
 
@@ -278,23 +298,40 @@ final class Store implements ManagedStoreInterface, StoreInterface
      */
     private function queryHybrid(HybridQuery $query, array $options): iterable
     {
-        $where = 'WHERE to_tsvector(\'english\', metadata->>\'text\') @@ plainto_tsquery(\'english\', :search_text)';
+        $texts = $query->getTexts();
+        $tsqueryParts = [];
         $params = [
             'embedding' => $this->toPgvector($query->getVector()),
-            'search_text' => $query->getText(),
             'semantic_ratio' => $query->getSemanticRatio(),
             'keyword_ratio' => $query->getKeywordRatio(),
         ];
 
+        // Build OR-combined tsquery for multiple texts
+        foreach ($texts as $i => $text) {
+            $paramName = 'search_text_'.$i;
+            $tsqueryParts[] = "plainto_tsquery('english', :{$paramName})";
+            $params[$paramName] = $text;
+        }
+
+        $tsqueryExpression = '('.implode(' || ', $tsqueryParts).')'; // OR operator in PostgreSQL
+        $tsvectorExpression = "to_tsvector('english', metadata->>'text')";
+
+        $where = \sprintf('WHERE %s @@ %s', $tsvectorExpression, $tsqueryExpression);
+
         if (isset($options['maxScore'])) {
-            $where .= ' AND ((:semantic_ratio * (1 - ('.$this->vectorFieldName.' '.$this->distance->getComparisonSign().' :embedding))) + (:keyword_ratio * ts_rank(to_tsvector(\'english\', metadata->>\'text\'), plainto_tsquery(\'english\', :search_text)))) >= :maxScore';
+            $where .= \sprintf(' AND ((:semantic_ratio * (1 - (%s %s :embedding))) + (:keyword_ratio * ts_rank(%s, %s))) >= :maxScore',
+                $this->vectorFieldName,
+                $this->distance->getComparisonSign(),
+                $tsvectorExpression,
+                $tsqueryExpression
+            );
             $params['maxScore'] = $options['maxScore'];
         }
 
         $sql = \sprintf(<<<SQL
             SELECT id, %s AS embedding, metadata,
                    ((:semantic_ratio * (1 - (%s %s :embedding))) +
-                    (:keyword_ratio * ts_rank(to_tsvector('english', metadata->>'text'), plainto_tsquery('english', :search_text)))) AS score
+                    (:keyword_ratio * ts_rank(%s, %s))) AS score
             FROM %s
             %s
             ORDER BY score DESC
@@ -303,6 +340,8 @@ final class Store implements ManagedStoreInterface, StoreInterface
             $this->vectorFieldName,
             $this->vectorFieldName,
             $this->distance->getComparisonSign(),
+            $tsvectorExpression,
+            $tsqueryExpression,
             $this->tableName,
             $where,
             $options['limit'] ?? 5,

@@ -24,9 +24,12 @@ use Symfony\AI\Store\Exception\InvalidArgumentException;
  */
 final class HybridQuery implements QueryInterface
 {
+    /**
+     * @param string|array<string> $text Single search text or array of texts (combined with OR logic)
+     */
     public function __construct(
         private readonly Vector $vector,
-        private readonly string $text,
+        private readonly string|array $text,
         private readonly float $semanticRatio = 0.5,
     ) {
         if ($semanticRatio < 0.0 || $semanticRatio > 1.0) {
@@ -41,7 +44,15 @@ final class HybridQuery implements QueryInterface
 
     public function getText(): string
     {
-        return $this->text;
+        return \is_array($this->text) ? implode(' ', $this->text) : $this->text;
+    }
+
+    /**
+     * @return array<string>
+     */
+    public function getTexts(): array
+    {
+        return \is_array($this->text) ? $this->text : [$this->text];
     }
 
     public function getSemanticRatio(): float

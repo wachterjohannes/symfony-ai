@@ -785,9 +785,9 @@ final class StoreTest extends TestCase
         $store = new Store($pdo, 'embeddings_table', 'embedding');
 
         $expectedQuery = "SELECT id, embedding AS embedding, metadata,
-                   ts_rank(to_tsvector('english', metadata->>'text'), plainto_tsquery('english', :search_text)) AS score
+                   ts_rank(to_tsvector('english', metadata->>'text'), plainto_tsquery('english', :search_text_0)) AS score
             FROM embeddings_table
-            WHERE to_tsvector('english', metadata->>'text') @@ plainto_tsquery('english', :search_text)
+            WHERE to_tsvector('english', metadata->>'text') @@ (plainto_tsquery('english', :search_text_0))
             ORDER BY score DESC
             LIMIT 5";
 
@@ -802,7 +802,7 @@ final class StoreTest extends TestCase
 
         $statement->expects($this->once())
             ->method('bindValue')
-            ->with(':search_text', 'test query');
+            ->with(':search_text_0', 'test query');
 
         $statement->expects($this->once())
             ->method('execute');
@@ -826,9 +826,9 @@ final class StoreTest extends TestCase
 
         $expectedQuery = "SELECT id, embedding AS embedding, metadata,
                    ((:semantic_ratio * (1 - (embedding <-> :embedding))) +
-                    (:keyword_ratio * ts_rank(to_tsvector('english', metadata->>'text'), plainto_tsquery('english', :search_text)))) AS score
+                    (:keyword_ratio * ts_rank(to_tsvector('english', metadata->>'text'), (plainto_tsquery('english', :search_text_0))))) AS score
             FROM embeddings_table
-            WHERE to_tsvector('english', metadata->>'text') @@ plainto_tsquery('english', :search_text)
+            WHERE to_tsvector('english', metadata->>'text') @@ (plainto_tsquery('english', :search_text_0))
             ORDER BY score DESC
             LIMIT 5";
 

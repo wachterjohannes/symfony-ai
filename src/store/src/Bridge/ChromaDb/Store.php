@@ -127,7 +127,7 @@ final class Store implements StoreInterface
 
         $collection = $this->client->getOrCreateCollection($this->collectionName);
         $queryResponse = $collection->query(
-            queryTexts: [$query->getText()],
+            queryTexts: $query->getTexts(),
             nResults: $options['limit'] ?? 4,
             where: $options['where'] ?? null,
             whereDocument: $options['whereDocument'] ?? null,

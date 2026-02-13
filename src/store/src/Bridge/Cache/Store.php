@@ -188,9 +188,15 @@ final class Store implements ManagedStoreInterface, StoreInterface
         }
 
         $filteredDocuments = array_filter($vectorDocuments, static function (VectorDocument $doc) use ($query) {
-            $text = $doc->getMetadata()->getText() ?? '';
+            $text = strtolower($doc->getMetadata()->getText() ?? '');
 
-            return str_contains(strtolower($text), strtolower($query->getText()));
+            foreach ($query->getTexts() as $searchText) {
+                if (str_contains($text, strtolower($searchText))) {
+                    return true;
+                }
+            }
+
+            return false;
         });
 
         $maxItems = $options['maxItems'] ?? null;
@@ -222,7 +228,7 @@ final class Store implements ManagedStoreInterface, StoreInterface
         ));
 
         $textResults = iterator_to_array($this->queryText(
-            new TextQuery($query->getText()),
+            new TextQuery($query->getTexts()),
             $options
         ));
 
