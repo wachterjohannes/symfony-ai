@@ -18,8 +18,6 @@ use Symfony\AI\Platform\Capability;
 use Symfony\AI\Platform\Event\InvocationEvent;
 use Symfony\AI\Platform\Event\ResultEvent;
 use Symfony\AI\Platform\Exception\MissingModelSupportException;
-use Symfony\AI\Platform\Message\Content\Text;
-use Symfony\AI\Platform\Message\Message;
 use Symfony\AI\Platform\Message\MessageBag;
 use Symfony\AI\Platform\Metadata\Metadata;
 use Symfony\AI\Platform\Model;
@@ -363,23 +361,6 @@ final class PlatformSubscriberTest extends TestCase
         ]);
 
         $processor->processInput($event);
-    }
-
-    public function testObjectPassedToUserMessageIsSerializedAsContext()
-    {
-        $city = new City(name: 'Berlin');
-        $message = Message::ofUser('Please research missing data', $city);
-
-        $content = $message->getContent();
-        $this->assertCount(2, $content);
-
-        $this->assertInstanceOf(Text::class, $content[0]);
-        $this->assertSame('Please research missing data', $content[0]->getText());
-
-        $this->assertInstanceOf(Text::class, $content[1]);
-        $serializedContent = $content[1]->getText();
-        $this->assertStringContainsString('Berlin', $serializedContent);
-        $this->assertStringContainsString('"name"', $serializedContent);
     }
 
     public function testProcessInputIgnoresNonObjectNonClassString()

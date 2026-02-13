@@ -489,62 +489,6 @@ top this example uses the feature through the agent to leverage tool calling::
 
     dump($result->getContent()); // returns an array
 
-Populating Existing Objects
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Instead of creating new object instances, you can pass existing object instances to have the AI populate missing data.
-This is useful when you have partially filled objects and want the AI to complete them.
-
-You can provide context to the AI in two ways: either describe the task in plain text, or pass the object
-directly to the message for automatic serialization::
-
-    use Symfony\AI\Platform\Message\Message;
-    use Symfony\AI\Platform\Message\MessageBag;
-
-    // Create a partially populated object
-    class City
-    {
-        public function __construct(
-            public ?string $name = null,
-            public ?int $population = null,
-            public ?string $country = null,
-            public ?string $mayor = null,
-        ) {}
-    }
-
-    $city = new City(name: 'Berlin');
-
-    // You can either describe the task in plain text or pass the object directly
-    $messages = new MessageBag(
-        Message::forSystem('You are a helpful assistant that provides information about cities.'),
-        // describe the task
-        Message::ofUser('Please provide the population, country, and current mayor for Berlin.'),
-        // or directly hand over the given data
-        Message::ofUser('Research missing data for this city', $city),
-    );
-
-    $result = $platform->invoke('gpt-5-mini', $messages, [
-        'response_format' => $city, // Pass the instance instead of the class
-    ]);
-
-    // The same object instance is returned with populated fields
-    $populatedCity = $result->asObject();
-    assert($city === $populatedCity); // Same object!
-
-    echo $city->population; // 3500000
-    echo $city->country;    // Germany
-    echo $city->mayor;      // Kai Wegner
-
-When you pass an object to ``Message::ofUser()`` as the last parameter, it is automatically JSON-serialized
-and included in the message content. This provides the AI with the current state of the object, making it
-clear what data is already present and what needs to be filled.
-
-The AI will populate the missing fields while preserving any existing values. This is particularly useful for:
-
-- Enriching partial data from databases
-- Updating incomplete records
-- Progressive data collection workflows
-
 Code Examples
 ~~~~~~~~~~~~~
 
