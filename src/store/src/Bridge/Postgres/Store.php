@@ -200,7 +200,7 @@ final class Store implements ManagedStoreInterface, StoreInterface
             $params = array_merge($params, $options['params']);
         }
 
-        $where = '' !== $whereClauses ? 'WHERE '.\implode(' AND ', $whereClauses) : '';
+        $where = [] !== $whereClauses ? 'WHERE '.\implode(' AND ', $whereClauses) : '';
 
         $sql = \sprintf(<<<SQL
             SELECT id, %s AS embedding, metadata, (%s %s :embedding) AS score
