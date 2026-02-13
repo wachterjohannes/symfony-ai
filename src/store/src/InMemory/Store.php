@@ -124,7 +124,7 @@ class Store implements ManagedStoreInterface, StoreInterface
      */
     private function queryText(TextQuery $query, array $options): iterable
     {
-        $documents = array_filter($this->documents, function (VectorDocument $doc) use ($query) {
+        $documents = array_filter($this->documents, static function (VectorDocument $doc) use ($query) {
             $text = $doc->getMetadata()->getText() ?? '';
 
             return str_contains(strtolower($text), strtolower($query->getText()));

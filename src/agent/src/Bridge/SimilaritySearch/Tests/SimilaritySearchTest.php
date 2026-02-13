@@ -48,7 +48,7 @@ final class SimilaritySearchTest extends TestCase
         $store = $this->createMock(StoreInterface::class);
         $store->expects($this->once())
             ->method('query')
-            ->with($this->callback(fn ($query) => $query instanceof VectorQuery && $query->getVector() === $vector))
+            ->with($this->callback(static fn ($query) => $query instanceof VectorQuery && $query->getVector() === $vector))
             ->willReturn([$document1, $document2]);
 
         $similaritySearch = new SimilaritySearch($vectorizer, $store);
@@ -73,7 +73,7 @@ final class SimilaritySearchTest extends TestCase
         $store = $this->createMock(StoreInterface::class);
         $store->expects($this->once())
             ->method('query')
-            ->with($this->callback(fn ($query) => $query instanceof VectorQuery && $query->getVector() === $vector))
+            ->with($this->callback(static fn ($query) => $query instanceof VectorQuery && $query->getVector() === $vector))
             ->willReturn([]);
 
         $similaritySearch = new SimilaritySearch($vectorizer, $store);
@@ -104,7 +104,7 @@ final class SimilaritySearchTest extends TestCase
         $store = $this->createMock(StoreInterface::class);
         $store->expects($this->once())
             ->method('query')
-            ->with($this->callback(fn ($query) => $query instanceof VectorQuery && $query->getVector() === $vector))
+            ->with($this->callback(static fn ($query) => $query instanceof VectorQuery && $query->getVector() === $vector))
             ->willReturn([$document]);
 
         $similaritySearch = new SimilaritySearch($vectorizer, $store);

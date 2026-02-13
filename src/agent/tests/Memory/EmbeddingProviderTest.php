@@ -97,7 +97,7 @@ final class EmbeddingProviderTest extends TestCase
         $store = $this->createMock(StoreInterface::class);
         $store->expects($this->once())
             ->method('query')
-            ->with($this->callback(fn ($query) => $query instanceof VectorQuery && $query->getVector() === $vector))
+            ->with($this->callback(static fn ($query) => $query instanceof VectorQuery && $query->getVector() === $vector))
             ->willReturn([]);
 
         $embeddingProvider = new EmbeddingProvider($platform, new Model('text-embedding-3-small'), $store);
@@ -132,7 +132,7 @@ final class EmbeddingProviderTest extends TestCase
         })();
         $store->expects($this->once())
             ->method('query')
-            ->with($this->callback(fn ($query) => $query instanceof VectorQuery && $query->getVector() === $vector))
+            ->with($this->callback(static fn ($query) => $query instanceof VectorQuery && $query->getVector() === $vector))
             ->willReturn($generator);
 
         $embeddingProvider = new EmbeddingProvider($platform, new Model('text-embedding-3-small'), $store);

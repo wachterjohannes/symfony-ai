@@ -187,7 +187,7 @@ final class Store implements ManagedStoreInterface, StoreInterface
             $vectorDocuments = array_values(array_filter($vectorDocuments, $options['filter']));
         }
 
-        $filteredDocuments = array_filter($vectorDocuments, function (VectorDocument $doc) use ($query) {
+        $filteredDocuments = array_filter($vectorDocuments, static function (VectorDocument $doc) use ($query) {
             $text = $doc->getMetadata()->getText() ?? '';
 
             return str_contains(strtolower($text), strtolower($query->getText()));
