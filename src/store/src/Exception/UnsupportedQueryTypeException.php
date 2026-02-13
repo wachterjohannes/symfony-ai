@@ -11,7 +11,6 @@
 
 namespace Symfony\AI\Store\Exception;
 
-use Symfony\AI\Store\Query\QueryType;
 use Symfony\AI\Store\StoreInterface;
 
 /**
@@ -21,11 +20,11 @@ use Symfony\AI\Store\StoreInterface;
  */
 final class UnsupportedQueryTypeException extends \RuntimeException
 {
-    public function __construct(QueryType $type, StoreInterface $store)
+    public function __construct(string $queryClass, StoreInterface $store)
     {
         parent::__construct(\sprintf(
             'Query type "%s" is not supported by store "%s"',
-            $type->value,
+            $queryClass,
             $store::class
         ));
     }

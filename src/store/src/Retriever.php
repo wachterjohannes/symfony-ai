@@ -33,6 +33,8 @@ final class Retriever implements RetrieverInterface
     }
 
     /**
+     * @param array<string, mixed> $options
+     *
      * @return iterable<VectorDocument>
      */
     public function retrieve(string $query, array $options = []): iterable
@@ -41,7 +43,7 @@ final class Retriever implements RetrieverInterface
 
         $queryObject = $this->createQuery($query, $options);
 
-        $this->logger->debug('Searching store', ['query_type' => $queryObject->getType()->value]);
+        $this->logger->debug('Searching store', ['query_type' => $queryObject::class]);
 
         $documents = $this->store->query($queryObject, $options);
 
@@ -54,6 +56,9 @@ final class Retriever implements RetrieverInterface
         $this->logger->debug('Document retrieval completed', ['retrieved_count' => $count]);
     }
 
+    /**
+     * @param array<string, mixed> $options
+     */
     private function createQuery(string $query, array $options): QueryInterface
     {
         if (null === $this->vectorizer) {

@@ -19,6 +19,7 @@ use Symfony\AI\Store\Distance\DistanceStrategy;
 use Symfony\AI\Store\Document\Metadata;
 use Symfony\AI\Store\Document\VectorDocument;
 use Symfony\AI\Store\Exception\InvalidArgumentException;
+use Symfony\AI\Store\Query\VectorQuery;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\Uid\Uuid;
 
@@ -29,7 +30,7 @@ final class StoreTest extends TestCase
         $store = new Store(new ArrayAdapter());
         $store->setup();
 
-        $result = iterator_to_array($store->query(new Vector([0.0, 0.1, 0.6])));
+        $result = iterator_to_array($store->query(new VectorQuery(new Vector([0.0, 0.1, 0.6]))));
         $this->assertCount(0, $result);
     }
 
@@ -42,12 +43,12 @@ final class StoreTest extends TestCase
             new VectorDocument(Uuid::v4(), new Vector([0.3, 0.7, 0.1])),
         ]);
 
-        $result = iterator_to_array($store->query(new Vector([0.0, 0.1, 0.6])));
+        $result = iterator_to_array($store->query(new VectorQuery(new Vector([0.0, 0.1, 0.6]))));
         $this->assertCount(3, $result);
 
         $store->drop();
 
-        $result = iterator_to_array($store->query(new Vector([0.0, 0.1, 0.6])));
+        $result = iterator_to_array($store->query(new VectorQuery(new Vector([0.0, 0.1, 0.6]))));
         $this->assertCount(0, $result);
     }
 
@@ -60,7 +61,7 @@ final class StoreTest extends TestCase
             new VectorDocument(Uuid::v4(), new Vector([0.3, 0.7, 0.1])),
         ]);
 
-        $result = iterator_to_array($store->query(new Vector([0.0, 0.1, 0.6])));
+        $result = iterator_to_array($store->query(new VectorQuery(new Vector([0.0, 0.1, 0.6]))));
         $this->assertCount(3, $result);
         $this->assertSame([0.1, 0.1, 0.5], $result[0]->getVector()->getData());
 
@@ -70,7 +71,7 @@ final class StoreTest extends TestCase
             new VectorDocument(Uuid::v4(), new Vector([0.3, 0.7, 0.1])),
         ]);
 
-        $result = iterator_to_array($store->query(new Vector([0.0, 0.1, 0.6])));
+        $result = iterator_to_array($store->query(new VectorQuery(new Vector([0.0, 0.1, 0.6]))));
         $this->assertCount(6, $result);
         $this->assertSame([0.1, 0.1, 0.5], $result[0]->getVector()->getData());
     }
@@ -86,7 +87,7 @@ final class StoreTest extends TestCase
             new VectorDocument(Uuid::v4(), new Vector([0.0, 0.1, 0.6])),
         ]);
 
-        $result = iterator_to_array($store->query(new Vector([0.0, 0.1, 0.6])));
+        $result = iterator_to_array($store->query(new VectorQuery(new Vector([0.0, 0.1, 0.6]))));
         $this->assertCount(5, $result);
         $this->assertSame([0.0, 0.1, 0.6], $result[0]->getVector()->getData());
         $this->assertSame([0.1, 0.1, 0.5], $result[1]->getVector()->getData());
@@ -104,7 +105,7 @@ final class StoreTest extends TestCase
             new VectorDocument(Uuid::v4(), new Vector([0.3, 0.7, 0.1])),
         ]);
 
-        $this->assertCount(1, iterator_to_array($store->query(new Vector([0.0, 0.1, 0.6]), [
+        $this->assertCount(1, iterator_to_array($store->query(new VectorQuery(new Vector([0.0, 0.1, 0.6])), [
             'maxItems' => 1,
         ])));
     }
@@ -117,7 +118,7 @@ final class StoreTest extends TestCase
             new VectorDocument(Uuid::v4(), new Vector([1.0, 5.0, 7.0])),
         ]);
 
-        $result = iterator_to_array($store->query(new Vector([1.2, 2.3, 3.4])));
+        $result = iterator_to_array($store->query(new VectorQuery(new Vector([1.2, 2.3, 3.4]))));
 
         $this->assertCount(2, $result);
         $this->assertSame([1.0, 2.0, 3.0], $result[0]->getVector()->getData());
@@ -131,7 +132,7 @@ final class StoreTest extends TestCase
             new VectorDocument(Uuid::v4(), new Vector([1.0, 2.0, 3.0])),
         ]);
 
-        $result = iterator_to_array($store->query(new Vector([1.2, 2.3, 3.4])));
+        $result = iterator_to_array($store->query(new VectorQuery(new Vector([1.2, 2.3, 3.4]))));
 
         $this->assertCount(2, $result);
         $this->assertSame([1.0, 2.0, 3.0], $result[0]->getVector()->getData());
@@ -145,7 +146,7 @@ final class StoreTest extends TestCase
             new VectorDocument(Uuid::v4(), new Vector([1.0, 5.0, 7.0])),
         ]);
 
-        $result = iterator_to_array($store->query(new Vector([1.2, 2.3, 3.4])));
+        $result = iterator_to_array($store->query(new VectorQuery(new Vector([1.2, 2.3, 3.4]))));
 
         $this->assertCount(2, $result);
         $this->assertSame([1.0, 2.0, 3.0], $result[0]->getVector()->getData());
@@ -159,7 +160,7 @@ final class StoreTest extends TestCase
             new VectorDocument(Uuid::v4(), new Vector([1.0, 5.0, 7.0])),
         ]);
 
-        $result = iterator_to_array($store->query(new Vector([1.2, 2.3, 3.4])));
+        $result = iterator_to_array($store->query(new VectorQuery(new Vector([1.2, 2.3, 3.4]))));
 
         $this->assertCount(2, $result);
         $this->assertSame([1.0, 2.0, 3.0], $result[0]->getVector()->getData());
@@ -174,7 +175,7 @@ final class StoreTest extends TestCase
             new VectorDocument(Uuid::v4(), new Vector([0.3, 0.7, 0.1]), new Metadata(['category' => 'products', 'enabled' => false])),
         ]);
 
-        $result = iterator_to_array($store->query(new Vector([0.0, 0.1, 0.6]), [
+        $result = iterator_to_array($store->query(new VectorQuery(new Vector([0.0, 0.1, 0.6])), [
             'filter' => static fn (VectorDocument $doc) => 'products' === $doc->getMetadata()['category'],
         ]));
 
@@ -193,7 +194,7 @@ final class StoreTest extends TestCase
             new VectorDocument(Uuid::v4(), new Vector([0.0, 0.1, 0.6]), new Metadata(['category' => 'products'])),
         ]);
 
-        $result = iterator_to_array($store->query(new Vector([0.0, 0.1, 0.6]), [
+        $result = iterator_to_array($store->query(new VectorQuery(new Vector([0.0, 0.1, 0.6])), [
             'filter' => static fn (VectorDocument $doc) => 'products' === $doc->getMetadata()['category'],
             'maxItems' => 2,
         ]));
@@ -212,7 +213,7 @@ final class StoreTest extends TestCase
             new VectorDocument(Uuid::v4(), new Vector([0.3, 0.7, 0.1]), new Metadata(['price' => 50, 'stock' => 10])),
         ]);
 
-        $result = iterator_to_array($store->query(new Vector([0.0, 0.1, 0.6]), [
+        $result = iterator_to_array($store->query(new VectorQuery(new Vector([0.0, 0.1, 0.6])), [
             'filter' => static fn (VectorDocument $doc) => $doc->getMetadata()['price'] <= 150 && $doc->getMetadata()['stock'] > 0,
         ]));
 
@@ -228,7 +229,7 @@ final class StoreTest extends TestCase
             new VectorDocument(Uuid::v4(), new Vector([0.3, 0.7, 0.1]), new Metadata(['options' => ['size' => 'S', 'color' => 'red']])),
         ]);
 
-        $result = iterator_to_array($store->query(new Vector([0.0, 0.1, 0.6]), [
+        $result = iterator_to_array($store->query(new VectorQuery(new Vector([0.0, 0.1, 0.6])), [
             'filter' => static fn (VectorDocument $doc) => 'S' === $doc->getMetadata()['options']['size'],
         ]));
 
@@ -247,7 +248,7 @@ final class StoreTest extends TestCase
         ]);
 
         $allowedBrands = ['Nike', 'Adidas', 'Puma'];
-        $result = iterator_to_array($store->query(new Vector([0.0, 0.1, 0.6]), [
+        $result = iterator_to_array($store->query(new VectorQuery(new Vector([0.0, 0.1, 0.6])), [
             'filter' => static fn (VectorDocument $doc) => \in_array($doc->getMetadata()['brand'] ?? '', $allowedBrands, true),
         ]));
 
@@ -259,9 +260,9 @@ final class StoreTest extends TestCase
         $store = new Store(new ArrayAdapter());
         $store->setup();
 
-        $id1 = Uuid::v4()->toString();
-        $id2 = Uuid::v4()->toString();
-        $id3 = Uuid::v4()->toString();
+        $id1 = Uuid::v4();
+        $id2 = Uuid::v4();
+        $id3 = Uuid::v4();
 
         $store->add([
             new VectorDocument($id1, new Vector([0.1, 0.1, 0.5])),
@@ -269,18 +270,18 @@ final class StoreTest extends TestCase
             new VectorDocument($id3, new Vector([0.3, 0.7, 0.1])),
         ]);
 
-        $result = iterator_to_array($store->query(new Vector([0.0, 0.1, 0.6])));
+        $result = iterator_to_array($store->query(new VectorQuery(new Vector([0.0, 0.1, 0.6]))));
         $this->assertCount(3, $result);
 
-        $store->remove($id2);
+        $store->remove($id2->toRfc4122());
 
-        $result = iterator_to_array($store->query(new Vector([0.0, 0.1, 0.6])));
+        $result = iterator_to_array($store->query(new VectorQuery(new Vector([0.0, 0.1, 0.6]))));
         $this->assertCount(2, $result);
 
         $remainingIds = array_map(static fn (VectorDocument $doc) => $doc->getId(), $result);
-        $this->assertNotContains($id2, $remainingIds);
-        $this->assertContains($id1, $remainingIds);
-        $this->assertContains($id3, $remainingIds);
+        $this->assertNotContains($id2->toRfc4122(), $remainingIds);
+        $this->assertContains($id1->toRfc4122(), $remainingIds);
+        $this->assertContains($id3->toRfc4122(), $remainingIds);
     }
 
     public function testRemoveWithArrayOfIds()
@@ -288,10 +289,10 @@ final class StoreTest extends TestCase
         $store = new Store(new ArrayAdapter());
         $store->setup();
 
-        $id1 = Uuid::v4()->toString();
-        $id2 = Uuid::v4()->toString();
-        $id3 = Uuid::v4()->toString();
-        $id4 = Uuid::v4()->toString();
+        $id1 = Uuid::v4();
+        $id2 = Uuid::v4();
+        $id3 = Uuid::v4();
+        $id4 = Uuid::v4();
 
         $store->add([
             new VectorDocument($id1, new Vector([0.1, 0.1, 0.5])),
@@ -300,19 +301,19 @@ final class StoreTest extends TestCase
             new VectorDocument($id4, new Vector([0.0, 0.1, 0.6])),
         ]);
 
-        $result = iterator_to_array($store->query(new Vector([0.0, 0.1, 0.6])));
+        $result = iterator_to_array($store->query(new VectorQuery(new Vector([0.0, 0.1, 0.6]))));
         $this->assertCount(4, $result);
 
-        $store->remove([$id2, $id4]);
+        $store->remove([$id2->toRfc4122(), $id4->toRfc4122()]);
 
-        $result = iterator_to_array($store->query(new Vector([0.0, 0.1, 0.6])));
+        $result = iterator_to_array($store->query(new VectorQuery(new Vector([0.0, 0.1, 0.6]))));
         $this->assertCount(2, $result);
 
         $remainingIds = array_map(static fn (VectorDocument $doc) => $doc->getId(), $result);
-        $this->assertNotContains($id2, $remainingIds);
-        $this->assertNotContains($id4, $remainingIds);
-        $this->assertContains($id1, $remainingIds);
-        $this->assertContains($id3, $remainingIds);
+        $this->assertNotContains($id2->toRfc4122(), $remainingIds);
+        $this->assertNotContains($id4->toRfc4122(), $remainingIds);
+        $this->assertContains($id1->toRfc4122(), $remainingIds);
+        $this->assertContains($id3->toRfc4122(), $remainingIds);
     }
 
     public function testRemoveNonExistentId()
@@ -320,21 +321,21 @@ final class StoreTest extends TestCase
         $store = new Store(new ArrayAdapter());
         $store->setup();
 
-        $id1 = Uuid::v4()->toString();
-        $id2 = Uuid::v4()->toString();
-        $nonExistentId = Uuid::v4()->toString();
+        $id1 = Uuid::v4();
+        $id2 = Uuid::v4();
+        $nonExistentId = Uuid::v4();
 
         $store->add([
             new VectorDocument($id1, new Vector([0.1, 0.1, 0.5])),
             new VectorDocument($id2, new Vector([0.7, -0.3, 0.0])),
         ]);
 
-        $result = iterator_to_array($store->query(new Vector([0.0, 0.1, 0.6])));
+        $result = iterator_to_array($store->query(new VectorQuery(new Vector([0.0, 0.1, 0.6]))));
         $this->assertCount(2, $result);
 
-        $store->remove($nonExistentId);
+        $store->remove($nonExistentId->toRfc4122());
 
-        $result = iterator_to_array($store->query(new Vector([0.0, 0.1, 0.6])));
+        $result = iterator_to_array($store->query(new VectorQuery(new Vector([0.0, 0.1, 0.6]))));
         $this->assertCount(2, $result);
     }
 
@@ -343,9 +344,9 @@ final class StoreTest extends TestCase
         $store = new Store(new ArrayAdapter());
         $store->setup();
 
-        $id1 = Uuid::v4()->toString();
-        $id2 = Uuid::v4()->toString();
-        $id3 = Uuid::v4()->toString();
+        $id1 = Uuid::v4();
+        $id2 = Uuid::v4();
+        $id3 = Uuid::v4();
 
         $store->add([
             new VectorDocument($id1, new Vector([0.1, 0.1, 0.5])),
@@ -353,12 +354,12 @@ final class StoreTest extends TestCase
             new VectorDocument($id3, new Vector([0.3, 0.7, 0.1])),
         ]);
 
-        $result = iterator_to_array($store->query(new Vector([0.0, 0.1, 0.6])));
+        $result = iterator_to_array($store->query(new VectorQuery(new Vector([0.0, 0.1, 0.6]))));
         $this->assertCount(3, $result);
 
-        $store->remove([$id1, $id2, $id3]);
+        $store->remove([$id1->toRfc4122(), $id2->toRfc4122(), $id3->toRfc4122()]);
 
-        $result = iterator_to_array($store->query(new Vector([0.0, 0.1, 0.6])));
+        $result = iterator_to_array($store->query(new VectorQuery(new Vector([0.0, 0.1, 0.6]))));
         $this->assertCount(0, $result);
     }
 
@@ -367,7 +368,7 @@ final class StoreTest extends TestCase
         $store = new Store(new ArrayAdapter());
         $store->setup();
 
-        $id1 = Uuid::v4()->toString();
+        $id1 = Uuid::v4();
 
         $store->add([
             new VectorDocument($id1, new Vector([0.1, 0.1, 0.5])),
@@ -376,6 +377,8 @@ final class StoreTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('No supported options.');
 
-        $store->remove($id1, ['unsupported' => true]);
+        $store->remove($id1->toRfc4122(), ['unsupported' => true]);
     }
+    // Note: Cache store supports VectorQuery, TextQuery, and HybridQuery
+    // Comprehensive tests for all query types are in tests/InMemory/StoreTest.php
 }

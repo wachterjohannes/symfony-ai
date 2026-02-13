@@ -11,8 +11,6 @@
 
 namespace Symfony\AI\Store\Query;
 
-use Symfony\AI\Store\Query\Filter\FilterInterface;
-
 /**
  * Base interface for all query types in the Store component.
  *
@@ -23,7 +21,4 @@ use Symfony\AI\Store\Query\Filter\FilterInterface;
  */
 interface QueryInterface
 {
-    public function getType(): QueryType;
-
-   public function getFilter(): ?FilterInterface;
 }

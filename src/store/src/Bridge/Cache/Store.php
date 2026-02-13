@@ -19,7 +19,6 @@ use Symfony\AI\Store\Document\VectorDocument;
 use Symfony\AI\Store\Exception\InvalidArgumentException;
 use Symfony\AI\Store\Exception\UnsupportedQueryTypeException;
 use Symfony\AI\Store\ManagedStoreInterface;
-use Symfony\AI\Store\Query\Filter\EqualFilter;
 use Symfony\AI\Store\Query\HybridQuery;
 use Symfony\AI\Store\Query\QueryInterface;
 use Symfony\AI\Store\Query\TextQuery;
@@ -124,7 +123,7 @@ final class Store implements ManagedStoreInterface, StoreInterface
             $query instanceof VectorQuery => $this->queryVector($query, $options),
             $query instanceof TextQuery => $this->queryText($query, $options),
             $query instanceof HybridQuery => $this->queryHybrid($query, $options),
-            default => throw new UnsupportedQueryTypeException($query->getType(), $this),
+            default => throw new UnsupportedQueryTypeException($query::class, $this),
         };
     }
 
@@ -138,6 +137,8 @@ final class Store implements ManagedStoreInterface, StoreInterface
      *     maxItems?: positive-int,
      *     filter?: callable(VectorDocument): bool,
      * } $options
+     *
+     * @return iterable<VectorDocument>
      */
     private function queryVector(VectorQuery $query, array $options): iterable
     {
@@ -153,8 +154,6 @@ final class Store implements ManagedStoreInterface, StoreInterface
             metadata: new Metadata($document['metadata']),
         ), $documents);
 
-        $vectorDocuments = $this->applyFilter($vectorDocuments, $query->getFilter());
-
         if (isset($options['filter'])) {
             $vectorDocuments = array_values(array_filter($vectorDocuments, $options['filter']));
         }
@@ -167,6 +166,8 @@ final class Store implements ManagedStoreInterface, StoreInterface
      *     maxItems?: positive-int,
      *     filter?: callable(VectorDocument): bool,
      * } $options
+     *
+     * @return iterable<VectorDocument>
      */
     private function queryText(TextQuery $query, array $options): iterable
     {
@@ -187,12 +188,10 @@ final class Store implements ManagedStoreInterface, StoreInterface
         }
 
         $filteredDocuments = array_filter($vectorDocuments, function (VectorDocument $doc) use ($query) {
-            $text = $doc->metadata->getText() ?? '';
+            $text = $doc->getMetadata()->getText() ?? '';
 
             return str_contains(strtolower($text), strtolower($query->getText()));
         });
-
-        $filteredDocuments = $this->applyFilter($filteredDocuments, $query->getFilter());
 
         $maxItems = $options['maxItems'] ?? null;
         $count = 0;
@@ -212,16 +211,18 @@ final class Store implements ManagedStoreInterface, StoreInterface
      *     maxItems?: positive-int,
      *     filter?: callable(VectorDocument): bool,
      * } $options
+     *
+     * @return iterable<VectorDocument>
      */
     private function queryHybrid(HybridQuery $query, array $options): iterable
     {
         $vectorResults = iterator_to_array($this->queryVector(
-            new VectorQuery($query->getVector(), $query->getFilter()),
+            new VectorQuery($query->getVector()),
             $options
         ));
 
         $textResults = iterator_to_array($this->queryText(
-            new TextQuery($query->getText(), $query->getFilter()),
+            new TextQuery($query->getText()),
             $options
         ));
 
@@ -229,20 +230,20 @@ final class Store implements ManagedStoreInterface, StoreInterface
         $seenIds = [];
 
         foreach ($vectorResults as $doc) {
-            $id = $doc->id->toRfc4122();
+            $id = (string) $doc->getId();
             if (!isset($seenIds[$id])) {
                 $mergedResults[] = new VectorDocument(
-                    id: $doc->id,
-                    vector: $doc->vector,
-                    metadata: $doc->metadata,
-                    score: null !== $doc->score ? $doc->score * $query->getSemanticRatio() : null,
+                    id: $doc->getId(),
+                    vector: $doc->getVector(),
+                    metadata: $doc->getMetadata(),
+                    score: null !== $doc->getScore() ? $doc->getScore() * $query->getSemanticRatio() : null,
                 );
                 $seenIds[$id] = true;
             }
         }
 
         foreach ($textResults as $doc) {
-            $id = $doc->id->toRfc4122();
+            $id = (string) $doc->getId();
             if (!isset($seenIds[$id])) {
                 $mergedResults[] = $doc;
                 $seenIds[$id] = true;
@@ -264,23 +265,5 @@ final class Store implements ManagedStoreInterface, StoreInterface
             yield $document;
             ++$count;
         }
-    }
-
-    /**
-     * @param VectorDocument[] $documents
-     *
-     * @return VectorDocument[]
-     */
-    private function applyFilter(array $documents, $filter): array
-    {
-        if (!$filter instanceof EqualFilter) {
-            return $documents;
-        }
-
-        return array_values(array_filter($documents, function (VectorDocument $doc) use ($filter) {
-            $metadata = $doc->metadata->getArrayCopy();
-
-            return isset($metadata[$filter->getField()]) && $metadata[$filter->getField()] === $filter->getValue();
-        }));
     }
 }

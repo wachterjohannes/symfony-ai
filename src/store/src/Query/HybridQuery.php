@@ -12,7 +12,7 @@
 namespace Symfony\AI\Store\Query;
 
 use Symfony\AI\Platform\Vector\Vector;
-use Symfony\AI\Store\Query\Filter\FilterInterface;
+use Symfony\AI\Store\Exception\InvalidArgumentException;
 
 /**
  * Combined vector + text search query for hybrid retrieval.
@@ -28,10 +28,9 @@ final class HybridQuery implements QueryInterface
         private readonly Vector $vector,
         private readonly string $text,
         private readonly float $semanticRatio = 0.5,
-        private readonly ?FilterInterface $filter = null,
     ) {
         if ($semanticRatio < 0.0 || $semanticRatio > 1.0) {
-            throw new \InvalidArgumentException(\sprintf('Semantic ratio must be between 0.0 and 1.0, got %.2f', $semanticRatio));
+            throw new InvalidArgumentException(\sprintf('Semantic ratio must be between 0.0 and 1.0, got %.2f', $semanticRatio));
         }
     }
 
@@ -53,15 +52,5 @@ final class HybridQuery implements QueryInterface
     public function getKeywordRatio(): float
     {
         return 1.0 - $this->semanticRatio;
-    }
-
-    public function getFilter(): ?FilterInterface
-    {
-        return $this->filter;
-    }
-
-    public function getType(): QueryType
-    {
-        return QueryType::Hybrid;
     }
 }

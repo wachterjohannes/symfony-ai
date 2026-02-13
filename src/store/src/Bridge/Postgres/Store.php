@@ -19,7 +19,6 @@ use Symfony\AI\Store\Document\VectorDocument;
 use Symfony\AI\Store\Exception\InvalidArgumentException;
 use Symfony\AI\Store\Exception\UnsupportedQueryTypeException;
 use Symfony\AI\Store\ManagedStoreInterface;
-use Symfony\AI\Store\Query\Filter\EqualFilter;
 use Symfony\AI\Store\Query\HybridQuery;
 use Symfony\AI\Store\Query\QueryInterface;
 use Symfony\AI\Store\Query\TextQuery;
@@ -165,19 +164,43 @@ final class Store implements ManagedStoreInterface, StoreInterface
         ], true);
     }
 
+    /**
+     * @param array{limit?: positive-int, maxScore?: float} $options
+     */
     public function query(QueryInterface $query, array $options = []): iterable
     {
         return match (true) {
             $query instanceof VectorQuery => $this->queryVector($query, $options),
             $query instanceof TextQuery => $this->queryText($query, $options),
             $query instanceof HybridQuery => $this->queryHybrid($query, $options),
-            default => throw new UnsupportedQueryTypeException($query->getType(), $this),
+            default => throw new UnsupportedQueryTypeException($query::class, $this),
         };
     }
 
+    /**
+     * @param array{limit?: positive-int, maxScore?: float, where?: string, params?: array<string, mixed>} $options
+     *
+     * @return iterable<VectorDocument>
+     */
     private function queryVector(VectorQuery $query, array $options): iterable
     {
-        $where = $this->buildWhereClause($query->getFilter(), $options);
+        $whereClauses = [];
+        $params = ['embedding' => $this->toPgvector($query->getVector())];
+
+        if (isset($options['maxScore'])) {
+            $whereClauses[] = \sprintf('(%s %s :embedding) <= :maxScore', $this->vectorFieldName, $this->distance->getComparisonSign());
+            $params['maxScore'] = $options['maxScore'];
+        }
+
+        if (isset($options['where'])) {
+            $whereClauses[] = $options['where'];
+        }
+
+        if (isset($options['params'])) {
+            $params = array_merge($params, $options['params']);
+        }
+
+        $where = '' !== $whereClauses ? 'WHERE '.\implode(' AND ', $whereClauses) : '';
 
         $sql = \sprintf(<<<SQL
             SELECT id, %s AS embedding, metadata, (%s %s :embedding) AS score
@@ -195,7 +218,6 @@ final class Store implements ManagedStoreInterface, StoreInterface
         );
 
         $statement = $this->connection->prepare($sql);
-        $params = $this->buildParams($query->getFilter(), ['embedding' => $this->toPgvector($query->getVector())], $options);
 
         foreach ($params as $key => $value) {
             $statement->bindValue(':'.$key, $value);
@@ -213,31 +235,28 @@ final class Store implements ManagedStoreInterface, StoreInterface
         }
     }
 
+    /**
+     * @param array{limit?: positive-int} $options
+     *
+     * @return iterable<VectorDocument>
+     */
     private function queryText(TextQuery $query, array $options): iterable
     {
-        $where = $this->buildWhereClause($query->getFilter(), $options);
-
         $sql = \sprintf(<<<SQL
             SELECT id, %s AS embedding, metadata,
                    ts_rank(to_tsvector('english', metadata->>'text'), plainto_tsquery('english', :search_text)) AS score
             FROM %s
-            %s
-            AND to_tsvector('english', metadata->>'text') @@ plainto_tsquery('english', :search_text)
+            WHERE to_tsvector('english', metadata->>'text') @@ plainto_tsquery('english', :search_text)
             ORDER BY score DESC
             LIMIT %d
             SQL,
             $this->vectorFieldName,
             $this->tableName,
-            $where,
             $options['limit'] ?? 5,
         );
 
         $statement = $this->connection->prepare($sql);
-        $params = $this->buildParams($query->getFilter(), ['search_text' => $query->getText()], $options);
-
-        foreach ($params as $key => $value) {
-            $statement->bindValue(':'.$key, $value);
-        }
+        $statement->bindValue(':search_text', $query->getText());
 
         $statement->execute();
 
@@ -251,9 +270,25 @@ final class Store implements ManagedStoreInterface, StoreInterface
         }
     }
 
+    /**
+     * @param array{limit?: positive-int, maxScore?: float} $options
+     *
+     * @return iterable<VectorDocument>
+     */
     private function queryHybrid(HybridQuery $query, array $options): iterable
     {
-        $where = $this->buildWhereClause($query->getFilter(), $options);
+        $where = 'WHERE to_tsvector(\'english\', metadata->>\'text\') @@ plainto_tsquery(\'english\', :search_text)';
+        $params = [
+            'embedding' => $this->toPgvector($query->getVector()),
+            'search_text' => $query->getText(),
+            'semantic_ratio' => $query->getSemanticRatio(),
+            'keyword_ratio' => $query->getKeywordRatio(),
+        ];
+
+        if (isset($options['maxScore'])) {
+            $where .= ' AND ((:semantic_ratio * (1 - ('.$this->vectorFieldName.' '.$this->distance->getComparisonSign().' :embedding))) + (:keyword_ratio * ts_rank(to_tsvector(\'english\', metadata->>\'text\'), plainto_tsquery(\'english\', :search_text)))) >= :maxScore';
+            $params['maxScore'] = $options['maxScore'];
+        }
 
         $sql = \sprintf(<<<SQL
             SELECT id, %s AS embedding, metadata,
@@ -261,7 +296,6 @@ final class Store implements ManagedStoreInterface, StoreInterface
                     (:keyword_ratio * ts_rank(to_tsvector('english', metadata->>'text'), plainto_tsquery('english', :search_text)))) AS score
             FROM %s
             %s
-            AND to_tsvector('english', metadata->>'text') @@ plainto_tsquery('english', :search_text)
             ORDER BY score DESC
             LIMIT %d
             SQL,
@@ -274,12 +308,6 @@ final class Store implements ManagedStoreInterface, StoreInterface
         );
 
         $statement = $this->connection->prepare($sql);
-        $params = $this->buildParams($query->getFilter(), [
-            'embedding' => $this->toPgvector($query->getVector()),
-            'search_text' => $query->getText(),
-            'semantic_ratio' => $query->getSemanticRatio(),
-            'keyword_ratio' => $query->getKeywordRatio(),
-        ], $options);
 
         foreach ($params as $key => $value) {
             $statement->bindValue(':'.$key, $value);
@@ -295,36 +323,6 @@ final class Store implements ManagedStoreInterface, StoreInterface
                 score: $result['score'],
             );
         }
-    }
-
-    private function buildWhereClause($filter, array $options): string
-    {
-        $conditions = [];
-
-        if ($filter instanceof EqualFilter) {
-            $conditions[] = \sprintf("metadata->>'%s' = :filter_%s", $filter->getField(), $filter->getField());
-        }
-
-        if (isset($options['maxScore'])) {
-            $conditions[] = \sprintf('(%s %s :embedding) <= :maxScore', $this->vectorFieldName, $this->distance->getComparisonSign());
-        }
-
-        return [] === $conditions ? '' : 'WHERE '.implode(' AND ', $conditions);
-    }
-
-    private function buildParams($filter, array $baseParams, array $options): array
-    {
-        $params = $baseParams;
-
-        if ($filter instanceof EqualFilter) {
-            $params['filter_'.$filter->getField()] = $filter->getValue();
-        }
-
-        if (isset($options['maxScore'])) {
-            $params['maxScore'] = $options['maxScore'];
-        }
-
-        return $params;
     }
 
     private function toPgvector(VectorInterface $vector): string

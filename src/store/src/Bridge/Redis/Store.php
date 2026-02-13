@@ -18,7 +18,6 @@ use Symfony\AI\Store\Document\VectorDocument;
 use Symfony\AI\Store\Exception\RuntimeException;
 use Symfony\AI\Store\Exception\UnsupportedQueryTypeException;
 use Symfony\AI\Store\ManagedStoreInterface;
-use Symfony\AI\Store\Query\Filter\EqualFilter;
 use Symfony\AI\Store\Query\QueryInterface;
 use Symfony\AI\Store\Query\VectorQuery;
 use Symfony\AI\Store\StoreInterface;
@@ -145,12 +144,12 @@ class Store implements ManagedStoreInterface, StoreInterface
     public function query(QueryInterface $query, array $options = []): iterable
     {
         if (!$query instanceof VectorQuery) {
-            throw new UnsupportedQueryTypeException($query->getType(), $this);
+            throw new UnsupportedQueryTypeException($query::class, $this);
         }
 
         $limit = $options['limit'] ?? 5;
         $maxScore = $options['maxScore'] ?? null;
-        $whereFilter = $this->buildWhereFilter($query->getFilter(), $options);
+        $whereFilter = $options['where'] ?? '*';
 
         $queryString = "({$whereFilter}) => [KNN {$limit} @embedding \$query_vector AS vector_score]";
 
@@ -222,14 +221,5 @@ class Store implements ManagedStoreInterface, StoreInterface
         }
 
         return $bytes;
-    }
-
-    private function buildWhereFilter($queryFilter, array $options): string
-    {
-        if (!$queryFilter instanceof EqualFilter) {
-            return '*';
-        }
-
-        return \sprintf('@%s:{%s}', $queryFilter->getField(), $queryFilter->getValue());
     }
 }

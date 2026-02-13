@@ -23,6 +23,7 @@ use Symfony\AI\Store\Bridge\Pinecone\Store;
 use Symfony\AI\Store\Document\Metadata;
 use Symfony\AI\Store\Document\VectorDocument;
 use Symfony\AI\Store\Exception\InvalidArgumentException;
+use Symfony\AI\Store\Query\VectorQuery;
 use Symfony\Component\Uid\Uuid;
 
 final class StoreTest extends TestCase
@@ -260,7 +261,7 @@ final class StoreTest extends TestCase
             )
             ->willReturn($response);
 
-        $results = iterator_to_array(self::createStore($client)->query(new Vector([0.1, 0.2, 0.3])));
+        $results = iterator_to_array(self::createStore($client)->query(new VectorQuery(new Vector([0.1, 0.2, 0.3]))));
 
         $this->assertCount(2, $results);
         $this->assertInstanceOf(VectorDocument::class, $results[0]);
@@ -303,7 +304,7 @@ final class StoreTest extends TestCase
             )
             ->willReturn($response);
 
-        $results = iterator_to_array(self::createStore($client, namespace: 'test-namespace', filter: ['category' => 'test'], topK: 5)->query(new Vector([0.1, 0.2, 0.3])));
+        $results = iterator_to_array(self::createStore($client, namespace: 'test-namespace', filter: ['category' => 'test'], topK: 5)->query(new VectorQuery(new Vector([0.1, 0.2, 0.3]))));
 
         $this->assertCount(0, $results);
     }
@@ -338,7 +339,7 @@ final class StoreTest extends TestCase
             )
             ->willReturn($response);
 
-        $results = iterator_to_array(self::createStore($client)->query(new Vector([0.1, 0.2, 0.3]), [
+        $results = iterator_to_array(self::createStore($client)->query(new VectorQuery(new Vector([0.1, 0.2, 0.3])), [
             'namespace' => 'custom-namespace',
             'filter' => ['type' => 'document'],
             'topK' => 10,
@@ -370,7 +371,7 @@ final class StoreTest extends TestCase
             ->method('query')
             ->willReturn($response);
 
-        $results = iterator_to_array(self::createStore($client)->query(new Vector([0.1, 0.2, 0.3])));
+        $results = iterator_to_array(self::createStore($client)->query(new VectorQuery(new Vector([0.1, 0.2, 0.3]))));
 
         $this->assertCount(0, $results);
     }
@@ -431,6 +432,13 @@ final class StoreTest extends TestCase
             ->method('delete');
 
         self::createStore($client, indexName: 'my-index')->drop();
+    }
+
+    public function testStoreSupportsVectorQuery()
+    {
+        $client = $this->createMock(Client::class);
+        $store = new Store($client, 'test-index');
+        $this->assertTrue($store->supports(VectorQuery::class));
     }
 
     /**

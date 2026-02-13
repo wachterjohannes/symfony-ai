@@ -12,14 +12,10 @@
 namespace Symfony\AI\Store\Bridge\ChromaDb;
 
 use Codewithkyrian\ChromaDB\Client;
-use Codewithkyrian\ChromaDB\Exceptions\ChromaException;
 use Symfony\AI\Platform\Vector\Vector;
 use Symfony\AI\Store\Document\Metadata;
 use Symfony\AI\Store\Document\VectorDocument;
-use Symfony\AI\Store\Exception\RuntimeException;
 use Symfony\AI\Store\Exception\UnsupportedQueryTypeException;
-use Symfony\AI\Store\ManagedStoreInterface;
-use Symfony\AI\Store\Query\Filter\EqualFilter;
 use Symfony\AI\Store\Query\QueryInterface;
 use Symfony\AI\Store\Query\TextQuery;
 use Symfony\AI\Store\Query\VectorQuery;
@@ -28,30 +24,12 @@ use Symfony\AI\Store\StoreInterface;
 /**
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
-final class Store implements ManagedStoreInterface, StoreInterface
+final class Store implements StoreInterface
 {
     public function __construct(
         private readonly Client $client,
         private readonly string $collectionName,
     ) {
-    }
-
-    public function setup(array $options = []): void
-    {
-        try {
-            $this->client->createCollection($this->collectionName);
-        } catch (ChromaException $e) {
-            throw new RuntimeException(\sprintf('Could not create collection "%s".', $this->collectionName), previous: $e);
-        }
-    }
-
-    public function drop(array $options = []): void
-    {
-        try {
-            $this->client->deleteCollection($this->collectionName);
-        } catch (ChromaException $e) {
-            throw new RuntimeException(\sprintf('Could not delete collection "%s".', $this->collectionName), previous: $e);
-        }
     }
 
     public function add(VectorDocument|array $documents): void
@@ -102,7 +80,7 @@ final class Store implements ManagedStoreInterface, StoreInterface
     }
 
     /**
-     * @param array{where?: array<string, string>, whereDocument?: array<string, mixed>, include?: array<string>} $options
+     * @param array{where?: array<string, string>, whereDocument?: array<string, mixed>, include?: array<string>, limit?: positive-int} $options
      */
     public function query(QueryInterface $query, array $options = []): iterable
     {
@@ -149,7 +127,7 @@ final class Store implements ManagedStoreInterface, StoreInterface
 
         $collection = $this->client->getOrCreateCollection($this->collectionName);
         $queryResponse = $collection->query(
-            queryTexts: $query->getTexts(),
+            queryTexts: [$query->getText()],
             nResults: $options['limit'] ?? 4,
             where: $options['where'] ?? null,
             whereDocument: $options['whereDocument'] ?? null,

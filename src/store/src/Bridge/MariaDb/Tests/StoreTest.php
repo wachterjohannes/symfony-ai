@@ -15,6 +15,7 @@ use PHPUnit\Framework\TestCase;
 use Symfony\AI\Platform\Vector\Vector;
 use Symfony\AI\Store\Bridge\MariaDb\Store;
 use Symfony\AI\Store\Document\VectorDocument;
+use Symfony\AI\Store\Query\VectorQuery;
 use Symfony\Component\Uid\Uuid;
 
 final class StoreTest extends TestCase
@@ -60,7 +61,7 @@ final class StoreTest extends TestCase
                 ],
             ]);
 
-        $results = iterator_to_array($store->query(new Vector($vectorData), ['maxScore' => $maxScore]));
+        $results = iterator_to_array($store->query(new VectorQuery(new Vector($vectorData)), ['maxScore' => $maxScore]));
 
         $this->assertCount(1, $results);
         $this->assertInstanceOf(VectorDocument::class, $results[0]);
@@ -108,7 +109,7 @@ final class StoreTest extends TestCase
                 ],
             ]);
 
-        $results = iterator_to_array($store->query(new Vector($vectorData)));
+        $results = iterator_to_array($store->query(new VectorQuery(new Vector($vectorData))));
 
         $this->assertCount(1, $results);
         $this->assertInstanceOf(VectorDocument::class, $results[0]);
@@ -147,7 +148,7 @@ final class StoreTest extends TestCase
             ->with(\PDO::FETCH_ASSOC)
             ->willReturn([]);
 
-        $results = iterator_to_array($store->query(new Vector($vectorData), ['limit' => 10]));
+        $results = iterator_to_array($store->query(new VectorQuery(new Vector($vectorData)), ['limit' => 10]));
 
         $this->assertCount(0, $results);
     }
@@ -185,7 +186,7 @@ final class StoreTest extends TestCase
             ->with(\PDO::FETCH_ASSOC)
             ->willReturn([]);
 
-        $results = iterator_to_array($store->query(new Vector([0.1, 0.2, 0.3]), ['where' => 'metadata->>\'category\' = \'products\'']));
+        $results = iterator_to_array($store->query(new VectorQuery(new Vector([0.1, 0.2, 0.3])), ['where' => 'metadata->>\'category\' = \'products\'']));
 
         $this->assertCount(0, $results);
     }
@@ -224,7 +225,7 @@ final class StoreTest extends TestCase
             ->with(\PDO::FETCH_ASSOC)
             ->willReturn([]);
 
-        $results = iterator_to_array($store->query(new Vector([0.1, 0.2, 0.3]), [
+        $results = iterator_to_array($store->query(new VectorQuery(new Vector([0.1, 0.2, 0.3])), [
             'maxScore' => 0.5,
             'where' => 'metadata->>\'active\' = \'true\'',
         ]));
@@ -275,7 +276,7 @@ final class StoreTest extends TestCase
                 ],
             ]);
 
-        $results = iterator_to_array($store->query(new Vector([0.1, 0.2, 0.3]), [
+        $results = iterator_to_array($store->query(new VectorQuery(new Vector([0.1, 0.2, 0.3])), [
             'where' => 'metadata->>\'crawlId\' = :crawlId AND id != :currentId',
             'params' => [
                 'crawlId' => $crawlId,
@@ -369,6 +370,13 @@ final class StoreTest extends TestCase
             ->method('prepare');
 
         $store->remove([]);
+    }
+
+    public function testStoreSupportsVectorQuery()
+    {
+        $connection = $this->createMock(\PDO::class);
+        $store = new Store($connection, 'test_vectors', 'vector_index', 'embedding');
+        $this->assertTrue($store->supports(VectorQuery::class));
     }
 
     private function normalizeQuery(string $query): string

@@ -15,8 +15,11 @@ use Symfony\AI\Platform\Vector\Vector;
 use Symfony\AI\Store\Document\Metadata;
 use Symfony\AI\Store\Document\VectorDocument;
 use Symfony\AI\Store\Exception\InvalidArgumentException;
+use Symfony\AI\Store\Exception\LogicException;
 use Symfony\AI\Store\Exception\RuntimeException;
-use Symfony\AI\Store\Exception\UnsupportedFeatureException;
+use Symfony\AI\Store\Exception\UnsupportedQueryTypeException;
+use Symfony\AI\Store\Query\QueryInterface;
+use Symfony\AI\Store\Query\VectorQuery;
 use Symfony\AI\Store\StoreInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
@@ -95,18 +98,21 @@ final class Store implements StoreInterface
 
     public function remove(string|array $ids, array $options = []): void
     {
-        throw new UnsupportedFeatureException('Method not implemented yet.');
+        throw new LogicException('Method not implemented yet.');
     }
 
-    /**
-     * @param array{
-     *      max_items?: int,
-     *      limit?: int,
-     *      min_score?: float
-     *  } $options
-     */
-    public function query(Vector $vector, array $options = []): iterable
+    public function supports(string $queryClass): bool
     {
+        return VectorQuery::class === $queryClass;
+    }
+
+    public function query(QueryInterface $query, array $options = []): iterable
+    {
+        if (!$query instanceof VectorQuery) {
+            throw new UnsupportedQueryTypeException($query::class, $this);
+        }
+
+        $vector = $query->getVector();
         if (\count($vector->getData()) !== $this->vectorDimension) {
             throw new InvalidArgumentException("Vector dimension mismatch: expected {$this->vectorDimension}.");
         }

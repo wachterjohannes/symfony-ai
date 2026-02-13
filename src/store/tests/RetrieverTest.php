@@ -49,7 +49,7 @@ final class RetrieverTest extends TestCase
             'text-embedding-3-small'
         );
 
-        $retriever = new Retriever($vectorizer, $store);
+        $retriever = new Retriever($store, $vectorizer);
         $results = iterator_to_array($retriever->retrieve('test query'));
 
         $this->assertCount(2, $results);
@@ -69,7 +69,7 @@ final class RetrieverTest extends TestCase
             'text-embedding-3-small'
         );
 
-        $retriever = new Retriever($vectorizer, $store);
+        $retriever = new Retriever($store, $vectorizer);
         $results = iterator_to_array($retriever->retrieve('test query'));
 
         $this->assertCount(0, $results);
@@ -92,7 +92,7 @@ final class RetrieverTest extends TestCase
             'text-embedding-3-small'
         );
 
-        $retriever = new Retriever($vectorizer, $store);
+        $retriever = new Retriever($store, $vectorizer);
         $results = iterator_to_array($retriever->retrieve('test query', ['maxItems' => 10]));
 
         $this->assertCount(1, $results);

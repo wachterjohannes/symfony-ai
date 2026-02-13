@@ -18,7 +18,6 @@ use Symfony\AI\Store\Document\VectorDocument;
 use Symfony\AI\Store\Exception\InvalidArgumentException;
 use Symfony\AI\Store\Exception\UnsupportedQueryTypeException;
 use Symfony\AI\Store\ManagedStoreInterface;
-use Symfony\AI\Store\Query\Filter\EqualFilter;
 use Symfony\AI\Store\Query\QueryInterface;
 use Symfony\AI\Store\Query\VectorQuery;
 use Symfony\AI\Store\StoreInterface;
@@ -116,9 +115,8 @@ final class Store implements ManagedStoreInterface, StoreInterface
             'with_vector' => true,
         ];
 
-        $filter = $this->buildFilter($query->getFilter(), $options);
-        if (null !== $filter) {
-            $payload['filter'] = $filter;
+        if (isset($options['filter'])) {
+            $payload['filter'] = $options['filter'];
         }
 
         if (\array_key_exists('limit', $options)) {
@@ -139,22 +137,6 @@ final class Store implements ManagedStoreInterface, StoreInterface
     public function drop(array $options = []): void
     {
         $this->request('DELETE', \sprintf('collections/%s', $this->collectionName));
-    }
-
-    private function buildFilter($queryFilter, array $options): ?array
-    {
-        if (!$queryFilter instanceof EqualFilter) {
-            return null;
-        }
-
-        return [
-            'must' => [
-                [
-                    'key' => $queryFilter->getField(),
-                    'match' => ['value' => $queryFilter->getValue()],
-                ],
-            ],
-        ];
     }
 
     /**
