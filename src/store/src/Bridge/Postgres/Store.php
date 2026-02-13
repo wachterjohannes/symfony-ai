@@ -193,7 +193,8 @@ final class Store implements ManagedStoreInterface, StoreInterface
         }
 
         if (isset($options['where'])) {
-            $whereClauses[] = '('.$options['where'].')';
+            // Only wrap in parentheses if combining with other conditions
+            $whereClauses[] = [] !== $whereClauses ? '('.$options['where'].')' : $options['where'];
         }
 
         if (isset($options['params'])) {
