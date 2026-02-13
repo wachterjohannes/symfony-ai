@@ -147,6 +147,14 @@ final class Store implements ManagedStoreInterface, StoreInterface
         return VectorQuery::class === $queryClass;
     }
 
+    /**
+     * @param array{
+     *     limit?: positive-int,
+     *     numCandidates?: positive-int,
+     *     filter?: array<mixed>,
+     *     minScore?: float,
+     * } $options
+     */
     public function query(QueryInterface $query, array $options = []): iterable
     {
         if (!$query instanceof VectorQuery) {

@@ -857,6 +857,27 @@ final class StoreTest extends TestCase
         $this->assertCount(0, $results);
     }
 
+    public function testStoreSupportsVectorQuery()
+    {
+        $pdo = $this->createMock(\PDO::class);
+        $store = new Store($pdo, 'test_table');
+        $this->assertTrue($store->supports(VectorQuery::class));
+    }
+
+    public function testStoreSupportsTextQuery()
+    {
+        $pdo = $this->createMock(\PDO::class);
+        $store = new Store($pdo, 'test_table');
+        $this->assertTrue($store->supports(TextQuery::class));
+    }
+
+    public function testStoreSupportsHybridQuery()
+    {
+        $pdo = $this->createMock(\PDO::class);
+        $store = new Store($pdo, 'test_table');
+        $this->assertTrue($store->supports(HybridQuery::class));
+    }
+
     private function normalizeQuery(string $query): string
     {
         return trim(preg_replace('/\s+/', ' ', $query));

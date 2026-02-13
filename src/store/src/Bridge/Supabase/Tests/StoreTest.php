@@ -17,6 +17,8 @@ use Symfony\AI\Store\Bridge\Supabase\Store as SupabaseStore;
 use Symfony\AI\Store\Document\Metadata;
 use Symfony\AI\Store\Document\VectorDocument;
 use Symfony\AI\Store\Exception\RuntimeException;
+use Symfony\AI\Store\Query\HybridQuery;
+use Symfony\AI\Store\Query\TextQuery;
 use Symfony\AI\Store\Query\VectorQuery;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\JsonMockResponse;
@@ -223,6 +225,18 @@ class StoreTest extends TestCase
     {
         $store = $this->createStore(new MockHttpClient());
         $this->assertTrue($store->supports(VectorQuery::class));
+    }
+
+    public function testStoreDoesNotSupportTextQuery()
+    {
+        $store = $this->createStore(new MockHttpClient());
+        $this->assertFalse($store->supports(TextQuery::class));
+    }
+
+    public function testStoreDoesNotSupportHybridQuery()
+    {
+        $store = $this->createStore(new MockHttpClient());
+        $this->assertFalse($store->supports(HybridQuery::class));
     }
 
     private function createStore(MockHttpClient $httpClient, ?int $vectorDimension = 2): SupabaseStore

@@ -19,6 +19,8 @@ use Symfony\AI\Store\Distance\DistanceStrategy;
 use Symfony\AI\Store\Document\Metadata;
 use Symfony\AI\Store\Document\VectorDocument;
 use Symfony\AI\Store\Exception\InvalidArgumentException;
+use Symfony\AI\Store\Query\HybridQuery;
+use Symfony\AI\Store\Query\TextQuery;
 use Symfony\AI\Store\Query\VectorQuery;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\Uid\Uuid;
@@ -379,6 +381,116 @@ final class StoreTest extends TestCase
 
         $store->remove($id1->toRfc4122(), ['unsupported' => true]);
     }
-    // Note: Cache store supports VectorQuery, TextQuery, and HybridQuery
-    // Comprehensive tests for all query types are in tests/InMemory/StoreTest.php
+
+    public function testStoreCanSearchUsingTextQuery()
+    {
+        $store = new Store(new ArrayAdapter());
+        $store->add([
+            new VectorDocument(Uuid::v4(), new Vector([0.1, 0.1, 0.5]), new Metadata(['_text' => 'The quick brown fox'])),
+            new VectorDocument(Uuid::v4(), new Vector([0.7, -0.3, 0.0]), new Metadata(['_text' => 'jumps over the lazy dog'])),
+            new VectorDocument(Uuid::v4(), new Vector([0.3, 0.7, 0.1]), new Metadata(['_text' => 'Lorem ipsum dolor sit amet'])),
+        ]);
+
+        $result = iterator_to_array($store->query(new TextQuery('quick brown')));
+
+        $this->assertCount(1, $result);
+        $this->assertStringContainsString('quick brown', $result[0]->getMetadata()->getText());
+    }
+
+    public function testStoreCanSearchUsingTextQueryWithMaxItems()
+    {
+        $store = new Store(new ArrayAdapter());
+        $store->add([
+            new VectorDocument(Uuid::v4(), new Vector([0.1, 0.1, 0.5]), new Metadata(['_text' => 'The word test appears here'])),
+            new VectorDocument(Uuid::v4(), new Vector([0.7, -0.3, 0.0]), new Metadata(['_text' => 'Another test document'])),
+            new VectorDocument(Uuid::v4(), new Vector([0.3, 0.7, 0.1]), new Metadata(['_text' => 'Yet another test entry'])),
+        ]);
+
+        $result = iterator_to_array($store->query(new TextQuery('test'), ['maxItems' => 2]));
+
+        $this->assertCount(2, $result);
+    }
+
+    public function testStoreCanSearchUsingHybridQuery()
+    {
+        $store = new Store(new ArrayAdapter());
+        $id1 = Uuid::v4();
+        $id2 = Uuid::v4();
+        $id3 = Uuid::v4();
+
+        $store->add([
+            new VectorDocument($id1, new Vector([0.1, 0.1, 0.5]), new Metadata(['_text' => 'space exploration'])),
+            new VectorDocument($id2, new Vector([0.0, 0.1, 0.6]), new Metadata(['_text' => 'deep space mission'])),
+            new VectorDocument($id3, new Vector([0.9, 0.9, 0.9]), new Metadata(['_text' => 'cooking recipes'])),
+        ]);
+
+        $queryVector = new Vector([0.0, 0.1, 0.6]);
+        $result = iterator_to_array($store->query(new HybridQuery($queryVector, 'space', 0.7)));
+
+        // Should find documents matching either vector similarity or text content
+        $this->assertGreaterThanOrEqual(2, \count($result));
+
+        // Check that space-related documents are in results
+        $texts = array_map(static fn (VectorDocument $doc) => $doc->getMetadata()->getText(), $result);
+        $this->assertContains('deep space mission', $texts);
+    }
+
+    public function testStoreCanSearchUsingHybridQueryWithDifferentSemanticRatios()
+    {
+        $store = new Store(new ArrayAdapter());
+        $store->add([
+            new VectorDocument(Uuid::v4(), new Vector([0.1, 0.1, 0.5]), new Metadata(['_text' => 'vector match'])),
+            new VectorDocument(Uuid::v4(), new Vector([0.0, 0.1, 0.6]), new Metadata(['_text' => 'exact text match'])),
+        ]);
+
+        $queryVector = new Vector([0.0, 0.1, 0.6]);
+
+        // High semantic ratio (favor vector similarity)
+        $resultHighSemantic = iterator_to_array($store->query(new HybridQuery($queryVector, 'exact text match', 0.9)));
+        $this->assertNotEmpty($resultHighSemantic);
+
+        // Low semantic ratio (favor text matching)
+        $resultLowSemantic = iterator_to_array($store->query(new HybridQuery($queryVector, 'exact text match', 0.1)));
+        $this->assertNotEmpty($resultLowSemantic);
+    }
+
+    public function testHybridQueryThrowsExceptionForInvalidSemanticRatio()
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Semantic ratio must be between 0.0 and 1.0');
+
+        new HybridQuery(new Vector([0.1, 0.2, 0.3]), 'test', 1.5);
+    }
+
+    public function testStoreThrowsExceptionForUnsupportedQueryType()
+    {
+        $store = new Store(new ArrayAdapter());
+
+        // Create a mock query type that Cache store doesn't support
+        $unsupportedQuery = new class implements \Symfony\AI\Store\Query\QueryInterface {
+        };
+
+        $this->expectException(\Symfony\AI\Store\Exception\UnsupportedQueryTypeException::class);
+        $this->expectExceptionMessageMatches('/not supported/');
+
+        $store->query($unsupportedQuery);
+    }
+
+    public function testStoreSupportsVectorQuery()
+    {
+        $store = new Store(new ArrayAdapter());
+        $this->assertTrue($store->supports(VectorQuery::class));
+    }
+
+    public function testStoreSupportsTextQuery()
+    {
+        $store = new Store(new ArrayAdapter());
+        $this->assertTrue($store->supports(TextQuery::class));
+    }
+
+    public function testStoreSupportsHybridQuery()
+    {
+        $store = new Store(new ArrayAdapter());
+        $this->assertTrue($store->supports(HybridQuery::class));
+    }
 }

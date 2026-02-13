@@ -472,4 +472,22 @@ final class StoreTest extends TestCase
 
         $store->query($unsupportedQuery);
     }
+
+    public function testStoreSupportsVectorQuery()
+    {
+        $store = new Store();
+        $this->assertTrue($store->supports(VectorQuery::class));
+    }
+
+    public function testStoreSupportsTextQuery()
+    {
+        $store = new Store();
+        $this->assertTrue($store->supports(TextQuery::class));
+    }
+
+    public function testStoreSupportsHybridQuery()
+    {
+        $store = new Store();
+        $this->assertTrue($store->supports(HybridQuery::class));
+    }
 }

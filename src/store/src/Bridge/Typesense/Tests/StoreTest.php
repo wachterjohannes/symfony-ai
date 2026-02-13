@@ -15,6 +15,8 @@ use PHPUnit\Framework\TestCase;
 use Symfony\AI\Platform\Vector\Vector;
 use Symfony\AI\Store\Bridge\Typesense\Store;
 use Symfony\AI\Store\Document\VectorDocument;
+use Symfony\AI\Store\Query\HybridQuery;
+use Symfony\AI\Store\Query\TextQuery;
 use Symfony\AI\Store\Query\VectorQuery;
 use Symfony\Component\HttpClient\Exception\ClientException;
 use Symfony\Component\HttpClient\MockHttpClient;
@@ -220,5 +222,17 @@ final class StoreTest extends TestCase
     {
         $store = new Store(new MockHttpClient(), 'http://localhost:8108', 'test-key', 'test_collection');
         $this->assertTrue($store->supports(VectorQuery::class));
+    }
+
+    public function testStoreDoesNotSupportTextQuery()
+    {
+        $store = new Store(new MockHttpClient(), 'http://localhost:8108', 'test-key', 'test_collection');
+        $this->assertFalse($store->supports(TextQuery::class));
+    }
+
+    public function testStoreDoesNotSupportHybridQuery()
+    {
+        $store = new Store(new MockHttpClient(), 'http://localhost:8108', 'test-key', 'test_collection');
+        $this->assertFalse($store->supports(HybridQuery::class));
     }
 }

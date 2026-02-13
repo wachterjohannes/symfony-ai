@@ -18,6 +18,8 @@ use Symfony\AI\Store\Bridge\Redis\Store;
 use Symfony\AI\Store\Document\Metadata;
 use Symfony\AI\Store\Document\VectorDocument;
 use Symfony\AI\Store\Exception\RuntimeException;
+use Symfony\AI\Store\Query\HybridQuery;
+use Symfony\AI\Store\Query\TextQuery;
 use Symfony\AI\Store\Query\VectorQuery;
 use Symfony\Component\Uid\Uuid;
 
@@ -522,5 +524,19 @@ final class StoreTest extends TestCase
         $redis = $this->createMock(\Redis::class);
         $store = new Store($redis, 'test:vectors');
         $this->assertTrue($store->supports(VectorQuery::class));
+    }
+
+    public function testStoreDoesNotSupportTextQuery()
+    {
+        $redis = $this->createMock(\Redis::class);
+        $store = new Store($redis, 'test:vectors');
+        $this->assertFalse($store->supports(TextQuery::class));
+    }
+
+    public function testStoreDoesNotSupportHybridQuery()
+    {
+        $redis = $this->createMock(\Redis::class);
+        $store = new Store($redis, 'test:vectors');
+        $this->assertFalse($store->supports(HybridQuery::class));
     }
 }

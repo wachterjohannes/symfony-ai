@@ -106,6 +106,13 @@ final class Store implements StoreInterface
         return VectorQuery::class === $queryClass;
     }
 
+    /**
+     * @param array{
+     *      max_items?: int,
+     *      limit?: int,
+     *      min_score?: float
+     *  } $options
+     */
     public function query(QueryInterface $query, array $options = []): iterable
     {
         if (!$query instanceof VectorQuery) {

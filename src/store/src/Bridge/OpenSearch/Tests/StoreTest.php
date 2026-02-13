@@ -16,6 +16,8 @@ use Symfony\AI\Platform\Vector\Vector;
 use Symfony\AI\Store\Bridge\OpenSearch\Store;
 use Symfony\AI\Store\Document\VectorDocument;
 use Symfony\AI\Store\Exception\InvalidArgumentException;
+use Symfony\AI\Store\Query\HybridQuery;
+use Symfony\AI\Store\Query\TextQuery;
 use Symfony\AI\Store\Query\VectorQuery;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\JsonMockResponse;
@@ -201,5 +203,17 @@ final class StoreTest extends TestCase
     {
         $store = new Store(new MockHttpClient(), 'http://localhost:9200', 'test-index');
         $this->assertTrue($store->supports(VectorQuery::class));
+    }
+
+    public function testStoreDoesNotSupportTextQuery()
+    {
+        $store = new Store(new MockHttpClient(), 'http://localhost:9200', 'test-index');
+        $this->assertFalse($store->supports(TextQuery::class));
+    }
+
+    public function testStoreDoesNotSupportHybridQuery()
+    {
+        $store = new Store(new MockHttpClient(), 'http://localhost:9200', 'test-index');
+        $this->assertFalse($store->supports(HybridQuery::class));
     }
 }

@@ -23,6 +23,8 @@ use Symfony\AI\Store\Bridge\MongoDb\Store;
 use Symfony\AI\Store\Document\Metadata;
 use Symfony\AI\Store\Document\VectorDocument;
 use Symfony\AI\Store\Exception\InvalidArgumentException;
+use Symfony\AI\Store\Query\HybridQuery;
+use Symfony\AI\Store\Query\TextQuery;
 use Symfony\AI\Store\Query\VectorQuery;
 use Symfony\Component\Uid\Uuid;
 
@@ -569,5 +571,19 @@ final class StoreTest extends TestCase
         $client = $this->createMock(Client::class);
         $store = new Store($client, 'test_db', 'test_collection', 'test_index');
         $this->assertTrue($store->supports(VectorQuery::class));
+    }
+
+    public function testStoreDoesNotSupportTextQuery()
+    {
+        $client = $this->createMock(Client::class);
+        $store = new Store($client, 'test_db', 'test_collection', 'test_index');
+        $this->assertFalse($store->supports(TextQuery::class));
+    }
+
+    public function testStoreDoesNotSupportHybridQuery()
+    {
+        $client = $this->createMock(Client::class);
+        $store = new Store($client, 'test_db', 'test_collection', 'test_index');
+        $this->assertFalse($store->supports(HybridQuery::class));
     }
 }

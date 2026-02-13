@@ -15,6 +15,8 @@ use PHPUnit\Framework\TestCase;
 use Symfony\AI\Platform\Vector\Vector;
 use Symfony\AI\Store\Bridge\MariaDb\Store;
 use Symfony\AI\Store\Document\VectorDocument;
+use Symfony\AI\Store\Query\HybridQuery;
+use Symfony\AI\Store\Query\TextQuery;
 use Symfony\AI\Store\Query\VectorQuery;
 use Symfony\Component\Uid\Uuid;
 
@@ -377,6 +379,20 @@ final class StoreTest extends TestCase
         $connection = $this->createMock(\PDO::class);
         $store = new Store($connection, 'test_vectors', 'vector_index', 'embedding');
         $this->assertTrue($store->supports(VectorQuery::class));
+    }
+
+    public function testStoreDoesNotSupportTextQuery()
+    {
+        $connection = $this->createMock(\PDO::class);
+        $store = new Store($connection, 'test_vectors', 'vector_index', 'embedding');
+        $this->assertFalse($store->supports(TextQuery::class));
+    }
+
+    public function testStoreDoesNotSupportHybridQuery()
+    {
+        $connection = $this->createMock(\PDO::class);
+        $store = new Store($connection, 'test_vectors', 'vector_index', 'embedding');
+        $this->assertFalse($store->supports(HybridQuery::class));
     }
 
     private function normalizeQuery(string $query): string

@@ -18,6 +18,8 @@ use Symfony\AI\Store\Bridge\ClickHouse\Store;
 use Symfony\AI\Store\Document\Metadata;
 use Symfony\AI\Store\Document\VectorDocument;
 use Symfony\AI\Store\Exception\RuntimeException;
+use Symfony\AI\Store\Query\HybridQuery;
+use Symfony\AI\Store\Query\TextQuery;
 use Symfony\AI\Store\Query\VectorQuery;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
@@ -289,5 +291,17 @@ final class StoreTest extends TestCase
     {
         $store = new Store(new MockHttpClient(), 'default', 'test_table');
         $this->assertTrue($store->supports(VectorQuery::class));
+    }
+
+    public function testStoreNotSupportsTextQuery()
+    {
+        $store = new Store(new MockHttpClient(), 'default', 'test_table');
+        $this->assertFalse($store->supports(TextQuery::class));
+    }
+
+    public function testStoreNotSupportsHybridQuery()
+    {
+        $store = new Store(new MockHttpClient(), 'default', 'test_table');
+        $this->assertFalse($store->supports(HybridQuery::class));
     }
 }
