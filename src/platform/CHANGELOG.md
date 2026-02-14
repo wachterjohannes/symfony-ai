@@ -5,8 +5,6 @@ CHANGELOG
 ---
 
  * Add support for populating existing object instances in structured output via `response_format` option
- * Add support for object serialization in template variables via `template_vars` option
- * Add `serializer_context` option for controlling object serialization in templates
 
 0.3
 ---
