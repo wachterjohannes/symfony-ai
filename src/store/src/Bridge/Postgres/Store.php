@@ -255,7 +255,7 @@ final class Store implements ManagedStoreInterface, StoreInterface
         }
 
         $tsqueryExpression = implode(' || ', $tsqueryParts); // OR operator in PostgreSQL
-        $tsvectorExpression = "to_tsvector('english', metadata->>'text')";
+        $tsvectorExpression = "to_tsvector('english', metadata->>'_text')";
 
         $sql = \sprintf(<<<SQL
             SELECT id, %s AS embedding, metadata,
@@ -314,7 +314,7 @@ final class Store implements ManagedStoreInterface, StoreInterface
         }
 
         $tsqueryExpression = '('.implode(' || ', $tsqueryParts).')'; // OR operator in PostgreSQL
-        $tsvectorExpression = "to_tsvector('english', metadata->>'text')";
+        $tsvectorExpression = "to_tsvector('english', metadata->>'_text')";
 
         $where = \sprintf('WHERE %s @@ %s', $tsvectorExpression, $tsqueryExpression);
 

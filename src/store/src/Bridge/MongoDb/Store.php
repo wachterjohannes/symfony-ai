@@ -20,7 +20,7 @@ use Symfony\AI\Platform\Vector\Vector;
 use Symfony\AI\Store\Document\Metadata;
 use Symfony\AI\Store\Document\VectorDocument;
 use Symfony\AI\Store\Exception\InvalidArgumentException;
-use Symfony\AI\Store\Exception\LogicException;
+use Symfony\AI\Store\Exception\UnsupportedFeatureException;
 use Symfony\AI\Store\Exception\UnsupportedQueryTypeException;
 use Symfony\AI\Store\ManagedStoreInterface;
 use Symfony\AI\Store\Query\QueryInterface;
@@ -67,6 +67,7 @@ final class Store implements ManagedStoreInterface, StoreInterface
         private readonly string $vectorFieldName = 'vector',
         private readonly bool $bulkWrite = false,
         private readonly LoggerInterface $logger = new NullLogger(),
+        private readonly int $embeddingsDimension = 1536,
     ) {
     }
 
@@ -84,7 +85,7 @@ final class Store implements ManagedStoreInterface, StoreInterface
                 [
                     'fields' => array_merge([
                         [
-                            'numDimensions' => 1536,
+                            'numDimensions' => $this->embeddingsDimension,
                             'path' => $this->vectorFieldName,
                             'similarity' => 'euclidean',
                             'type' => 'vector',
@@ -139,7 +140,7 @@ final class Store implements ManagedStoreInterface, StoreInterface
 
     public function remove(string|array $ids, array $options = []): void
     {
-        throw new LogicException('Method not implemented yet.');
+        throw new UnsupportedFeatureException('Method not implemented yet.');
     }
 
     public function supports(string $queryClass): bool

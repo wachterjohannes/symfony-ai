@@ -16,7 +16,6 @@ use Symfony\AI\Platform\Vector\Vector;
 use Symfony\AI\Store\Document\Metadata;
 use Symfony\AI\Store\Document\VectorDocument;
 use Symfony\AI\Store\Exception\InvalidArgumentException;
-use Symfony\AI\Store\Exception\LogicException;
 use Symfony\AI\Store\Exception\UnsupportedQueryTypeException;
 use Symfony\AI\Store\ManagedStoreInterface;
 use Symfony\AI\Store\Query\QueryInterface;
@@ -91,7 +90,35 @@ final class Store implements ManagedStoreInterface, StoreInterface
 
     public function remove(string|array $ids, array $options = []): void
     {
-        throw new LogicException('Method not implemented yet.');
+        if (\is_string($ids)) {
+            $ids = [$ids];
+        }
+
+        if ([] === $ids) {
+            return;
+        }
+
+        // ManticoreSearch doesn't have a limit on the number of IDs per DELETE request
+        // But we'll chunk them for better performance and to avoid potential issues
+        $chunksIds = array_chunk($ids, 1000);
+
+        foreach ($chunksIds as $chunkIds) {
+            $payload = array_map(
+                fn (string $id): array => [
+                    'delete' => [
+                        'table' => $this->table,
+                        'query' => ['equals' => ['uuid' => $id]],
+                    ],
+                ],
+                $chunkIds,
+            );
+
+            $this->request('bulk', static function () use ($payload) {
+                foreach ($payload as $delete) {
+                    yield json_encode($delete).\PHP_EOL;
+                }
+            });
+        }
     }
 
     public function supports(string $queryClass): bool

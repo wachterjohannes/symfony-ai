@@ -15,8 +15,8 @@ use Symfony\AI\Platform\Vector\Vector;
 use Symfony\AI\Store\Document\Metadata;
 use Symfony\AI\Store\Document\VectorDocument;
 use Symfony\AI\Store\Exception\InvalidArgumentException;
-use Symfony\AI\Store\Exception\LogicException;
 use Symfony\AI\Store\Exception\RuntimeException;
+use Symfony\AI\Store\Exception\UnsupportedFeatureException;
 use Symfony\AI\Store\Exception\UnsupportedQueryTypeException;
 use Symfony\AI\Store\Query\QueryInterface;
 use Symfony\AI\Store\Query\VectorQuery;
@@ -98,7 +98,7 @@ final class Store implements StoreInterface
 
     public function remove(string|array $ids, array $options = []): void
     {
-        throw new LogicException('Method not implemented yet.');
+        throw new UnsupportedFeatureException('Method not implemented yet.');
     }
 
     public function supports(string $queryClass): bool

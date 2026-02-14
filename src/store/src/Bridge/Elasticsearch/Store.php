@@ -16,7 +16,6 @@ use Symfony\AI\Platform\Vector\Vector;
 use Symfony\AI\Store\Document\Metadata;
 use Symfony\AI\Store\Document\VectorDocument;
 use Symfony\AI\Store\Exception\InvalidArgumentException;
-use Symfony\AI\Store\Exception\LogicException;
 use Symfony\AI\Store\Exception\UnsupportedQueryTypeException;
 use Symfony\AI\Store\ManagedStoreInterface;
 use Symfony\AI\Store\Query\QueryInterface;
@@ -96,7 +95,26 @@ final class Store implements ManagedStoreInterface, StoreInterface
 
     public function remove(string|array $ids, array $options = []): void
     {
-        throw new LogicException('Method not implemented yet.');
+        if (\is_string($ids)) {
+            $ids = [$ids];
+        }
+
+        if ([] === $ids) {
+            return;
+        }
+
+        $documentToDelete = fn (string $id): array => [
+            'delete' => [
+                '_index' => $this->indexName,
+                '_id' => $id,
+            ],
+        ];
+
+        $this->request('POST', '_bulk', static function () use ($ids, $documentToDelete) {
+            foreach ($ids as $id) {
+                yield json_encode($documentToDelete($id)).\PHP_EOL;
+            }
+        });
     }
 
     public function supports(string $queryClass): bool
