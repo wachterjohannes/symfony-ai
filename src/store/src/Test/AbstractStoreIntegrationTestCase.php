@@ -18,6 +18,7 @@ use Symfony\AI\Store\Document\Metadata;
 use Symfony\AI\Store\Document\VectorDocument;
 use Symfony\AI\Store\Exception\UnsupportedFeatureException;
 use Symfony\AI\Store\ManagedStoreInterface;
+use Symfony\AI\Store\Query\VectorQuery;
 use Symfony\AI\Store\StoreInterface;
 
 /**
@@ -63,7 +64,7 @@ abstract class AbstractStoreIntegrationTestCase extends TestCase
     #[Depends('testAddDocuments')]
     public function testQueryDocuments()
     {
-        $results = self::$store->query(new Vector([0.0, 0.0, 1.0]));
+        $results = self::$store->query(new VectorQuery(new Vector([0.0, 0.0, 1.0])));
 
         $found = null;
         foreach ($results as $result) {
@@ -88,7 +89,7 @@ abstract class AbstractStoreIntegrationTestCase extends TestCase
 
         $this->waitForIndexing();
 
-        $results = self::$store->query(new Vector([0.0, 0.0, 1.0]));
+        $results = self::$store->query(new VectorQuery(new Vector([0.0, 0.0, 1.0])));
 
         foreach ($results as $result) {
             $this->assertNotSame(self::DOCUMENT_ID_3, $result->getId());
