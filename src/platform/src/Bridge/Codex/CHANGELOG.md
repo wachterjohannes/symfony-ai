@@ -5,6 +5,7 @@ CHANGELOG
 ---
 
  * [BC BREAK] Align `ModelCatalog` with the official OpenAI Codex models list (https://developers.openai.com/codex/models): add `gpt-5.2` and remove `gpt-5.2-codex`, `gpt-5.1-codex`, `gpt-5-codex`, `gpt-5-codex-mini`
+ * Fix: drop the no-op `--ask-for-approval` flag from `codex exec`; the CLI silently ignores it, use the `dangerously_bypass_approvals_and_sandbox` option when an exec session needs to bypass approvals
 
 0.8
 ---
