@@ -40,6 +40,26 @@ final class RawProcessResultTest extends TestCase
         $this->assertSame(5, $data['usage']['output_tokens']);
     }
 
+    public function testGetDataCollectsToolCallTraces()
+    {
+        $jsonOutput = implode(\PHP_EOL, [
+            json_encode(['type' => 'assistant', 'message' => ['content' => [
+                ['type' => 'tool_use', 'id' => 'toolu_123', 'name' => 'symfony_logs', 'input' => ['channel' => 'app']],
+            ]]]),
+            json_encode(['type' => 'result', 'result' => 'Hello, World!', 'usage' => ['input_tokens' => 10, 'output_tokens' => 5]]),
+        ]);
+
+        $process = new Process(['php', '-r', \sprintf('echo %s;', escapeshellarg($jsonOutput))]);
+        $process->start();
+
+        $rawResult = new RawProcessResult($process);
+        $data = $rawResult->getData();
+
+        $this->assertCount(1, $data['tool_call_traces']);
+        $this->assertSame('symfony_logs', $data['tool_call_traces'][0]['name']);
+        $this->assertSame(['channel' => 'app'], $data['tool_call_traces'][0]['arguments']);
+    }
+
     public function testGetDataReturnsEmptyArrayWhenNoResultMessage()
     {
         $jsonOutput = json_encode(['type' => 'assistant', 'message' => ['content' => []]]);

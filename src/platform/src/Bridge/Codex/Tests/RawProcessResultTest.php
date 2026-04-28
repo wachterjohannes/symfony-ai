@@ -62,6 +62,122 @@ final class RawProcessResultTest extends TestCase
         $this->assertSame('Final answer', $data['item']['text']);
     }
 
+    public function testGetDataCollectsToolCallTraces()
+    {
+        $jsonOutput = implode(\PHP_EOL, [
+            json_encode(['type' => 'item.started', 'item' => ['id' => 'call-1', 'type' => 'mcp_tool_call', 'name' => 'symfony_logs', 'arguments' => ['channel' => 'app'], 'started_at_ms' => 1250.0]]),
+            json_encode(['type' => 'item.completed', 'item' => ['id' => 'call-1', 'type' => 'mcp_tool_call', 'name' => 'symfony_logs', 'arguments' => ['channel' => 'app'], 'duration_ms' => 15.0]]),
+            json_encode(['type' => 'item.completed', 'item' => ['type' => 'agent_message', 'text' => 'Final answer']]),
+        ]);
+
+        $process = new Process(['php', '-r', \sprintf('echo %s;', escapeshellarg($jsonOutput))]);
+        $process->start();
+
+        $rawResult = new RawProcessResult($process);
+        $data = $rawResult->getData();
+
+        $this->assertCount(1, $data['tool_call_traces']);
+        $this->assertSame('symfony_logs', $data['tool_call_traces'][0]['name']);
+        $this->assertSame(['channel' => 'app'], $data['tool_call_traces'][0]['arguments']);
+        $this->assertSame(1250.0, $data['tool_call_traces'][0]['started_at_ms']);
+        $this->assertSame(15.0, $data['tool_call_traces'][0]['duration_ms']);
+        $this->assertFalse($data['tool_call_traces'][0]['errored']);
+    }
+
+    public function testGetDataCollectsMcpToolCallsThatUseToolField()
+    {
+        $jsonOutput = implode(\PHP_EOL, [
+            json_encode(['type' => 'item.started', 'item' => ['id' => 'call-21', 'type' => 'mcp_tool_call', 'server' => 'symfony-ai-mate', 'tool' => 'list_mcp_resources', 'arguments' => ['server' => 'symfony-ai-mate'], 'status' => 'in_progress']]),
+            json_encode(['type' => 'item.completed', 'item' => ['id' => 'call-21', 'type' => 'mcp_tool_call', 'server' => 'symfony-ai-mate', 'tool' => 'list_mcp_resources', 'arguments' => ['server' => 'symfony-ai-mate'], 'error' => ['message' => 'unknown MCP server'], 'status' => 'failed']]),
+            json_encode(['type' => 'item.completed', 'item' => ['type' => 'agent_message', 'text' => 'Final answer']]),
+        ]);
+
+        $process = new Process(['php', '-r', \sprintf('echo %s;', escapeshellarg($jsonOutput))]);
+        $process->start();
+
+        $rawResult = new RawProcessResult($process);
+        $data = $rawResult->getData();
+
+        $this->assertCount(1, $data['tool_call_traces']);
+        $this->assertSame('list_mcp_resources', $data['tool_call_traces'][0]['name']);
+        $this->assertSame(['server' => 'symfony-ai-mate'], $data['tool_call_traces'][0]['arguments']);
+        $this->assertTrue($data['tool_call_traces'][0]['errored']);
+    }
+
+    public function testGetDataCollectsEventMessageMcpToolCalls()
+    {
+        $jsonOutput = implode(\PHP_EOL, [
+            json_encode([
+                'type' => 'event_msg',
+                'timestamp' => '2026-04-28T12:06:44.510Z',
+                'payload' => [
+                    'type' => 'mcp_tool_call_end',
+                    'call_id' => 'call-I1oCGF',
+                    'invocation' => [
+                        'server' => 'symfony_ai_mate_local',
+                        'tool' => 'monolog-search',
+                        'arguments' => ['term' => 'service', 'level' => 'ERROR', 'limit' => 20],
+                    ],
+                    'duration' => ['secs' => 0, 'nanos' => 18368458],
+                    'result' => [
+                        'Ok' => [
+                            'content' => [['type' => 'text', 'text' => '{"entries":[]}']],
+                            'isError' => false,
+                        ],
+                    ],
+                ],
+            ]),
+            json_encode(['type' => 'item.completed', 'item' => ['type' => 'agent_message', 'text' => 'Final answer']]),
+        ]);
+
+        $process = new Process(['php', '-r', \sprintf('echo %s;', escapeshellarg($jsonOutput))]);
+        $process->start();
+
+        $rawResult = new RawProcessResult($process);
+        $data = $rawResult->getData();
+
+        $this->assertCount(1, $data['tool_call_traces']);
+        $this->assertSame('call-I1oCGF', $data['tool_call_traces'][0]['id']);
+        $this->assertSame('monolog-search', $data['tool_call_traces'][0]['name']);
+        $this->assertSame(['term' => 'service', 'level' => 'ERROR', 'limit' => 20], $data['tool_call_traces'][0]['arguments']);
+        $this->assertSame(18.368458, $data['tool_call_traces'][0]['duration_ms']);
+        $this->assertFalse($data['tool_call_traces'][0]['errored']);
+    }
+
+    public function testGetDataMarksEventMessageMcpToolCallsAsErroredWhenResultIsErr()
+    {
+        $jsonOutput = implode(\PHP_EOL, [
+            json_encode([
+                'type' => 'event_msg',
+                'timestamp' => '2026-04-28T12:06:44.510Z',
+                'payload' => [
+                    'type' => 'mcp_tool_call_end',
+                    'call_id' => 'call-failed',
+                    'invocation' => [
+                        'server' => 'symfony_ai_mate_local',
+                        'tool' => 'monolog-search',
+                        'arguments' => ['term' => 'service'],
+                    ],
+                    'result' => [
+                        'Err' => [
+                            'message' => 'transport failed',
+                        ],
+                    ],
+                ],
+            ]),
+            json_encode(['type' => 'item.completed', 'item' => ['type' => 'agent_message', 'text' => 'Final answer']]),
+        ]);
+
+        $process = new Process(['php', '-r', \sprintf('echo %s;', escapeshellarg($jsonOutput))]);
+        $process->start();
+
+        $rawResult = new RawProcessResult($process);
+        $data = $rawResult->getData();
+
+        $this->assertCount(1, $data['tool_call_traces']);
+        $this->assertTrue($data['tool_call_traces'][0]['errored']);
+    }
+
     public function testGetDataReturnsEmptyArrayWhenNoAgentMessage()
     {
         $jsonOutput = implode(\PHP_EOL, [

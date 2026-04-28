@@ -12,6 +12,8 @@
 namespace Symfony\AI\Platform\Bridge\Codex;
 
 use Symfony\AI\Platform\Exception\RuntimeException;
+use Symfony\AI\Platform\Metadata\ToolCallTrace;
+use Symfony\AI\Platform\Metadata\ToolCallTraceCollection;
 use Symfony\AI\Platform\Model;
 use Symfony\AI\Platform\Result\RawResultInterface;
 use Symfony\AI\Platform\Result\ResultInterface;
@@ -55,7 +57,10 @@ final class ResultConverter implements ResultConverterInterface
             throw new RuntimeException('Codex CLI result does not contain a text field.');
         }
 
-        return new TextResult($text);
+        $result = new TextResult($text);
+        $this->attachToolCallTraceMetadata($result, $data);
+
+        return $result;
     }
 
     public function getTokenUsageExtractor(): TokenUsageExtractorInterface
@@ -75,5 +80,24 @@ final class ResultConverter implements ResultConverterInterface
                 yield new TextDelta($data['item']['text']);
             }
         }
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     */
+    private function attachToolCallTraceMetadata(TextResult $result, array $data): void
+    {
+        $traces = $data[ToolCallTraceCollection::METADATA_KEY] ?? null;
+        if (!\is_array($traces) || [] === $traces) {
+            return;
+        }
+
+        $result->getMetadata()->add(
+            ToolCallTraceCollection::METADATA_KEY,
+            new ToolCallTraceCollection(array_map(
+                static fn (array $trace): ToolCallTrace => ToolCallTrace::fromArray($trace),
+                array_values(array_filter($traces, static fn (mixed $trace): bool => \is_array($trace) && isset($trace['name']) && \is_string($trace['name']))),
+            )),
+        );
     }
 }

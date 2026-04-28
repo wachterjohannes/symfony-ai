@@ -16,6 +16,7 @@ use Symfony\AI\Platform\Bridge\Codex\Codex;
 use Symfony\AI\Platform\Bridge\Codex\ResultConverter;
 use Symfony\AI\Platform\Bridge\Codex\TokenUsageExtractor;
 use Symfony\AI\Platform\Exception\RuntimeException;
+use Symfony\AI\Platform\Metadata\ToolCallTraceCollection;
 use Symfony\AI\Platform\Model;
 use Symfony\AI\Platform\Result\InMemoryRawResult;
 use Symfony\AI\Platform\Result\Stream\Delta\TextDelta;
@@ -53,6 +54,32 @@ final class ResultConverterTest extends TestCase
 
         $this->assertInstanceOf(TextResult::class, $result);
         $this->assertSame('Hello, World!', $result->getContent());
+    }
+
+    public function testConvertAttachesToolCallTraceMetadata()
+    {
+        $converter = new ResultConverter();
+        $rawResult = new InMemoryRawResult([
+            'type' => 'item.completed',
+            'item' => ['type' => 'agent_message', 'text' => 'Hello, World!'],
+            'tool_call_traces' => [
+                [
+                    'id' => 'call-1',
+                    'name' => 'symfony_logs',
+                    'arguments' => ['channel' => 'app'],
+                    'started_at_ms' => 12.0,
+                    'duration_ms' => 4.0,
+                    'errored' => false,
+                ],
+            ],
+        ]);
+
+        $result = $converter->convert($rawResult);
+        $traces = $result->getMetadata()->get(ToolCallTraceCollection::METADATA_KEY);
+
+        $this->assertInstanceOf(ToolCallTraceCollection::class, $traces);
+        $this->assertCount(1, $traces);
+        $this->assertSame('symfony_logs', $traces->all()[0]->getName());
     }
 
     public function testConvertThrowsOnEmptyData()
