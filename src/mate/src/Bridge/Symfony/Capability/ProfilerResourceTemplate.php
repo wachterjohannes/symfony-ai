@@ -44,7 +44,8 @@ final class ProfilerResourceTemplate
     )]
     public function getProfileResource(string $token): array
     {
-        $profileData = $this->getDataProvider()->findProfile($token);
+        $dataProvider = $this->getDataProvider();
+        $profileData = $dataProvider->findProfile($token);
         if (null === $profileData) {
             return [
                 'uri' => "symfony-profiler://profile/{$token}",
@@ -54,7 +55,7 @@ final class ProfilerResourceTemplate
         }
 
         $profile = $profileData->getProfile();
-        $collectors = $this->dataProvider->listAvailableCollectors($token);
+        $collectors = $dataProvider->listAvailableCollectors($token);
 
         $collectorResources = [];
         foreach ($collectors as $collectorName) {
