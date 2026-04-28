@@ -156,13 +156,14 @@ final class RawProcessResult implements RawResultInterface
     {
         $traces = [];
         $started = [];
+        $seenIds = [];
 
         foreach ($events as $index => $event) {
             $type = $event['type'] ?? null;
             if ('assistant' === $type) {
                 $message = $event['message'] ?? null;
                 if (\is_array($message)) {
-                    $this->collectCompletedToolUsesFromMessage($traces, $message);
+                    $this->collectCompletedToolUsesFromMessage($traces, $seenIds, $message);
                 }
 
                 continue;
@@ -226,6 +227,9 @@ final class RawProcessResult implements RawResultInterface
 
                 if ('' !== $trace['name']) {
                     $traces[] = $trace;
+                    if (null !== $trace['id']) {
+                        $seenIds[$trace['id']] = true;
+                    }
                 }
             }
         }
@@ -241,10 +245,11 @@ final class RawProcessResult implements RawResultInterface
      *     started_at_ms: ?float,
      *     duration_ms: ?float,
      *     errored: bool
-     * }> $traces
+     * }>                    $traces
+     * @param array<string, true>  $seenIds
      * @param array<string, mixed> $message
      */
-    private function collectCompletedToolUsesFromMessage(array &$traces, array $message): void
+    private function collectCompletedToolUsesFromMessage(array &$traces, array &$seenIds, array $message): void
     {
         $content = $message['content'] ?? null;
         if (!\is_array($content)) {
@@ -256,14 +261,23 @@ final class RawProcessResult implements RawResultInterface
                 continue;
             }
 
+            $id = isset($block['id']) && \is_string($block['id']) ? $block['id'] : null;
+            if (null !== $id && isset($seenIds[$id])) {
+                continue;
+            }
+
             $traces[] = [
-                'id' => isset($block['id']) && \is_string($block['id']) ? $block['id'] : null,
+                'id' => $id,
                 'name' => $block['name'],
                 'arguments' => \is_array($block['input'] ?? null) ? $block['input'] : [],
                 'started_at_ms' => null,
                 'duration_ms' => null,
                 'errored' => false,
             ];
+
+            if (null !== $id) {
+                $seenIds[$id] = true;
+            }
         }
     }
 

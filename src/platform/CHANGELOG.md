@@ -4,6 +4,7 @@ CHANGELOG
 0.8
 ---
 
+ * Add `ToolCallTrace` and `ToolCallTraceCollection` metadata, harvested from process output by the `ClaudeCode` and `Codex` bridges and exposed via `ToolCallTraceCollection::METADATA_KEY`
  * [BC BREAK] Reduce visibility of `ImageResult::$revisedPrompt` to `private readonly`; use `getRevisedPrompt()` instead
  * Add `MultiPartResult` for exposing the parts inside a message
  * Add `ExecutableCodeResult`, `CodeExecutionResult` for exposing the executed code blocks and results
