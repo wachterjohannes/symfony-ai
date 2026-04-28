@@ -99,7 +99,15 @@ final class ModelClient implements ModelClientInterface
      */
     public function buildCommand(string $prompt, array $options = []): array
     {
-        $command = [$this->getCliBinary(), '--ask-for-approval', 'never', 'exec', '--json'];
+        // The top-level `--ask-for-approval` flag is silently ignored by
+        // `codex exec` (verified against codex CLI 0.125.0): regardless of the
+        // value the spawned session ends up with `approval_policy = "never"`.
+        // Drop it so callers don't get a false sense that it took effect; use
+        // `dangerously_bypass_approvals_and_sandbox` instead when MCP tools
+        // need to actually run inside an exec session.
+        unset($options['ask_for_approval']);
+
+        $command = [$this->getCliBinary(), 'exec', '--json'];
 
         foreach ($options as $key => $value) {
             $flag = self::OPTION_FLAG_MAP[$key] ?? '--'.str_replace('_', '-', $key);

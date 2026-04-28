@@ -60,7 +60,7 @@ final class ModelClientTest extends TestCase
 
         $command = $client->buildCommand('Hello, World!');
 
-        $this->assertSame([self::$binary, '--ask-for-approval', 'never', 'exec', '--json', 'Hello, World!'], $command);
+        $this->assertSame([self::$binary, 'exec', '--json', 'Hello, World!'], $command);
     }
 
     public function testBuildCommandWithModel()
@@ -116,7 +116,6 @@ final class ModelClientTest extends TestCase
 
         $expected = [
             self::$binary,
-            '--ask-for-approval', 'never',
             'exec', '--json',
             '--model', 'gpt-5-codex',
             '--sandbox', 'workspace-write',
@@ -125,6 +124,35 @@ final class ModelClientTest extends TestCase
         ];
 
         $this->assertSame($expected, $command);
+    }
+
+    public function testBuildCommandDropsAskForApprovalSilently()
+    {
+        $client = new ModelClient(self::$binary);
+
+        $command = $client->buildCommand('Hello', ['ask_for_approval' => 'on-request']);
+
+        // `codex exec` ignores `--ask-for-approval`, so the bridge drops it to
+        // avoid pretending the value was honored.
+        $this->assertNotContains('--ask-for-approval', $command);
+        $this->assertNotContains('on-request', $command);
+        $this->assertSame([self::$binary, 'exec', '--json', 'Hello'], $command);
+    }
+
+    public function testBuildCommandWithDangerouslyBypassApprovalsAndSandbox()
+    {
+        $client = new ModelClient(self::$binary);
+
+        $command = $client->buildCommand('Hello', [
+            'dangerously_bypass_approvals_and_sandbox' => true,
+        ]);
+
+        $this->assertSame([
+            self::$binary,
+            'exec', '--json',
+            '--dangerously-bypass-approvals-and-sandbox',
+            'Hello',
+        ], $command);
     }
 
     public function testBuildCommandRewritesToolsToAllowedTools()
