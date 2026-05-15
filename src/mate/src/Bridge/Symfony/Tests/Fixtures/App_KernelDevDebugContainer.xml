@@ -19,6 +19,8 @@
         </service>
         <service id="app.event_listener" class="App\EventListener\RequestListener">
             <tag name="kernel.event_listener" event="kernel.request" method="onKernelRequest"/>
+            <argument type="service" id="event_dispatcher"/>
+            <argument type="service" id="logger"/>
         </service>
     </services>
 </container>

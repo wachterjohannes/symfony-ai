@@ -77,6 +77,14 @@ class ContainerProvider
                     $serviceTags[] = new ServiceTag($tagName, $tagAttrs);
                 }
 
+                $arguments = [];
+                foreach ($def->argument as $arg) {
+                    $argAttrs = $arg->attributes();
+                    if (isset($argAttrs->type) && 'service' === (string) $argAttrs->type && isset($argAttrs->id)) {
+                        $arguments[] = self::cleanServiceId((string) $argAttrs->id);
+                    }
+                }
+
                 /** @var ?class-string $class */
                 $class = isset($attrs->class) ? (string) $attrs->class : null;
                 $constructor = '__construct';
@@ -95,6 +103,7 @@ class ContainerProvider
                     $calls,
                     $serviceTags,
                     $constructor,
+                    $arguments,
                 );
 
                 if (null === $service->getAlias()) {
@@ -118,6 +127,7 @@ class ContainerProvider
                 $services[$alias]->getCalls(),
                 $services[$alias]->getTags(),
                 $services[$alias]->getConstructor(),
+                $services[$alias]->getArguments(),
             );
         }
 
