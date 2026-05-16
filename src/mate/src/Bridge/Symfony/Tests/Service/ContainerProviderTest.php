@@ -61,4 +61,36 @@ final class ContainerProviderTest extends TestCase
         $this->assertArrayHasKey('my_service', $services);
         $this->assertSame([], $services['my_service']->getArguments());
     }
+
+    public function testAliasPreservesAliasIdAfterResolution()
+    {
+        $provider = new ContainerProvider();
+        $container = $provider->getContainer(
+            \dirname(__DIR__).'/Fixtures/App_KernelDevDebugContainer.xml',
+        );
+
+        $services = $container->getServices();
+
+        $this->assertArrayHasKey('my_service', $services);
+        $this->assertSame('cache.app', $services['my_service']->getAlias());
+        $this->assertSame('Symfony\Component\Cache\Adapter\FilesystemAdapter', $services['my_service']->getClass());
+    }
+
+    public function testAliasChainPointsAtImmediateTargetOnly()
+    {
+        $provider = new ContainerProvider();
+        $container = $provider->getContainer(
+            \dirname(__DIR__).'/Fixtures/App_KernelDevDebugContainer.xml',
+        );
+
+        $services = $container->getServices();
+
+        // Single-hop resolution: the outer alias points at its declared target
+        // (alias_chain_middle), not transitively at cache.app. This documents
+        // current behaviour rather than asserting deep-chain resolution.
+        $this->assertArrayHasKey('alias_chain_outer', $services);
+        $this->assertSame('alias_chain_middle', $services['alias_chain_outer']->getAlias());
+        $this->assertArrayHasKey('alias_chain_middle', $services);
+        $this->assertSame('cache.app', $services['alias_chain_middle']->getAlias());
+    }
 }

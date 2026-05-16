@@ -15,9 +15,12 @@ use HelgeSverre\Toon\DecodeOptions;
 use HelgeSverre\Toon\Toon;
 use PHPUnit\Framework\TestCase;
 use Symfony\AI\Mate\Bridge\Symfony\Capability\ContextTool;
+use Symfony\AI\Mate\Bridge\Symfony\Graph\GraphContext;
+use Symfony\AI\Mate\Bridge\Symfony\Graph\RuntimeGraphBuilder;
 use Symfony\AI\Mate\Bridge\Symfony\Graph\StaticGraphCache;
 use Symfony\AI\Mate\Bridge\Symfony\Graph\StaticGraphFactory;
 use Symfony\AI\Mate\Bridge\Symfony\GraphProvider\ContainerGraphProvider;
+use Symfony\AI\Mate\Bridge\Symfony\GraphProvider\GraphProviderInterface;
 use Symfony\AI\Mate\Bridge\Symfony\GraphProvider\RouteGraphProvider;
 use Symfony\AI\Mate\Bridge\Symfony\Service\ContainerProvider;
 
@@ -113,6 +116,43 @@ final class ContextToolTest extends TestCase
 
         $this->assertStringContainsString('Static graph', $result['summary']);
         $this->assertNotEmpty($result['relatedNodes']);
+    }
+
+    public function testStaticOverviewSuggestsConcreteService()
+    {
+        $tool = new ContextTool($this->factory());
+
+        $result = Toon::decode($tool->getContext('static'), DecodeOptions::lenient());
+
+        $this->assertNotEmpty($result['nextActions']);
+        foreach ($result['nextActions'] as $action) {
+            $target = $action['args']['target'] ?? $action['args']['node'] ?? '';
+            $this->assertIsString($target);
+            $this->assertStringNotContainsString('<id>', $target);
+            $this->assertStringStartsWith('service:', $target);
+        }
+    }
+
+    public function testServiceTargetWithNoEdgesReturnsCleanEnvelope()
+    {
+        $provider = new class implements GraphProviderInterface {
+            public function populate(RuntimeGraphBuilder $graph, GraphContext $context): void
+            {
+                $graph->node('service:isolated', 'service', 'Isolated', ['class' => 'App\\Isolated', 'tags' => []]);
+            }
+        };
+        $factory = new StaticGraphFactory(
+            [$provider],
+            new StaticGraphCache($this->tempCacheDir),
+            '/non/existent/cache/dir',
+        );
+        $tool = new ContextTool($factory);
+
+        $result = Toon::decode($tool->getContext('service:isolated'), DecodeOptions::lenient());
+
+        $this->assertSame([], $result['evidence']);
+        $this->assertSame([], $result['relatedNodes']);
+        $this->assertStringContainsString('0 direct dependencies', $result['summary']);
     }
 
     private function factory(): StaticGraphFactory

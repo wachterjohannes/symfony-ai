@@ -13,12 +13,10 @@ namespace Symfony\AI\Mate\Bridge\Symfony\Tests\GraphProvider;
 
 use PHPUnit\Framework\TestCase;
 use Symfony\AI\Mate\Bridge\Symfony\Graph\GraphContext;
-use Symfony\AI\Mate\Bridge\Symfony\Graph\GraphNode;
 use Symfony\AI\Mate\Bridge\Symfony\Graph\RuntimeGraph;
 use Symfony\AI\Mate\Bridge\Symfony\Graph\RuntimeGraphBuilder;
-use Symfony\AI\Mate\Bridge\Symfony\GraphProvider\ContainerGraphProvider;
+use Symfony\AI\Mate\Bridge\Symfony\GraphProvider\Exception\GraphProviderException;
 use Symfony\AI\Mate\Bridge\Symfony\GraphProvider\RouteGraphProvider;
-use Symfony\AI\Mate\Bridge\Symfony\Service\ContainerProvider;
 
 /**
  * @author Johannes Wachter <johannes@sulu.io>
@@ -77,31 +75,28 @@ final class RouteGraphProviderTest extends TestCase
         $this->assertSame(['POST'], $node->metadata['methods']);
     }
 
-    public function testControllerLinksToServiceWhenClassMatches()
+    public function testReconstructsPathWithVariables()
     {
-        // The fixture container declares a service 'app.event_listener' with class
-        // App\EventListener\RequestListener. The fixture routes include a route whose
-        // controller is that exact FQCN. When both providers populate, the route's
-        // controller node should depends_on the matching service node.
-        $graph = new RuntimeGraph();
-        $builder = new RuntimeGraphBuilder($graph);
+        $graph = $this->buildGraph();
 
-        (new ContainerGraphProvider($this->fixturesDir, new ContainerProvider()))
-            ->populate($builder, new GraphContext());
-        (new RouteGraphProvider($this->fixturesDir))
-            ->populate($builder, new GraphContext());
+        $node = $graph->node('route:app_user_post');
+        $this->assertNotNull($node);
+        $this->assertSame('/users/{id}/posts/{post}', $node->metadata['path']);
+    }
 
-        $found = false;
+    public function testEmitsNoDependsOnEdgesForControllers()
+    {
+        // RouteGraphProvider no longer emits controller→service edges — that step now
+        // lives in ControllerServiceLinker and runs after providers in StaticGraphFactory.
+        $graph = $this->buildGraph();
+
         foreach ($graph->edges() as $edge) {
-            if ('controller:App\\EventListener\\RequestListener::__invoke' === $edge->from
-                && 'depends_on' === $edge->relation
-                && 'service:app.event_listener' === $edge->to
-            ) {
-                $found = true;
-                break;
-            }
+            $this->assertNotSame(
+                'depends_on',
+                $edge->relation,
+                'RouteGraphProvider should not emit depends_on edges directly.',
+            );
         }
-        $this->assertTrue($found, 'Expected controller→service depends_on edge when FQCN matches.');
     }
 
     public function testPopulateIsNoOpWhenCacheMissing()
@@ -115,18 +110,47 @@ final class RouteGraphProviderTest extends TestCase
         $this->assertSame([], $graph->nodes());
     }
 
-    public function testNoControllerServiceLinkWhenNoServiceMatches()
+    public function testCorruptRouterCacheThrowsGraphProviderException()
     {
-        // app_home points at App\Controller\HomeController, which has no matching service
-        // in the fixture container. No depends_on edge should be emitted for that controller.
-        $graph = $this->buildGraph();
+        $tmpDir = sys_get_temp_dir().'/ai_mate_route_provider_corrupt_'.uniqid();
+        mkdir($tmpDir, 0o777, true);
+        file_put_contents(
+            $tmpDir.'/url_generating_routes.php',
+            "<?php\n\nthrow new \\Error('boom');\n",
+        );
 
-        foreach ($graph->edges() as $edge) {
-            $this->assertNotSame(
-                'controller:App\\Controller\\HomeController::index',
-                $edge->from,
-                'HomeController has no matching service; should not emit depends_on edge.',
-            );
+        try {
+            $graph = new RuntimeGraph();
+            $builder = new RuntimeGraphBuilder($graph);
+            $provider = new RouteGraphProvider($tmpDir);
+
+            $this->expectException(GraphProviderException::class);
+            $provider->populate($builder, new GraphContext());
+        } finally {
+            @unlink($tmpDir.'/url_generating_routes.php');
+            @rmdir($tmpDir);
+        }
+    }
+
+    public function testNonArrayRouterCacheThrowsGraphProviderException()
+    {
+        $tmpDir = sys_get_temp_dir().'/ai_mate_route_provider_nonarray_'.uniqid();
+        mkdir($tmpDir, 0o777, true);
+        file_put_contents(
+            $tmpDir.'/url_generating_routes.php',
+            "<?php\n\nreturn 'not an array';\n",
+        );
+
+        try {
+            $graph = new RuntimeGraph();
+            $builder = new RuntimeGraphBuilder($graph);
+            $provider = new RouteGraphProvider($tmpDir);
+
+            $this->expectException(GraphProviderException::class);
+            $provider->populate($builder, new GraphContext());
+        } finally {
+            @unlink($tmpDir.'/url_generating_routes.php');
+            @rmdir($tmpDir);
         }
     }
 
@@ -135,10 +159,6 @@ final class RouteGraphProviderTest extends TestCase
         $graph = new RuntimeGraph();
         $builder = new RuntimeGraphBuilder($graph);
 
-        // Pre-populate with service nodes so testControllerLinksToServiceWhenClassMatches
-        // and testRouteNodeCarriesPathAndMethodMetadata cover both paths.
-        (new ContainerGraphProvider($this->fixturesDir, new ContainerProvider()))
-            ->populate($builder, new GraphContext());
         (new RouteGraphProvider($this->fixturesDir))
             ->populate($builder, new GraphContext());
 

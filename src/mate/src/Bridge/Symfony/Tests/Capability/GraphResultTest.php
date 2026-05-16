@@ -62,4 +62,38 @@ final class GraphResultTest extends TestCase
         $this->assertSame('Roundtrip', $decoded['summary']);
         $this->assertSame(['warning one'], $decoded['warnings']);
     }
+
+    public function testEncodingPreservesNestedTagMetadata()
+    {
+        $result = new GraphResult(
+            summary: 'Tags',
+            primaryNodes: [[
+                'id' => 'service:foo',
+                'type' => 'service',
+                'label' => 'Foo',
+                'metadata' => [
+                    'tagMetadata' => [
+                        ['name' => 'kernel.event_listener', 'attributes' => ['event' => 'kernel.request', 'method' => 'onRequest']],
+                        ['name' => 'doctrine.event_listener', 'attributes' => ['event' => 'postPersist']],
+                    ],
+                ],
+            ]],
+            findings: [],
+            evidence: [],
+            relatedNodes: [],
+            nextActions: [],
+        );
+
+        $encoded = ResponseEncoder::encode($result->toArray());
+        $decoded = Toon::decode($encoded, DecodeOptions::lenient());
+
+        $this->assertSame(
+            'kernel.event_listener',
+            $decoded['primaryNodes'][0]['metadata']['tagMetadata'][0]['name'],
+        );
+        $this->assertSame(
+            'kernel.request',
+            $decoded['primaryNodes'][0]['metadata']['tagMetadata'][0]['attributes']['event'],
+        );
+    }
 }

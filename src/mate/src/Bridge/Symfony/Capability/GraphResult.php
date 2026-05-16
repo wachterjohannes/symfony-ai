@@ -18,7 +18,16 @@ namespace Symfony\AI\Mate\Bridge\Symfony\Capability;
  * Each field is intentionally simple to keep encoding cheap and the schema stable across
  * tools. Tools serialise via {@see toArray()} → {@see \Symfony\AI\Mate\Encoding\ResponseEncoder::encode()}.
  *
+ * Documented metadata conventions per node type (advisory, not enforced):
+ *  - service:    {class?: ?class-string, tags?: list<string>, tagMetadata?: list<array{name: string, attributes: array<string, string>}>, aliasOf?: string}
+ *  - route:      {path?: string, methods?: list<string>, defaults?: array<string, mixed>}
+ *  - controller: {class?: class-string}
+ *  - interface:  {} (no canonical metadata today)
+ *
  * @author Johannes Wachter <johannes@sulu.io>
+ *
+ * @phpstan-type ServiceMetadata array{class?: ?string, tags?: list<string>, tagMetadata?: list<array{name: string, attributes: array<string, string>}>, aliasOf?: string}
+ * @phpstan-type RouteMetadata array{path?: string, methods?: list<string>, defaults?: array<string, mixed>}
  */
 final readonly class GraphResult
 {

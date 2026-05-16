@@ -11,6 +11,8 @@
 
 namespace Symfony\AI\Mate\Bridge\Symfony\Graph;
 
+use Symfony\AI\Mate\Bridge\Symfony\GraphProvider\Exception\GraphProviderException;
+
 /**
  * Single-file JSON cache for the static runtime graph keyed by a container content hash.
  *
@@ -107,16 +109,19 @@ class StaticGraphCache
 
         $path = $this->cacheFilePath();
         $dir = \dirname($path);
-        if (!is_dir($dir) && !mkdir($dir, 0o777, true) && !is_dir($dir)) {
-            return;
+        if (!is_dir($dir) && !@mkdir($dir, 0o777, true) && !is_dir($dir)) {
+            throw new GraphProviderException(\sprintf('Failed to create static graph cache directory "%s".', $dir));
         }
 
         $encoded = json_encode($payload, \JSON_UNESCAPED_SLASHES | \JSON_THROW_ON_ERROR);
         $tmp = $path.'.tmp';
-        if (false === file_put_contents($tmp, $encoded)) {
-            return;
+        if (false === @file_put_contents($tmp, $encoded)) {
+            throw new GraphProviderException(\sprintf('Failed to write static graph cache to "%s".', $tmp));
         }
-        rename($tmp, $path);
+        if (!rename($tmp, $path)) {
+            @unlink($tmp);
+            throw new GraphProviderException(\sprintf('Failed to atomically rename static graph cache "%s" → "%s".', $tmp, $path));
+        }
     }
 
     private function cacheFilePath(): string

@@ -123,7 +123,7 @@ class ContainerProvider
             $services[$service->getId()] = new ServiceDefinition(
                 $service->getId(),
                 $services[$alias]->getClass(),
-                null,
+                $alias,
                 $services[$alias]->getCalls(),
                 $services[$alias]->getTags(),
                 $services[$alias]->getConstructor(),

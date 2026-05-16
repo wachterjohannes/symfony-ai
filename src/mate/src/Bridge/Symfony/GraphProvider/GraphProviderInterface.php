@@ -25,5 +25,12 @@ use Symfony\AI\Mate\Bridge\Symfony\Graph\RuntimeGraphBuilder;
  */
 interface GraphProviderInterface
 {
+    /**
+     * @param GraphContext $context Reserved for request-scoped invocations (profiler graph,
+     *                              knowledge graph). Static providers (container, routes) may
+     *                              ignore this parameter today; future request-scoped providers
+     *                              will set `profilerToken` or `scopes` on it to restrict their
+     *                              populate scope.
+     */
     public function populate(RuntimeGraphBuilder $graph, GraphContext $context): void;
 }

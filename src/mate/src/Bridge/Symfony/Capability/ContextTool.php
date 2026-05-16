@@ -35,11 +35,12 @@ use Symfony\AI\Mate\Encoding\ResponseEncoder;
 class ContextTool
 {
     /**
-     * Neighbourhood depth used for both the actual graph traversal and the narrative
-     * summary. Kept opinionated on purpose — callers who want a different depth should
-     * reach for {@see GraphTool} instead.
+     * Neighbourhood depth used when a specific node is targeted (service, route, controller,
+     * interface). Kept opinionated on purpose — callers who want a different depth should
+     * reach for {@see GraphTool} instead. Does not apply to the `static` overview, which lists
+     * top-level nodes without traversing.
      */
-    private const DEFAULT_DEPTH = 2;
+    private const NODE_NEIGHBOURHOOD_DEPTH = 2;
 
     /**
      * Deeper hop suggested in {@see GraphResult::$nextActions} when the caller wants to
@@ -84,7 +85,7 @@ class ContextTool
             return $this->encode($this->unknownTarget($target));
         }
 
-        $view = $graph->neighbors($target, self::DEFAULT_DEPTH, [], $maxItems);
+        $view = $graph->neighbors($target, self::NODE_NEIGHBOURHOOD_DEPTH, [], $maxItems);
         $stats = $this->edgeStats($node, $view->edges);
 
         return $this->encode(new GraphResult(
@@ -201,7 +202,7 @@ class ContextTool
             $node->type,
             $this->plural($related, 'related node', 'related nodes'),
             $this->plural(\count($view->edges), 'edge', 'edges'),
-            self::DEFAULT_DEPTH,
+            self::NODE_NEIGHBOURHOOD_DEPTH,
         );
     }
 
@@ -283,7 +284,7 @@ class ContextTool
     private function nextActions(GraphNode $node): array
     {
         return [
-            ['tool' => 'symfony-graph', 'args' => ['node' => $node->id, 'depth' => self::DEFAULT_DEPTH]],
+            ['tool' => 'symfony-graph', 'args' => ['node' => $node->id, 'depth' => self::NODE_NEIGHBOURHOOD_DEPTH]],
             ['tool' => 'symfony-graph', 'args' => ['node' => $node->id, 'depth' => self::FOLLOW_UP_DEPTH, 'relations' => ['depends_on']]],
         ];
     }
@@ -315,6 +316,13 @@ class ContextTool
             }
         }
 
+        $sampleServiceId = $this->topDegreeServiceId($graph);
+        $nextActions = [];
+        if (null !== $sampleServiceId) {
+            $nextActions[] = ['tool' => 'symfony-context', 'args' => ['target' => $sampleServiceId]];
+            $nextActions[] = ['tool' => 'symfony-graph', 'args' => ['node' => $sampleServiceId, 'depth' => self::NODE_NEIGHBOURHOOD_DEPTH]];
+        }
+
         return new GraphResult(
             summary: \sprintf(
                 'Static graph: %s, %s, %s, %s.',
@@ -338,11 +346,45 @@ class ContextTool
             ],
             evidence: [],
             relatedNodes: $related,
-            nextActions: [
-                ['tool' => 'symfony-context', 'args' => ['target' => 'service:<id>']],
-                ['tool' => 'symfony-graph', 'args' => ['node' => 'service:<id>', 'depth' => self::DEFAULT_DEPTH]],
-            ],
+            nextActions: $nextActions,
         );
+    }
+
+    /**
+     * Picks the service node with the highest depends_on out-degree as a representative target
+     * for the `nextActions` hints in the static overview. Returns null when the graph holds no
+     * service nodes (in which case the hints are omitted entirely rather than referencing a
+     * non-existent id).
+     */
+    private function topDegreeServiceId(RuntimeGraph $graph): ?string
+    {
+        $outDegree = [];
+        foreach ($graph->edges() as $edge) {
+            if ('depends_on' !== $edge->relation) {
+                continue;
+            }
+            $from = $graph->node($edge->from);
+            if (null === $from || 'service' !== $from->type) {
+                continue;
+            }
+            $outDegree[$edge->from] = ($outDegree[$edge->from] ?? 0) + 1;
+        }
+
+        if ([] !== $outDegree) {
+            arsort($outDegree);
+
+            return (string) array_key_first($outDegree);
+        }
+
+        // Fall back to the first service node so callers still get an actionable hint when no
+        // service has dependencies wired (e.g. tiny fixture containers).
+        foreach ($graph->nodes() as $node) {
+            if ('service' === $node->type) {
+                return $node->id;
+            }
+        }
+
+        return null;
     }
 
     private function requestScopedNotSupported(string $target): GraphResult
@@ -354,7 +396,7 @@ class ContextTool
             evidence: [],
             relatedNodes: [],
             nextActions: [],
-            warnings: [\sprintf('Target "%s" is not yet supported — see the runtime-graph epic in symfony/ai for the profiler-graph follow-up.', $target)],
+            warnings: [\sprintf('Target "%s" is not yet supported. Request-scoped targets are wired up by the profiler graph provider in a follow-up release of the Mate Symfony bridge.', $target)],
         );
     }
 

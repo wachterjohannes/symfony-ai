@@ -193,6 +193,64 @@ final class RuntimeGraphTest extends TestCase
         $this->assertSame('service:b', $path->nodes[1]->id);
     }
 
+    public function testPathRespectsRelationFilter()
+    {
+        $graph = new RuntimeGraph();
+        $graph->addNode(new GraphNode('service:a', 'service', 'A'));
+        $graph->addNode(new GraphNode('service:b', 'service', 'B'));
+        $graph->addNode(new GraphNode('controller:c', 'controller', 'C'));
+        $graph->addEdge(new GraphEdge('service:a', 'depends_on', 'service:b'));
+        $graph->addEdge(new GraphEdge('service:b', 'handled_by', 'controller:c'));
+
+        // Unfiltered: full chain reachable.
+        $unfiltered = $graph->path('service:a', 'controller:c');
+        $this->assertNotNull($unfiltered);
+        $this->assertCount(3, $unfiltered->nodes);
+
+        // Filtered to depends_on only: handled_by edge is invisible, target unreachable.
+        $this->assertNull($graph->path('service:a', 'controller:c', ['depends_on']));
+    }
+
+    public function testPathReturnsNullForDisconnectedComponents()
+    {
+        $graph = new RuntimeGraph();
+        // Cluster 1: a → b → c
+        $graph->addNode(new GraphNode('service:a', 'service', 'A'));
+        $graph->addNode(new GraphNode('service:b', 'service', 'B'));
+        $graph->addNode(new GraphNode('service:c', 'service', 'C'));
+        $graph->addEdge(new GraphEdge('service:a', 'depends_on', 'service:b'));
+        $graph->addEdge(new GraphEdge('service:b', 'depends_on', 'service:c'));
+        // Cluster 2: x → y → z
+        $graph->addNode(new GraphNode('service:x', 'service', 'X'));
+        $graph->addNode(new GraphNode('service:y', 'service', 'Y'));
+        $graph->addNode(new GraphNode('service:z', 'service', 'Z'));
+        $graph->addEdge(new GraphEdge('service:x', 'depends_on', 'service:y'));
+        $graph->addEdge(new GraphEdge('service:y', 'depends_on', 'service:z'));
+
+        $this->assertNull($graph->path('service:a', 'service:z'));
+        $this->assertNull($graph->path('service:c', 'service:x'));
+    }
+
+    public function testAdjacencyRebuildsAfterMutation()
+    {
+        $graph = new RuntimeGraph();
+        $graph->addNode(new GraphNode('service:a', 'service', 'A'));
+        $graph->addNode(new GraphNode('service:b', 'service', 'B'));
+        $graph->addEdge(new GraphEdge('service:a', 'depends_on', 'service:b'));
+
+        $view = $graph->neighbors('service:a', 1);
+        $this->assertCount(2, $view->nodes);
+
+        // Add a new node + edge — adjacency must invalidate.
+        $graph->addNode(new GraphNode('service:c', 'service', 'C'));
+        $graph->addEdge(new GraphEdge('service:a', 'depends_on', 'service:c'));
+
+        $view = $graph->neighbors('service:a', 1);
+        $ids = array_map(static fn (GraphNode $n) => $n->id, $view->nodes);
+        sort($ids);
+        $this->assertSame(['service:a', 'service:b', 'service:c'], $ids);
+    }
+
     private function buildLinearGraph(): RuntimeGraph
     {
         $graph = new RuntimeGraph();

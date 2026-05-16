@@ -50,4 +50,18 @@ return [
         [],
         [],
     ],
+    'app_user_post' => [
+        ['id', 'post'],
+        ['_controller' => 'App\\Controller\\UserPostController::show'],
+        [],
+        [
+            ['variable', '/', '\\d+', 'post'],
+            ['text', '/posts'],
+            ['variable', '/', '\\d+', 'id'],
+            ['text', '/users'],
+        ],
+        [],
+        ['GET'],
+        [],
+    ],
 ];

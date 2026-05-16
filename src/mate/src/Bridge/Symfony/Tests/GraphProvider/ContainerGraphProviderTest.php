@@ -88,6 +88,24 @@ final class ContainerGraphProviderTest extends TestCase
         $this->assertSame([], $graph->edges());
     }
 
+    public function testAliasNodeCarriesAliasOfMetadata()
+    {
+        $graph = $this->buildGraph();
+
+        $node = $graph->node('service:my_service');
+        $this->assertNotNull($node);
+        $this->assertSame('cache.app', $node->metadata['aliasOf'] ?? null);
+    }
+
+    public function testNonAliasServiceHasNoAliasOfMetadata()
+    {
+        $graph = $this->buildGraph();
+
+        $node = $graph->node('service:cache.app');
+        $this->assertNotNull($node);
+        $this->assertArrayNotHasKey('aliasOf', $node->metadata);
+    }
+
     public function testProducesAtLeastOneDependsOnEdge()
     {
         $graph = $this->buildGraph();

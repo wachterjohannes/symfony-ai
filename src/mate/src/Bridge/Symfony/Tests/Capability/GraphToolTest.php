@@ -15,9 +15,12 @@ use HelgeSverre\Toon\DecodeOptions;
 use HelgeSverre\Toon\Toon;
 use PHPUnit\Framework\TestCase;
 use Symfony\AI\Mate\Bridge\Symfony\Capability\GraphTool;
+use Symfony\AI\Mate\Bridge\Symfony\Graph\GraphContext;
+use Symfony\AI\Mate\Bridge\Symfony\Graph\RuntimeGraphBuilder;
 use Symfony\AI\Mate\Bridge\Symfony\Graph\StaticGraphCache;
 use Symfony\AI\Mate\Bridge\Symfony\Graph\StaticGraphFactory;
 use Symfony\AI\Mate\Bridge\Symfony\GraphProvider\ContainerGraphProvider;
+use Symfony\AI\Mate\Bridge\Symfony\GraphProvider\GraphProviderInterface;
 use Symfony\AI\Mate\Bridge\Symfony\GraphProvider\RouteGraphProvider;
 use Symfony\AI\Mate\Bridge\Symfony\Service\ContainerProvider;
 
@@ -97,6 +100,32 @@ final class GraphToolTest extends TestCase
         foreach ($result['edges'] as $edge) {
             $this->assertSame('handled_by', $edge['relation']);
         }
+    }
+
+    public function testSuggestedFocusReturnsTopDegreeNodes()
+    {
+        $provider = new class implements GraphProviderInterface {
+            public function populate(RuntimeGraphBuilder $graph, GraphContext $context): void
+            {
+                $graph->node('service:hub', 'service', 'Hub');
+                for ($i = 0; $i < 5; ++$i) {
+                    $spokeId = 'service:spoke'.$i;
+                    $graph->node($spokeId, 'service', 'Spoke'.$i);
+                    $graph->edge('service:hub', 'depends_on', $spokeId);
+                }
+            }
+        };
+        $factory = new StaticGraphFactory(
+            [$provider],
+            new StaticGraphCache($this->tempCacheDir),
+            '/non/existent/cache/dir',
+        );
+        $tool = new GraphTool($factory);
+
+        $result = Toon::decode($tool->getGraph('service:hub', 1), DecodeOptions::lenient());
+
+        $this->assertNotEmpty($result['suggestedFocus']);
+        $this->assertSame('service:hub', $result['suggestedFocus'][0]);
     }
 
     private function factory(): StaticGraphFactory

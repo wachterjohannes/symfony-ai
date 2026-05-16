@@ -30,10 +30,19 @@ class RuntimeGraph
      */
     private array $edges = [];
 
+    /**
+     * Lazily-built adjacency index keyed by node id. Holds every edge that touches the node
+     * (both incoming and outgoing). Invalidated to null whenever a node or edge is added.
+     *
+     * @var array<string, list<GraphEdge>>|null
+     */
+    private ?array $adjacencyIndex = null;
+
     public function addNode(GraphNode $node): void
     {
         if (!isset($this->nodes[$node->id])) {
             $this->nodes[$node->id] = $node;
+            $this->adjacencyIndex = null;
         }
     }
 
@@ -42,6 +51,7 @@ class RuntimeGraph
         $key = $edge->from."\0".$edge->relation."\0".$edge->to;
         if (!isset($this->edges[$key])) {
             $this->edges[$key] = $edge;
+            $this->adjacencyIndex = null;
         }
     }
 
@@ -86,6 +96,7 @@ class RuntimeGraph
         }
 
         $relationFilter = [] === $relations ? null : array_flip($relations);
+        $adjacency = $this->adjacency();
 
         $visited = [$id => true];
         $frontier = [$id];
@@ -96,20 +107,12 @@ class RuntimeGraph
         for ($hop = 0; $hop < $depth && [] !== $frontier; ++$hop) {
             $nextFrontier = [];
             foreach ($frontier as $current) {
-                foreach ($this->edges as $edge) {
+                foreach ($adjacency[$current] ?? [] as $edge) {
                     if (null !== $relationFilter && !isset($relationFilter[$edge->relation])) {
                         continue;
                     }
 
-                    $other = null;
-                    if ($edge->from === $current) {
-                        $other = $edge->to;
-                    } elseif ($edge->to === $current) {
-                        $other = $edge->from;
-                    } else {
-                        continue;
-                    }
-
+                    $other = $edge->from === $current ? $edge->to : $edge->from;
                     if (!isset($this->nodes[$other])) {
                         continue;
                     }
@@ -143,8 +146,10 @@ class RuntimeGraph
      * Returns the shortest undirected path between $from and $to, or null if unreachable.
      *
      * Cycles are handled by visited-set tracking.
+     *
+     * @param list<string> $relations Restrict the walk to edges with these relations (empty = all)
      */
-    public function path(string $from, string $to): ?GraphPath
+    public function path(string $from, string $to, array $relations = []): ?GraphPath
     {
         if (!isset($this->nodes[$from]) || !isset($this->nodes[$to])) {
             return null;
@@ -153,6 +158,9 @@ class RuntimeGraph
         if ($from === $to) {
             return new GraphPath([$this->nodes[$from]], []);
         }
+
+        $relationFilter = [] === $relations ? null : array_flip($relations);
+        $adjacency = $this->adjacency();
 
         /** @var array<string, string|null> $previous */
         $previous = [$from => null];
@@ -166,16 +174,12 @@ class RuntimeGraph
                 break;
             }
 
-            foreach ($this->edges as $edge) {
-                $other = null;
-                if ($edge->from === $current) {
-                    $other = $edge->to;
-                } elseif ($edge->to === $current) {
-                    $other = $edge->from;
-                } else {
+            foreach ($adjacency[$current] ?? [] as $edge) {
+                if (null !== $relationFilter && !isset($relationFilter[$edge->relation])) {
                     continue;
                 }
 
+                $other = $edge->from === $current ? $edge->to : $edge->from;
                 if (\array_key_exists($other, $previous)) {
                     continue;
                 }
@@ -202,5 +206,25 @@ class RuntimeGraph
         }
 
         return new GraphPath(array_reverse($nodes), array_reverse($edges));
+    }
+
+    /**
+     * @return array<string, list<GraphEdge>>
+     */
+    private function adjacency(): array
+    {
+        if (null !== $this->adjacencyIndex) {
+            return $this->adjacencyIndex;
+        }
+
+        $adjacency = [];
+        foreach ($this->edges as $edge) {
+            $adjacency[$edge->from][] = $edge;
+            if ($edge->from !== $edge->to) {
+                $adjacency[$edge->to][] = $edge;
+            }
+        }
+
+        return $this->adjacencyIndex = $adjacency;
     }
 }

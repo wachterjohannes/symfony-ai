@@ -42,17 +42,6 @@ final class ContainerGraphProvider implements GraphProviderInterface
         $container = $this->provider->getContainer($containerXmlPath);
         $services = $container->getServices();
 
-        // First pass: collect class → service-id map for interface resolution.
-        $classToServiceIds = [];
-        foreach ($services as $service) {
-            $class = $service->getClass();
-            if (null === $class) {
-                continue;
-            }
-            $classToServiceIds[$class][] = $service->getId();
-        }
-
-        // Second pass: emit nodes and edges.
         foreach ($services as $service) {
             $serviceId = $service->getId();
             $serviceNodeId = 'service:'.$serviceId;
@@ -68,11 +57,18 @@ final class ContainerGraphProvider implements GraphProviderInterface
                 ];
             }
 
-            $graph->node($serviceNodeId, 'service', $class ?? $serviceId, [
+            $metadata = [
                 'class' => $class,
                 'tags' => $tagNames,
                 'tagMetadata' => $tagMetadata,
-            ]);
+            ];
+
+            $alias = $service->getAlias();
+            if (null !== $alias) {
+                $metadata['aliasOf'] = $alias;
+            }
+
+            $graph->node($serviceNodeId, 'service', $class ?? $serviceId, $metadata);
 
             // Service-to-service dependencies via constructor arguments.
             foreach ($service->getArguments() as $dependencyId) {
@@ -80,9 +76,10 @@ final class ContainerGraphProvider implements GraphProviderInterface
                 $graph->edge($serviceNodeId, 'depends_on', $dependencyNodeId);
             }
 
-            // Interface → service edges when the service class is part of a class-name match
-            // with other registered services (best-effort; XML doesn't always carry interface info).
-            if (null !== $class && interface_exists($class)) {
+            // Interface → service edges when the service class is registered as an interface.
+            // Pass `false` to interface_exists to skip autoload — we only want to match interfaces
+            // that have already been resolved by the surrounding application.
+            if (null !== $class && interface_exists($class, false)) {
                 $graph->node('interface:'.$class, 'interface', $class);
                 $graph->edge('interface:'.$class, 'implemented_by', $serviceNodeId);
             }

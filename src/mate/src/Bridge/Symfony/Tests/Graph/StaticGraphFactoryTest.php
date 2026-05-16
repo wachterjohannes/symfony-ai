@@ -109,4 +109,58 @@ final class StaticGraphFactoryTest extends TestCase
         $this->assertSame(1, $provider->calls);
         $this->assertGreaterThan(0, \count($graph->nodes()));
     }
+
+    public function testLinkerRunsAfterProviders()
+    {
+        $provider = new class implements GraphProviderInterface {
+            public function populate(RuntimeGraphBuilder $graph, GraphContext $context): void
+            {
+                // Emit controller first, service second — proves the linker doesn't care about order.
+                $graph->node('controller:App\\Controller\\X::run', 'controller', 'X::run', ['class' => 'App\\Controller\\X']);
+                $graph->node('service:app.controller.x', 'service', 'X', ['class' => 'App\\Controller\\X']);
+            }
+        };
+
+        $factory = new StaticGraphFactory(
+            [$provider],
+            new StaticGraphCache($this->tempCacheDir),
+            $this->fixturesDir,
+        );
+
+        $graph = $factory->build();
+
+        $found = false;
+        foreach ($graph->edges() as $edge) {
+            if ('controller:App\\Controller\\X::run' === $edge->from
+                && 'depends_on' === $edge->relation
+                && 'service:app.controller.x' === $edge->to
+            ) {
+                $found = true;
+                break;
+            }
+        }
+        $this->assertTrue($found, 'Expected ControllerServiceLinker to emit depends_on edge after providers ran.');
+    }
+
+    public function testCacheInvalidatedWhenContainerContentChanges()
+    {
+        $containerDir = $this->tempCacheDir.'/container';
+        mkdir($containerDir, 0o777, true);
+        $containerXml = $containerDir.'/App_KernelDevDebugContainer.xml';
+        file_put_contents($containerXml, "<?xml version=\"1.0\"?>\n<container><services/></container>\n");
+
+        $provider = new CountingGraphProvider();
+        $cache = new StaticGraphCache($this->tempCacheDir.'/cache');
+        $factory = new StaticGraphFactory([$provider], $cache, $containerDir);
+
+        $factory->build();
+        $factory->build();
+        $this->assertSame(1, $provider->calls, 'Second build should hit the cache.');
+
+        // Mutate the container XML — sha1 changes, cache should miss, provider re-runs.
+        file_put_contents($containerXml, "<?xml version=\"1.0\"?>\n<container><services><!-- changed --></services></container>\n");
+        $factory->build();
+
+        $this->assertSame(2, $provider->calls);
+    }
 }

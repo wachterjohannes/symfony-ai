@@ -16,14 +16,16 @@ use Symfony\AI\Mate\Bridge\Symfony\GraphProvider\GraphProviderInterface;
 /**
  * Orchestrates the tagged graph providers to assemble the static slice of the runtime graph.
  *
- * Caches the result via {@see StaticGraphCache}. The cache key is derived from the first
- * discovered container XML file's mtime + size — cheap to compute and stable enough for the
- * "did the container rebuild?" question we actually need to answer.
+ * Caches the result via {@see StaticGraphCache}. The cache key is the SHA-1 of the first
+ * discovered container XML file. Slightly more expensive than mtime+size but immune to
+ * same-second rebuilds and file-system mtime resolution differences across hosts.
  *
  * @author Johannes Wachter <johannes@sulu.io>
  */
 class StaticGraphFactory
 {
+    private readonly ControllerServiceLinker $linker;
+
     /**
      * @param iterable<GraphProviderInterface> $providers
      */
@@ -31,7 +33,9 @@ class StaticGraphFactory
         private readonly iterable $providers,
         private readonly StaticGraphCache $cache,
         private readonly string $cacheDir,
+        ?ControllerServiceLinker $linker = null,
     ) {
+        $this->linker = $linker ?? new ControllerServiceLinker();
     }
 
     public function build(): RuntimeGraph
@@ -53,6 +57,11 @@ class StaticGraphFactory
             $provider->populate($builder, $context);
         }
 
+        // Post-processing step: now that every provider has emitted its nodes, link controller
+        // nodes to matching service nodes. Keeping this out of the providers themselves removes
+        // any cross-provider ordering dependency.
+        $this->linker->link($graph);
+
         if (null !== $hash) {
             $this->cache->save($hash, $graph);
         }
@@ -68,14 +77,9 @@ class StaticGraphFactory
             $files = glob($dir.'/*DebugContainer.xml');
             if (false !== $files && [] !== $files) {
                 sort($files);
-                $path = $files[0];
-                $mtime = filemtime($path);
-                $size = filesize($path);
-                if (false === $mtime || false === $size) {
-                    return null;
-                }
+                $hash = @sha1_file($files[0]);
 
-                return md5($path.':'.$mtime.':'.$size);
+                return false === $hash ? null : $hash;
             }
         }
 

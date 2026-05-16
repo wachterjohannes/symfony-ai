@@ -13,6 +13,7 @@ namespace Symfony\AI\Mate\Bridge\Symfony\GraphProvider;
 
 use Symfony\AI\Mate\Bridge\Symfony\Graph\GraphContext;
 use Symfony\AI\Mate\Bridge\Symfony\Graph\RuntimeGraphBuilder;
+use Symfony\AI\Mate\Bridge\Symfony\GraphProvider\Exception\GraphProviderException;
 
 /**
  * Contributes route and controller nodes plus handled_by edges to the runtime graph.
@@ -43,11 +44,6 @@ final class RouteGraphProvider implements GraphProviderInterface
         }
 
         $routes = $this->loadRoutes($routerCachePath);
-        if (null === $routes) {
-            return;
-        }
-
-        $classToServiceNodeId = $this->collectServiceClassIndex($graph);
 
         foreach ($routes as $name => $tuple) {
             if (!\is_string($name) || !\is_array($tuple)) {
@@ -76,10 +72,6 @@ final class RouteGraphProvider implements GraphProviderInterface
                 'class' => $controllerClass,
             ]);
             $graph->edge($routeNodeId, 'handled_by', $controllerNodeId);
-
-            if (isset($classToServiceNodeId[$controllerClass])) {
-                $graph->edge($controllerNodeId, 'depends_on', $classToServiceNodeId[$controllerClass]);
-            }
         }
     }
 
@@ -97,38 +89,26 @@ final class RouteGraphProvider implements GraphProviderInterface
     }
 
     /**
-     * @return array<string, array<int, mixed>>|null
+     * @return array<string, array<int, mixed>>
+     *
+     * @throws GraphProviderException when the cache file is unreadable or evaluates to non-array
      */
-    private function loadRoutes(string $path): ?array
+    private function loadRoutes(string $path): array
     {
         $loader = static fn (string $file): mixed => require $file;
-        $result = $loader($path);
+
+        try {
+            $result = $loader($path);
+        } catch (\Throwable $e) {
+            throw new GraphProviderException(\sprintf('Failed to load Symfony router cache from "%s".', $path), 0, $e);
+        }
 
         if (!\is_array($result)) {
-            return null;
+            throw new GraphProviderException(\sprintf('Symfony router cache at "%s" did not return an array.', $path));
         }
 
         /** @var array<string, array<int, mixed>> $result */
         return $result;
-    }
-
-    /**
-     * @return array<string, string>
-     */
-    private function collectServiceClassIndex(RuntimeGraphBuilder $graph): array
-    {
-        $index = [];
-        foreach ($graph->graph()->nodes() as $node) {
-            if ('service' !== $node->type) {
-                continue;
-            }
-            $class = $node->metadata['class'] ?? null;
-            if (\is_string($class) && '' !== $class) {
-                $index[$class] = $node->id;
-            }
-        }
-
-        return $index;
     }
 
     /**
@@ -165,6 +145,7 @@ final class RouteGraphProvider implements GraphProviderInterface
     {
         if (str_contains($controller, '::')) {
             [$class, $method] = explode('::', $controller, 2);
+            // strrchr returns the substring starting at the last "\" (inclusive); substr(..., 1) trims that leading separator.
             $shortClass = substr((string) strrchr($class, '\\'), 1) ?: $class;
 
             return [
@@ -175,6 +156,7 @@ final class RouteGraphProvider implements GraphProviderInterface
         }
 
         $class = $controller;
+        // strrchr returns the substring starting at the last "\" (inclusive); substr(..., 1) trims that leading separator.
         $shortClass = substr((string) strrchr($class, '\\'), 1) ?: $class;
 
         return [

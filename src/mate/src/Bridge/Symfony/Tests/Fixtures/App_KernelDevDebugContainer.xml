@@ -14,6 +14,8 @@
             <tag name="container.service_locator"/>
         </service>
         <service id="my_service" alias="cache.app"/>
+        <service id="alias_chain_middle" alias="cache.app"/>
+        <service id="alias_chain_outer" alias="alias_chain_middle"/>
         <service id="router" class="Symfony\Component\Routing\Router">
             <factory class="RouterFactory" method="create"/>
         </service>

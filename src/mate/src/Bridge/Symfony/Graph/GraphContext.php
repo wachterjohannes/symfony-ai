@@ -15,6 +15,11 @@ namespace Symfony\AI\Mate\Bridge\Symfony\Graph;
  * Passes scope hints to {@see \Symfony\AI\Mate\Bridge\Symfony\GraphProvider\GraphProviderInterface}
  * implementations so they can populate only the slice that matters for the current request.
  *
+ * Static providers (container, routes) currently ignore every field — {@see StaticGraphFactory}
+ * always constructs this with defaults. The fields exist to be set by request-scoped callers
+ * (profiler graph provider, knowledge graph provider) in upcoming releases of the Mate Symfony
+ * bridge.
+ *
  * @author Johannes Wachter <johannes@sulu.io>
  */
 final readonly class GraphContext
