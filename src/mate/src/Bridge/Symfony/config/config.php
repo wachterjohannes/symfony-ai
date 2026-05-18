@@ -11,13 +11,21 @@
 
 use Symfony\AI\Mate\Bridge\Symfony\Capability\ContextTool;
 use Symfony\AI\Mate\Bridge\Symfony\Capability\GraphTool;
+use Symfony\AI\Mate\Bridge\Symfony\Capability\InspectTool;
 use Symfony\AI\Mate\Bridge\Symfony\Capability\ProfilerResourceTemplate;
 use Symfony\AI\Mate\Bridge\Symfony\Capability\ProfilerTool;
 use Symfony\AI\Mate\Bridge\Symfony\Capability\ServiceTool;
+use Symfony\AI\Mate\Bridge\Symfony\Graph\RequestGraphCache;
+use Symfony\AI\Mate\Bridge\Symfony\Graph\RequestGraphFactory;
 use Symfony\AI\Mate\Bridge\Symfony\Graph\StaticGraphCache;
 use Symfony\AI\Mate\Bridge\Symfony\Graph\StaticGraphFactory;
 use Symfony\AI\Mate\Bridge\Symfony\GraphProvider\ContainerGraphProvider;
+use Symfony\AI\Mate\Bridge\Symfony\GraphProvider\ProfilerGraphProvider;
 use Symfony\AI\Mate\Bridge\Symfony\GraphProvider\RouteGraphProvider;
+use Symfony\AI\Mate\Bridge\Symfony\Inspector\InspectorRegistry;
+use Symfony\AI\Mate\Bridge\Symfony\Inspector\RequestInspector;
+use Symfony\AI\Mate\Bridge\Symfony\Inspector\RouteInspector;
+use Symfony\AI\Mate\Bridge\Symfony\Inspector\ServiceInspector;
 use Symfony\AI\Mate\Bridge\Symfony\Profiler\Service\CollectorRegistry;
 use Symfony\AI\Mate\Bridge\Symfony\Profiler\Service\Formatter\DoctrineCollectorFormatter;
 use Symfony\AI\Mate\Bridge\Symfony\Profiler\Service\Formatter\ExceptionCollectorFormatter;
@@ -72,10 +80,32 @@ return static function (ContainerConfigurator $configurator) {
         ]);
 
     $services->set(ContextTool::class)
-        ->args([service(StaticGraphFactory::class)]);
+        ->args([
+            service(StaticGraphFactory::class),
+            service(RequestGraphFactory::class)->nullOnInvalid(),
+            service(ProfilerDataProvider::class)->nullOnInvalid(),
+        ]);
 
     $services->set(GraphTool::class)
         ->args([service(StaticGraphFactory::class)]);
+
+    // Inspectors — always available; service/route inspectors don't need the profiler.
+    $services->set(ServiceInspector::class)
+        ->args([service(ContainerProvider::class), '%ai_mate_symfony.cache_dir%'])
+        ->tag('ai_mate.graph_inspector');
+
+    $services->set(RouteInspector::class)
+        ->tag('ai_mate.graph_inspector');
+
+    $services->set(InspectorRegistry::class)
+        ->args([tagged_iterator('ai_mate.graph_inspector')]);
+
+    $services->set(InspectTool::class)
+        ->args([
+            service(StaticGraphFactory::class),
+            service(RequestGraphFactory::class)->nullOnInvalid(),
+            service(InspectorRegistry::class),
+        ]);
 
     // Profiler services (optional - only if profiler classes are available)
     if (class_exists(Profile::class)) {
@@ -122,5 +152,25 @@ return static function (ContainerConfigurator $configurator) {
 
         $services->set(ProfilerResourceTemplate::class)
             ->args([service(ProfilerDataProvider::class)]);
+
+        // Request-scoped graph layer — only available when the profiler is loaded.
+        // ProfilerGraphProvider is NOT tagged ai_mate.graph_provider because it must only
+        // run on the per-token RequestGraphFactory path, never on the static graph build.
+        $services->set(ProfilerGraphProvider::class)
+            ->args([service(ProfilerDataProvider::class)]);
+
+        $services->set(RequestGraphCache::class)
+            ->args(['%ai_mate_symfony.cache_dir%']);
+
+        $services->set(RequestGraphFactory::class)
+            ->args([
+                service(StaticGraphFactory::class),
+                service(ProfilerGraphProvider::class),
+                service(RequestGraphCache::class),
+                service(ProfilerDataProvider::class),
+            ]);
+
+        $services->set(RequestInspector::class)
+            ->tag('ai_mate.graph_inspector');
     }
 };
