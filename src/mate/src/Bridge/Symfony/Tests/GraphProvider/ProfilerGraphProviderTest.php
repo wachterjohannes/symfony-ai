@@ -16,6 +16,7 @@ use Symfony\AI\Mate\Bridge\Symfony\Graph\GraphContext;
 use Symfony\AI\Mate\Bridge\Symfony\Graph\RuntimeGraph;
 use Symfony\AI\Mate\Bridge\Symfony\Graph\RuntimeGraphBuilder;
 use Symfony\AI\Mate\Bridge\Symfony\GraphProvider\ProfilerGraphProvider;
+use Symfony\AI\Mate\Bridge\Symfony\Profiler\Service\CollectorFormatterInterface;
 use Symfony\AI\Mate\Bridge\Symfony\Profiler\Service\CollectorRegistry;
 use Symfony\AI\Mate\Bridge\Symfony\Profiler\Service\Formatter\DoctrineCollectorFormatter;
 use Symfony\AI\Mate\Bridge\Symfony\Profiler\Service\Formatter\ExceptionCollectorFormatter;
@@ -37,12 +38,10 @@ final class ProfilerGraphProviderTest extends TestCase
             $this->markTestSkipped('symfony/http-kernel profiler classes not available.');
         }
 
-        $registry = new CollectorRegistry([
-            new RequestCollectorFormatter(),
-            new DoctrineCollectorFormatter(),
-            new ExceptionCollectorFormatter(),
-            new TimeCollectorFormatter(),
-        ]);
+        $registry = new CollectorRegistry([]);
+        foreach ($this->buildFormatters() as $formatter) {
+            $registry->register($formatter);
+        }
         $fixtureDir = \dirname(__DIR__).'/Fixtures/profiler';
         $dataProvider = new ProfilerDataProvider($fixtureDir, $registry);
         $this->provider = new ProfilerGraphProvider($dataProvider);
@@ -99,5 +98,24 @@ final class ProfilerGraphProviderTest extends TestCase
         $this->provider->populate($builder, new GraphContext(profilerToken: $token));
 
         return $graph;
+    }
+
+    /**
+     * Returns formatters with their generic erased to satisfy CollectorRegistry's invariant
+     * `<DataCollectorInterface>` bound — concrete formatters declare a narrower TCollector
+     * (e.g. DoctrineDataCollector). PHPStan can't bridge invariant generics here, so the cast
+     * is silenced at the helper boundary rather than at each register() call site.
+     *
+     * @return list<CollectorFormatterInterface<\Symfony\Component\HttpKernel\DataCollector\DataCollectorInterface>>
+     */
+    private function buildFormatters(): array
+    {
+        // @phpstan-ignore return.type
+        return [
+            new RequestCollectorFormatter(),
+            new DoctrineCollectorFormatter(),
+            new ExceptionCollectorFormatter(),
+            new TimeCollectorFormatter(),
+        ];
     }
 }

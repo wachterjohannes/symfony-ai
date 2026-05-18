@@ -9,9 +9,12 @@
  * file that was distributed with this source code.
  */
 
-namespace Symfony\AI\Mate\Bridge\Symfony\Tests\Graph;
+namespace Symfony\AI\Mate\Bridge\Symfony\Tests\Capability;
 
+use HelgeSverre\Toon\DecodeOptions;
+use HelgeSverre\Toon\Toon;
 use PHPUnit\Framework\TestCase;
+use Symfony\AI\Mate\Bridge\Symfony\Capability\ContextTool;
 use Symfony\AI\Mate\Bridge\Symfony\Graph\RequestGraphCache;
 use Symfony\AI\Mate\Bridge\Symfony\Graph\RequestGraphFactory;
 use Symfony\AI\Mate\Bridge\Symfony\Graph\StaticGraphCache;
@@ -31,7 +34,7 @@ use Symfony\Component\HttpKernel\Profiler\FileProfilerStorage;
 /**
  * @author Johannes Wachter <johannes@sulu.io>
  */
-final class RequestGraphFactoryTest extends TestCase
+final class ContextToolRequestTest extends TestCase
 {
     private string $fixturesDir;
     private string $tempCacheDir;
@@ -44,7 +47,7 @@ final class RequestGraphFactoryTest extends TestCase
         }
 
         $this->fixturesDir = \dirname(__DIR__).'/Fixtures';
-        $this->tempCacheDir = sys_get_temp_dir().'/ai_mate_request_graph_factory_'.uniqid();
+        $this->tempCacheDir = sys_get_temp_dir().'/ai_mate_context_request_'.uniqid();
         mkdir($this->tempCacheDir, 0o777, true);
 
         $registry = new CollectorRegistry([]);
@@ -70,51 +73,47 @@ final class RequestGraphFactoryTest extends TestCase
         rmdir($this->tempCacheDir);
     }
 
-    public function testReturnsNullForUnknownToken()
+    public function testLatestRequestResolvesToNewestProfile()
     {
-        $factory = $this->buildFactory();
+        $tool = $this->buildTool();
 
-        $this->assertNull($factory->build('does-not-exist'));
+        $result = Toon::decode($tool->getContext('latest_request'), DecodeOptions::lenient());
+
+        $this->assertCount(1, $result['primaryNodes']);
+        // ghi789 has the highest `time` in the fixture (1704449000) → newest.
+        $this->assertSame('request:ghi789', $result['primaryNodes'][0]['id']);
     }
 
-    public function testReplaysStaticSliceIntoRequestGraph()
+    public function testBareRequestAliasesToLatestRequest()
     {
-        $factory = $this->buildFactory();
+        $tool = $this->buildTool();
 
-        $graph = $factory->build('abc123');
+        $result = Toon::decode($tool->getContext('request'), DecodeOptions::lenient());
 
-        $this->assertNotNull($graph);
-        // Static slice survives — the container fixture's app.event_listener service node
-        // should be present in the merged graph.
-        $this->assertNotNull($graph->node('service:app.event_listener'));
-        // Request slice was overlaid.
-        $this->assertNotNull($graph->node('request:abc123'));
+        $this->assertCount(1, $result['primaryNodes']);
+        $this->assertSame('request:ghi789', $result['primaryNodes'][0]['id']);
     }
 
-    public function testCachesAcrossBuildsForSameToken()
+    public function testExplicitRequestTargetReturnsEnvelope()
     {
-        $factory = $this->buildFactory();
+        $tool = $this->buildTool();
 
-        $factory->build('abc123');
-        $cachePath = $this->tempCacheDir.'/ai_mate/graph/request/abc123.json';
-        $this->assertFileExists($cachePath, 'First build should write the request-graph cache file.');
+        $result = Toon::decode($tool->getContext('request:abc123'), DecodeOptions::lenient());
 
-        // Second build reads the cache file — assert by mutating it and verifying we get the mutation back.
-        $payload = json_decode((string) file_get_contents($cachePath), true);
-        $payload['nodes'][] = [
-            'id' => 'service:cache-sentinel',
-            'type' => 'service',
-            'label' => 'Sentinel',
-            'metadata' => [],
-        ];
-        file_put_contents($cachePath, json_encode($payload));
+        $this->assertSame('request:abc123', $result['primaryNodes'][0]['id']);
+        $this->assertNotEmpty($result['findings']);
+        // No DB collector in this fixture profile, so the "no queries" finding fires.
+        $this->assertStringContainsString('No database queries recorded', implode(' ', $result['findings']));
+    }
 
-        $graph = $factory->build('abc123');
-        $this->assertNotNull($graph);
-        $this->assertNotNull(
-            $graph->node('service:cache-sentinel'),
-            'Second build should read from cache (sentinel node written via the cache file is visible).',
-        );
+    public function testUnknownTokenReturnsWarning()
+    {
+        $tool = $this->buildTool();
+
+        $result = Toon::decode($tool->getContext('request:does-not-exist'), DecodeOptions::lenient());
+
+        $this->assertSame([], $result['primaryNodes']);
+        $this->assertNotEmpty($result['warnings']);
     }
 
     /**
@@ -131,21 +130,20 @@ final class RequestGraphFactoryTest extends TestCase
         ];
     }
 
-    private function buildFactory(): RequestGraphFactory
+    private function buildTool(): ContextTool
     {
         $staticFactory = new StaticGraphFactory(
             [new ContainerGraphProvider($this->fixturesDir, new ContainerProvider())],
             new StaticGraphCache($this->tempCacheDir.'/static'),
             $this->fixturesDir,
         );
-
-        $profilerProvider = new ProfilerGraphProvider($this->profilerData);
-
-        return new RequestGraphFactory(
+        $requestFactory = new RequestGraphFactory(
             $staticFactory,
-            $profilerProvider,
+            new ProfilerGraphProvider($this->profilerData),
             new RequestGraphCache($this->tempCacheDir),
             $this->profilerData,
         );
+
+        return new ContextTool($staticFactory, $requestFactory, $this->profilerData);
     }
 }
