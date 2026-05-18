@@ -15,18 +15,20 @@ use Mcp\Capability\Attribute\McpTool;
 use Symfony\AI\Mate\Bridge\Symfony\Graph\GraphEdge;
 use Symfony\AI\Mate\Bridge\Symfony\Graph\GraphNode;
 use Symfony\AI\Mate\Bridge\Symfony\Graph\GraphView;
+use Symfony\AI\Mate\Bridge\Symfony\Graph\RequestGraphFactory;
 use Symfony\AI\Mate\Bridge\Symfony\Graph\RuntimeGraph;
 use Symfony\AI\Mate\Bridge\Symfony\Graph\StaticGraphFactory;
+use Symfony\AI\Mate\Bridge\Symfony\Profiler\Service\ProfilerDataProvider;
 use Symfony\AI\Mate\Encoding\ResponseEncoder;
 
 /**
  * MCP tool that returns a compact, connected runtime view (GraphResult envelope) for a
  * requested target.
  *
- * Supported targets in this iteration: `static`, `route:<name>`, `service:<id>`,
- * `controller:<fqcn>::<method>`, `interface:<fqcn>`. Request-scoped targets
- * (`latest_request`, `request:<token>`) are wired up in the follow-up profiler-graph PR;
- * until then they return a warning explaining the limitation.
+ * Supported targets: `static`, `route:<name>`, `service:<id>`, `controller:<fqcn>::<method>`,
+ * `interface:<fqcn>`, `request:<token>`, `latest_request` (alias `request`). Request-scoped
+ * targets require the profiler to be enabled in the host app — when unavailable, the tool
+ * returns a degradation envelope rather than throwing.
  *
  * @author Johannes Wachter <johannes@sulu.io>
  *
@@ -50,28 +52,60 @@ class ContextTool
 
     public function __construct(
         private readonly StaticGraphFactory $factory,
+        private readonly ?RequestGraphFactory $requestFactory = null,
+        private readonly ?ProfilerDataProvider $profiler = null,
     ) {
     }
 
     /**
      * @param string       $target   One of: 'static', 'service:<id>', 'route:<name>',
-     *                               'controller:<fqcn>::<method>', 'interface:<fqcn>'.
-     *                               Request-scoped targets are not yet supported.
+     *                               'controller:<fqcn>::<method>', 'interface:<fqcn>',
+     *                               'request:<token>', 'latest_request' (alias 'request').
      * @param list<string> $include  Hints which neighbour categories matter most (advisory;
      *                               currently consulted for `tags` on service targets).
      * @param int          $maxItems Soft cap on the size of the returned neighbourhood.
      */
     #[McpTool(
         name: 'symfony-context',
-        description: 'Return a compact, connected runtime view for a target node ("service:Foo", "route:app_checkout", or "static" for an app-wide summary). Bundles primary nodes, related nodes, evidence edges, and suggested follow-up tools in a single response.',
+        description: 'Return a compact, connected runtime view for a target node ("service:Foo", "route:app_checkout", "request:<token>", "latest_request", or "static" for an app-wide summary). Bundles primary nodes, related nodes, evidence edges, and suggested follow-up tools in a single response.',
     )]
     public function getContext(
         string $target = 'static',
         array $include = ['route', 'controller', 'services'],
         int $maxItems = 20,
     ): string {
-        if ('' === $target || 'request' === $target || 'latest_request' === $target || str_starts_with($target, 'request:')) {
-            return $this->encode($this->requestScopedNotSupported($target));
+        if ('' === $target) {
+            return $this->encode($this->unknownTarget($target));
+        }
+
+        // Resolve `latest_request` / bare `request` to a concrete `request:<token>` before
+        // dispatching, so the request branch only needs to handle one shape.
+        if ('latest_request' === $target || 'request' === $target) {
+            if (null === $this->profiler) {
+                return $this->encode($this->profilerUnavailable());
+            }
+            $latest = $this->profiler->getLatestProfile();
+            if (null === $latest) {
+                return $this->encode($this->noProfiles());
+            }
+            $target = 'request:'.$latest->getToken();
+        }
+
+        if (str_starts_with($target, 'request:')) {
+            if (null === $this->requestFactory) {
+                return $this->encode($this->profilerUnavailable());
+            }
+            $token = substr($target, 8);
+            $graph = $this->requestFactory->build($token);
+            if (null === $graph) {
+                return $this->encode($this->unknownToken($token));
+            }
+            $node = $graph->node('request:'.$token);
+            if (null === $node) {
+                return $this->encode($this->unknownTarget($target));
+            }
+
+            return $this->encode($this->envelopeForNode($node, $graph, $include, $maxItems));
         }
 
         $graph = $this->factory->build();
@@ -85,20 +119,32 @@ class ContextTool
             return $this->encode($this->unknownTarget($target));
         }
 
-        $view = $graph->neighbors($target, self::NODE_NEIGHBOURHOOD_DEPTH, [], $maxItems);
+        return $this->encode($this->envelopeForNode($node, $graph, $include, $maxItems));
+    }
+
+    /**
+     * Assembles the neighbourhood envelope around a single node. Shared by service / route /
+     * controller / interface / request targets — only the per-type summary/findings/nextActions
+     * branches differ, and they're handled inside the helpers themselves via the node's `type`.
+     *
+     * @param list<string> $include
+     */
+    private function envelopeForNode(GraphNode $node, RuntimeGraph $graph, array $include, int $maxItems): GraphResult
+    {
+        $view = $graph->neighbors($node->id, self::NODE_NEIGHBOURHOOD_DEPTH, [], $maxItems);
         $stats = $this->edgeStats($node, $view->edges);
 
-        return $this->encode(new GraphResult(
+        return new GraphResult(
             summary: $this->summary($node, $view, $stats),
             primaryNodes: [$this->nodeToArray($node)],
-            findings: $this->findings($node, $stats, $include),
+            findings: $this->findings($node, $stats, $include, $graph, $view),
             evidence: $this->evidence($view->edges),
             relatedNodes: $this->relatedNodes($node, $view),
             nextActions: $this->nextActions($node),
             warnings: $view->truncated
                 ? [\sprintf('Neighbourhood truncated at maxItems=%d; raise maxItems for a wider view.', $maxItems)]
                 : [],
-        ));
+        );
     }
 
     /**
@@ -133,8 +179,35 @@ class ContextTool
             'route' => $this->routeSummary($node, $stats),
             'controller' => $this->controllerSummary($node, $stats),
             'interface' => $this->interfaceSummary($node, $stats),
+            'request' => $this->requestSummary($node, $stats),
             default => $this->genericSummary($node, $view),
         };
+    }
+
+    /**
+     * @phpstan-param EdgeStats $stats
+     */
+    private function requestSummary(GraphNode $node, array $stats): string
+    {
+        $method = (string) ($node->metadata['method'] ?? '');
+        $url = (string) ($node->metadata['url'] ?? '');
+        $statusCode = $node->metadata['status_code'] ?? null;
+        $durationMs = $node->metadata['duration_ms'] ?? null;
+        $queryCount = $stats['outgoing']['executed_query'] ?? 0;
+
+        $head = trim(\sprintf('%s %s', $method, $url));
+        if (null !== $statusCode) {
+            $head .= ' → '.$statusCode;
+        }
+        if (null !== $durationMs) {
+            $head .= \sprintf(' (%s ms)', $durationMs);
+        }
+
+        return \sprintf(
+            'Request %s executed %s.',
+            '' === $head ? $node->label : $head,
+            $this->plural((int) $queryCount, 'database query', 'database queries'),
+        );
     }
 
     /**
@@ -212,7 +285,7 @@ class ContextTool
      *
      * @return list<string>
      */
-    private function findings(GraphNode $node, array $stats, array $include): array
+    private function findings(GraphNode $node, array $stats, array $include, RuntimeGraph $graph, GraphView $view): array
     {
         $findings = [];
 
@@ -237,6 +310,66 @@ class ContextTool
 
         if ('controller' === $node->type && 0 === ($stats['outgoing']['depends_on'] ?? 0)) {
             $findings[] = 'Controller has no matching service definition in the container — likely autowired without an explicit registration.';
+        }
+
+        if ('request' === $node->type) {
+            $findings = array_merge($findings, $this->requestFindings($node, $graph, $view));
+        }
+
+        return $findings;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function requestFindings(GraphNode $node, RuntimeGraph $graph, GraphView $view): array
+    {
+        $findings = [];
+
+        $slowest = null;
+        $slowestMs = -1.0;
+        $queryCount = 0;
+        $exceptionClass = null;
+        foreach ($view->edges as $edge) {
+            if ($edge->from !== $node->id) {
+                continue;
+            }
+            if ('executed_query' === $edge->relation) {
+                ++$queryCount;
+                $queryNode = $graph->node($edge->to);
+                if (null === $queryNode) {
+                    continue;
+                }
+                $duration = $queryNode->metadata['total_time_ms'] ?? null;
+                if (\is_int($duration) || \is_float($duration)) {
+                    $durationFloat = (float) $duration;
+                    if ($durationFloat > $slowestMs) {
+                        $slowestMs = $durationFloat;
+                        $slowest = $queryNode;
+                    }
+                }
+            }
+            if ('raised_exception' === $edge->relation) {
+                $exceptionNode = $graph->node($edge->to);
+                if (null !== $exceptionNode) {
+                    $exceptionClass = (string) ($exceptionNode->metadata['class'] ?? $exceptionNode->label);
+                }
+            }
+        }
+
+        if (0 === $queryCount) {
+            $findings[] = 'No database queries recorded for this request.';
+        } elseif (null !== $slowest) {
+            $sql = (string) ($slowest->metadata['sql'] ?? $slowest->label);
+            $findings[] = \sprintf(
+                'Slowest query: %s (%s ms).',
+                mb_strlen($sql) > 100 ? mb_substr($sql, 0, 100).'…' : $sql,
+                $slowestMs,
+            );
+        }
+
+        if (null !== $exceptionClass) {
+            $findings[] = \sprintf('Raised exception: %s.', $exceptionClass);
         }
 
         return $findings;
@@ -283,7 +416,20 @@ class ContextTool
      */
     private function nextActions(GraphNode $node): array
     {
+        if ('request' === $node->type) {
+            $actions = [
+                ['tool' => 'symfony-inspect', 'args' => ['node' => $node->id]],
+            ];
+            $route = $node->metadata['route'] ?? null;
+            if (\is_string($route) && '' !== $route) {
+                $actions[] = ['tool' => 'symfony-context', 'args' => ['target' => 'route:'.$route]];
+            }
+
+            return $actions;
+        }
+
         return [
+            ['tool' => 'symfony-inspect', 'args' => ['node' => $node->id]],
             ['tool' => 'symfony-graph', 'args' => ['node' => $node->id, 'depth' => self::NODE_NEIGHBOURHOOD_DEPTH]],
             ['tool' => 'symfony-graph', 'args' => ['node' => $node->id, 'depth' => self::FOLLOW_UP_DEPTH, 'relations' => ['depends_on']]],
         ];
@@ -387,16 +533,42 @@ class ContextTool
         return null;
     }
 
-    private function requestScopedNotSupported(string $target): GraphResult
+    private function profilerUnavailable(): GraphResult
     {
         return new GraphResult(
-            summary: 'Request-scoped context is not yet supported by this tool — the profiler graph provider lands in a follow-up PR.',
+            summary: 'Request-scoped context unavailable — the Symfony profiler is not enabled in the target app.',
             primaryNodes: [],
             findings: [],
             evidence: [],
             relatedNodes: [],
             nextActions: [],
-            warnings: [\sprintf('Target "%s" is not yet supported. Request-scoped targets are wired up by the profiler graph provider in a follow-up release of the Mate Symfony bridge.', $target)],
+            warnings: ['The profiler bundle (symfony/web-profiler-bundle) must be installed and enabled for request-scoped targets (latest_request, request:<token>) to work.'],
+        );
+    }
+
+    private function noProfiles(): GraphResult
+    {
+        return new GraphResult(
+            summary: 'No profiler entries found — make a request against the target app first.',
+            primaryNodes: [],
+            findings: [],
+            evidence: [],
+            relatedNodes: [],
+            nextActions: [],
+            warnings: ['The profiler store is empty. Hit any route in the target Symfony app to seed the first profile.'],
+        );
+    }
+
+    private function unknownToken(string $token): GraphResult
+    {
+        return new GraphResult(
+            summary: \sprintf('No profile found for token "%s".', $token),
+            primaryNodes: [],
+            findings: [],
+            evidence: [],
+            relatedNodes: [],
+            nextActions: [],
+            warnings: ['Unknown profiler token — list available tokens with the symfony-profiler-list tool.'],
         );
     }
 
