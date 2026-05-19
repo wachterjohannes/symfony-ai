@@ -47,14 +47,26 @@ class InspectTool
     )]
     public function inspect(string $node, array $include = []): string
     {
+        return $this->encode($this->build($node, $include));
+    }
+
+    /**
+     * Plain object entry point used by {@see \Symfony\AI\Mate\Bridge\Symfony\Operation\GraphToolBox}
+     * and any other in-process caller that needs the {@see GraphResult} directly rather than the
+     * MCP-encoded string. {@see inspect()} is a thin wrapper that encodes the same envelope.
+     *
+     * @param list<string> $include
+     */
+    public function build(string $node, array $include = []): GraphResult
+    {
         if (str_starts_with($node, 'request:')) {
             if (null === $this->requestFactory) {
-                return $this->encode($this->profilerUnavailable());
+                return $this->profilerUnavailable();
             }
             $token = substr($node, 8);
             $graph = $this->requestFactory->build($token);
             if (null === $graph) {
-                return $this->encode($this->unknownToken($token));
+                return $this->unknownToken($token);
             }
         } else {
             $graph = $this->staticFactory->build();
@@ -62,15 +74,15 @@ class InspectTool
 
         $graphNode = $graph->node($node);
         if (null === $graphNode) {
-            return $this->encode($this->unknownNode($node));
+            return $this->unknownNode($node);
         }
 
         $inspector = $this->registry->inspectorFor($graphNode);
         if (null === $inspector) {
-            return $this->encode($this->noInspector($graphNode->type));
+            return $this->noInspector($graphNode->type);
         }
 
-        return $this->encode($inspector->inspect($graphNode, $graph, $include));
+        return $inspector->inspect($graphNode, $graph, $include);
     }
 
     private function profilerUnavailable(): GraphResult

@@ -35,7 +35,7 @@ final readonly class GraphResult
      * @param list<array{id: string, type: string, label: string, metadata?: array<string, mixed>}> $primaryNodes
      * @param list<string>                                                                          $findings
      * @param list<array{kind: string, from?: string, relation?: string, to?: string, note?: string}> $evidence
-     * @param list<array{id: string, type: string, label?: string}>                                  $relatedNodes
+     * @param list<array{id: string, type: string, label?: string, metadata?: array<string, mixed>}> $relatedNodes
      * @param list<array{tool: string, args: array<string, mixed>}>                                  $nextActions
      * @param list<string>                                                                          $warnings
      */

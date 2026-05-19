@@ -74,52 +74,64 @@ class ContextTool
         array $include = ['route', 'controller', 'services'],
         int $maxItems = 20,
     ): string {
+        return $this->encode($this->build($target, $include, $maxItems));
+    }
+
+    /**
+     * Plain object entry point used by {@see \Symfony\AI\Mate\Bridge\Symfony\Operation\GraphToolBox}
+     * and any other in-process caller that needs the {@see GraphResult} directly rather than the
+     * MCP-encoded string. {@see getContext()} is a thin wrapper that encodes the same envelope.
+     *
+     * @param list<string> $include
+     */
+    public function build(string $target, array $include = ['route', 'controller', 'services'], int $maxItems = 20): GraphResult
+    {
         if ('' === $target) {
-            return $this->encode($this->unknownTarget($target));
+            return $this->unknownTarget($target);
         }
 
         // Resolve `latest_request` / bare `request` to a concrete `request:<token>` before
         // dispatching, so the request branch only needs to handle one shape.
         if ('latest_request' === $target || 'request' === $target) {
             if (null === $this->profiler) {
-                return $this->encode($this->profilerUnavailable());
+                return $this->profilerUnavailable();
             }
             $latest = $this->profiler->getLatestProfile();
             if (null === $latest) {
-                return $this->encode($this->noProfiles());
+                return $this->noProfiles();
             }
             $target = 'request:'.$latest->getToken();
         }
 
         if (str_starts_with($target, 'request:')) {
             if (null === $this->requestFactory) {
-                return $this->encode($this->profilerUnavailable());
+                return $this->profilerUnavailable();
             }
             $token = substr($target, 8);
             $graph = $this->requestFactory->build($token);
             if (null === $graph) {
-                return $this->encode($this->unknownToken($token));
+                return $this->unknownToken($token);
             }
             $node = $graph->node('request:'.$token);
             if (null === $node) {
-                return $this->encode($this->unknownTarget($target));
+                return $this->unknownTarget($target);
             }
 
-            return $this->encode($this->envelopeForNode($node, $graph, $include, $maxItems));
+            return $this->envelopeForNode($node, $graph, $include, $maxItems);
         }
 
         $graph = $this->factory->build();
 
         if ('static' === $target) {
-            return $this->encode($this->staticOverview($graph, $maxItems));
+            return $this->staticOverview($graph, $maxItems);
         }
 
         $node = $graph->node($target);
         if (null === $node) {
-            return $this->encode($this->unknownTarget($target));
+            return $this->unknownTarget($target);
         }
 
-        return $this->encode($this->envelopeForNode($node, $graph, $include, $maxItems));
+        return $this->envelopeForNode($node, $graph, $include, $maxItems);
     }
 
     /**
