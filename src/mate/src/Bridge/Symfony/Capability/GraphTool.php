@@ -48,6 +48,25 @@ class GraphTool
         array $relations = [],
         int $maxNodes = 50,
     ): string {
+        return ResponseEncoder::encode($this->build($node, $depth, $relations, $maxNodes));
+    }
+
+    /**
+     * Plain array entry point used by {@see \Symfony\AI\Mate\Bridge\Symfony\Operation\GraphToolBox}
+     * and any other in-process caller that needs the structured subview directly rather than the
+     * MCP-encoded string. {@see getGraph()} is a thin wrapper that encodes the same payload.
+     *
+     * @param list<string> $relations
+     *
+     * @return array{
+     *     nodes: list<array{id: string, type: string, label: string, metadata: array<string, mixed>}>,
+     *     edges: list<array{from: string, relation: string, to: string}>,
+     *     truncated: bool,
+     *     suggestedFocus: list<string>,
+     * }
+     */
+    public function build(string $node, int $depth = 2, array $relations = [], int $maxNodes = 50): array
+    {
         $graph = $this->factory->build();
         $view = $graph->neighbors($node, $depth, $relations, $maxNodes);
 
@@ -70,12 +89,12 @@ class GraphTool
             ];
         }
 
-        return ResponseEncoder::encode([
+        return [
             'nodes' => $nodes,
             'edges' => $edges,
             'truncated' => $view->truncated,
             'suggestedFocus' => $this->pickFocus($view),
-        ]);
+        ];
     }
 
     /**

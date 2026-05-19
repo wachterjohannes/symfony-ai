@@ -12,6 +12,7 @@
 use Symfony\AI\Mate\Bridge\Symfony\Capability\ContextTool;
 use Symfony\AI\Mate\Bridge\Symfony\Capability\GraphTool;
 use Symfony\AI\Mate\Bridge\Symfony\Capability\InspectTool;
+use Symfony\AI\Mate\Bridge\Symfony\Capability\OperationTool;
 use Symfony\AI\Mate\Bridge\Symfony\Capability\ProfilerResourceTemplate;
 use Symfony\AI\Mate\Bridge\Symfony\Capability\ProfilerTool;
 use Symfony\AI\Mate\Bridge\Symfony\Capability\ServiceTool;
@@ -26,6 +27,11 @@ use Symfony\AI\Mate\Bridge\Symfony\Inspector\InspectorRegistry;
 use Symfony\AI\Mate\Bridge\Symfony\Inspector\RequestInspector;
 use Symfony\AI\Mate\Bridge\Symfony\Inspector\RouteInspector;
 use Symfony\AI\Mate\Bridge\Symfony\Inspector\ServiceInspector;
+use Symfony\AI\Mate\Bridge\Symfony\Operation\GraphToolBox;
+use Symfony\AI\Mate\Bridge\Symfony\Operation\Recipe\ExplainServiceRecipe;
+use Symfony\AI\Mate\Bridge\Symfony\Operation\Recipe\InvestigateExceptionRecipe;
+use Symfony\AI\Mate\Bridge\Symfony\Operation\Recipe\InvestigatePerformanceRecipe;
+use Symfony\AI\Mate\Bridge\Symfony\Operation\RecipeRegistry;
 use Symfony\AI\Mate\Bridge\Symfony\Profiler\Service\CollectorRegistry;
 use Symfony\AI\Mate\Bridge\Symfony\Profiler\Service\Formatter\DoctrineCollectorFormatter;
 use Symfony\AI\Mate\Bridge\Symfony\Profiler\Service\Formatter\ExceptionCollectorFormatter;
@@ -105,6 +111,32 @@ return static function (ContainerConfigurator $configurator) {
             service(StaticGraphFactory::class),
             service(RequestGraphFactory::class)->nullOnInvalid(),
             service(InspectorRegistry::class),
+        ]);
+
+    // Operation layer — composes the underlying tools into named recipes.
+    $services->set(GraphToolBox::class)
+        ->args([
+            service(ContextTool::class),
+            service(GraphTool::class),
+            service(InspectTool::class),
+        ]);
+
+    $services->set(InvestigatePerformanceRecipe::class)
+        ->tag('ai_mate.graph_operation_recipe');
+
+    $services->set(ExplainServiceRecipe::class)
+        ->tag('ai_mate.graph_operation_recipe');
+
+    $services->set(InvestigateExceptionRecipe::class)
+        ->tag('ai_mate.graph_operation_recipe');
+
+    $services->set(RecipeRegistry::class)
+        ->args([tagged_iterator('ai_mate.graph_operation_recipe')]);
+
+    $services->set(OperationTool::class)
+        ->args([
+            service(RecipeRegistry::class),
+            service(GraphToolBox::class),
         ]);
 
     // Profiler services (optional - only if profiler classes are available)
