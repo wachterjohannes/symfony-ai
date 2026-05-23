@@ -769,12 +769,42 @@ To enable validation, register the ``ValidatorSubscriber`` with your platform's 
 The ``ValidatorSubscriber`` will automatically validate any :class:`Symfony\\AI\\Platform\\Result\\ObjectResult` produced
 by the ``PlatformSubscriber``. To use this feature, make sure `symfony/validator` is installed in your project.
 
+Parsing Partial JSON from Streams
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+When consuming structured output as a stream, every delta only contains a fragment of the final JSON payload. To
+render incremental UI updates (e.g. progressively filling a form, showing a partial list of items, etc.) you need a
+parser that can recover the largest valid structure from an incomplete payload. The
+``Symfony\AI\Platform\StructuredOutput\Streaming\PartialJsonParser`` provides exactly that.
+
+The parser first attempts a strict ``json_decode`` and, if that fails, applies best-effort fixes in order:
+trailing commas, unclosed strings, dangling colons, partial ``true``/``false``/``null`` literals, and unclosed
+``{`` / ``[`` structures::
+
+    use Symfony\AI\Platform\StructuredOutput\Streaming\PartialJsonParser;
+
+    $buffer = '';
+
+    foreach ($chunks as $chunk) {
+        $buffer .= $chunk;
+
+        $partial = PartialJsonParser::parse($buffer, $errorMessage);
+
+        if (null !== $partial) {
+            // render the partial structure (array/object/scalar)
+        }
+    }
+
+The method is ``static``, stateless, and dependency-free. It returns ``null`` and sets ``$errorMessage`` to the
+``json_last_error_msg()`` text only when the input is unrecoverable. On success ``$errorMessage`` is reset to ``null``.
+
 Code Examples
 ~~~~~~~~~~~~~
 
 * `Structured Output with PHP class`_
 * `Structured Output with array`_
 * `Populating existing objects`_
+* `Partial JSON parsing for streaming output`_
 
 Server Tools
 ------------
@@ -1047,6 +1077,7 @@ Code Examples
 .. _`Structured Output with PHP class`: https://github.com/symfony/ai/blob/main/examples/openai/structured-output-math.php
 .. _`Structured Output with array`: https://github.com/symfony/ai/blob/main/examples/openai/structured-output-clock.php
 .. _`Populating existing objects`: https://github.com/symfony/ai/blob/main/examples/platform/structured-output-populate-object.php
+.. _`Partial JSON parsing for streaming output`: https://github.com/symfony/ai/blob/main/examples/platform/partial-json-parser.php
 .. _`Parallel GPT Calls`: https://github.com/symfony/ai/blob/main/examples/misc/parallel-chat-gpt.php
 .. _`Parallel Embeddings Calls`: https://github.com/symfony/ai/blob/main/examples/misc/parallel-embeddings.php
 .. _`LM Studio`: https://lmstudio.ai/
