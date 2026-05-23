@@ -12,10 +12,7 @@
 use Symfony\AI\Platform\Bridge\OpenAi\Factory;
 use Symfony\AI\Platform\Message\Message;
 use Symfony\AI\Platform\Message\MessageBag;
-use Symfony\AI\Platform\Result\Stream\AbstractStreamListener;
-use Symfony\AI\Platform\Result\Stream\Delta\TextDelta;
-use Symfony\AI\Platform\Result\Stream\DeltaEvent;
-use Symfony\AI\Platform\Result\StreamResult;
+use Symfony\AI\Platform\Result\DeferredResult;
 use Symfony\AI\Platform\StructuredOutput\Serializer;
 use Symfony\AI\Platform\StructuredOutput\Streaming\PartialJsonParser;
 use Symfony\Component\Serializer\Exception\ExceptionInterface as SerializerExceptionInterface;
@@ -51,60 +48,49 @@ final class Book
 }
 
 /**
- * Accumulates text deltas from a streamed JSON response, feeds each
- * intermediate buffer into PartialJsonParser, and denormalizes the
- * recovered array into a typed instance using the platform's
- * StructuredOutput serializer (= same normalizers as the non-streaming
- * structured output path).
+ * Wraps a deferred streaming result and yields typed partial objects every time
+ * the recovered structure changes. Each iteration of the returned generator
+ * produces a denser snapshot of the same logical object, populated from the
+ * JSON fragments emitted by the model so far.
  *
  * @template T of object
+ *
+ * @param class-string<T> $outputType
+ *
+ * @return Generator<T>
  */
-final class PartialObjectStreamListener extends AbstractStreamListener
-{
-    private string $buffer = '';
-    private ?object $lastSnapshot = null;
+function streamPartialObjects(
+    DeferredResult $deferred,
+    DenormalizerInterface $denormalizer,
+    string $outputType,
+): Generator {
+    $buffer = '';
+    $last = null;
 
-    /**
-     * @param class-string<T>            $outputType
-     * @param callable(T $partial): void $onPartial
-     */
-    public function __construct(
-        private readonly DenormalizerInterface $denormalizer,
-        private readonly string $outputType,
-        private $onPartial,
-    ) {
-    }
+    foreach ($deferred->asTextStream() as $delta) {
+        $buffer .= $delta->getText();
 
-    public function onDelta(DeltaEvent $event): void
-    {
-        $delta = $event->getDelta();
-
-        if (!$delta instanceof TextDelta) {
-            return;
-        }
-
-        $this->buffer .= $delta->getText();
-
-        $partial = PartialJsonParser::parse($this->buffer);
+        $partial = PartialJsonParser::parse($buffer);
 
         if (!is_array($partial)) {
-            return;
+            continue;
         }
 
         try {
             /** @var T $object */
-            $object = $this->denormalizer->denormalize($partial, $this->outputType);
+            $object = $denormalizer->denormalize($partial, $outputType);
         } catch (SerializerExceptionInterface) {
             // Partial structure does not yet satisfy the target type — wait for more deltas.
-            return;
+            continue;
         }
 
-        if ($object == $this->lastSnapshot) {
-            return;
+        if ($object == $last) {
+            continue;
         }
 
-        $this->lastSnapshot = $object;
-        ($this->onPartial)($object);
+        $last = $object;
+
+        yield $object;
     }
 }
 
@@ -123,22 +109,10 @@ $deferred = $platform->invoke('gpt-5-mini', $messages, [
     'stream' => true,
 ]);
 
-$stream = $deferred->getResult();
-assert($stream instanceof StreamResult);
-
 $step = 0;
-$stream->addListener(new PartialObjectStreamListener(
-    new Serializer(),
-    Book::class,
-    static function (Book $book) use (&$step): void {
-        ++$step;
-        echo sprintf("Snapshot %d:\n", $step);
-        dump($book);
-        echo "\n";
-    },
-));
-
-// Consume the stream so listeners receive deltas; the listener is the one
-// reacting to each chunk — we don't need the raw text here.
-foreach ($deferred->asTextStream() as $_) {
+foreach (streamPartialObjects($deferred, new Serializer(), Book::class) as $book) {
+    ++$step;
+    echo sprintf("Snapshot %d:\n", $step);
+    dump($book);
+    echo "\n";
 }
