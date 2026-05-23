@@ -16,26 +16,61 @@ use Symfony\AI\Platform\Result\Stream\AbstractStreamListener;
 use Symfony\AI\Platform\Result\Stream\Delta\TextDelta;
 use Symfony\AI\Platform\Result\Stream\DeltaEvent;
 use Symfony\AI\Platform\Result\StreamResult;
+use Symfony\AI\Platform\StructuredOutput\Serializer;
 use Symfony\AI\Platform\StructuredOutput\Streaming\PartialJsonParser;
+use Symfony\Component\Serializer\Exception\ExceptionInterface as SerializerExceptionInterface;
+use Symfony\Component\Serializer\Normalizer\DenormalizerInterface;
 
 require_once dirname(__DIR__).'/bootstrap.php';
 
 /**
- * Accumulates text deltas from a streamed JSON response and feeds each
- * intermediate buffer into PartialJsonParser. Whenever the parser recovers
- * a new valid structure, the listener invokes a user-supplied callback
- * with the partial result so consumers (e.g. a chat UI) can render
- * progressively while the model is still emitting tokens.
+ * Target DTOs. All properties default to a "missing" value so the serializer
+ * can denormalize partial snapshots without tripping over required fields.
  */
-final class PartialJsonStreamListener extends AbstractStreamListener
+final class Author
 {
-    private string $buffer = '';
-    private mixed $lastSnapshot = null;
+    public function __construct(
+        public ?string $name = null,
+        public ?string $country = null,
+    ) {
+    }
+}
 
+final class Book
+{
     /**
-     * @param callable(mixed $partial, string $buffer): void $onPartial
+     * @param list<string> $tags
      */
     public function __construct(
+        public ?string $title = null,
+        public ?Author $author = null,
+        public array $tags = [],
+        public ?bool $published = null,
+    ) {
+    }
+}
+
+/**
+ * Accumulates text deltas from a streamed JSON response, feeds each
+ * intermediate buffer into PartialJsonParser, and denormalizes the
+ * recovered array into a typed instance using the platform's
+ * StructuredOutput serializer (= same normalizers as the non-streaming
+ * structured output path).
+ *
+ * @template T of object
+ */
+final class PartialObjectStreamListener extends AbstractStreamListener
+{
+    private string $buffer = '';
+    private ?object $lastSnapshot = null;
+
+    /**
+     * @param class-string<T>            $outputType
+     * @param callable(T $partial): void $onPartial
+     */
+    public function __construct(
+        private readonly DenormalizerInterface $denormalizer,
+        private readonly string $outputType,
         private $onPartial,
     ) {
     }
@@ -52,12 +87,24 @@ final class PartialJsonStreamListener extends AbstractStreamListener
 
         $partial = PartialJsonParser::parse($this->buffer);
 
-        if (null === $partial || $partial === $this->lastSnapshot) {
+        if (!is_array($partial)) {
             return;
         }
 
-        $this->lastSnapshot = $partial;
-        ($this->onPartial)($partial, $this->buffer);
+        try {
+            /** @var T $object */
+            $object = $this->denormalizer->denormalize($partial, $this->outputType);
+        } catch (SerializerExceptionInterface) {
+            // Partial structure does not yet satisfy the target type — wait for more deltas.
+            return;
+        }
+
+        if ($object == $this->lastSnapshot) {
+            return;
+        }
+
+        $this->lastSnapshot = $object;
+        ($this->onPartial)($object);
     }
 }
 
@@ -80,11 +127,16 @@ $stream = $deferred->getResult();
 assert($stream instanceof StreamResult);
 
 $step = 0;
-$stream->addListener(new PartialJsonStreamListener(static function (mixed $partial) use (&$step): void {
-    ++$step;
-    echo sprintf("Snapshot %d:\n", $step);
-    echo json_encode($partial, \JSON_PRETTY_PRINT)."\n\n";
-}));
+$stream->addListener(new PartialObjectStreamListener(
+    new Serializer(),
+    Book::class,
+    static function (Book $book) use (&$step): void {
+        ++$step;
+        echo sprintf("Snapshot %d:\n", $step);
+        dump($book);
+        echo "\n";
+    },
+));
 
 // Consume the stream so listeners receive deltas; the listener is the one
 // reacting to each chunk — we don't need the raw text here.
