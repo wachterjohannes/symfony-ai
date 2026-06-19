@@ -59,6 +59,39 @@ final class PartialJsonParserTest extends TestCase
     }
 
     /**
+     * Documents a known shortcoming: the trailing-comma cleanup runs over the whole buffer with a
+     * regular expression that is not string-aware. A comma immediately preceding `]` or `}` *inside
+     * a string value* is therefore stripped, silently corrupting the recovered content (the parser
+     * reports success and resets the error message). The correct values would be `['k' => 'a,]']`
+     * and `['path' => 'a,}']`.
+     *
+     * @param array<string, string> $corrupted the (incorrect) value currently returned
+     */
+    #[DataProvider('provideCommaBeforeBracketInsideString')]
+    public function testKnownShortcomingCorruptsCommaBeforeBracketInsideString(string $input, array $corrupted)
+    {
+        $errorMessage = 'pre-existing';
+
+        $this->assertSame($corrupted, PartialJsonParser::parse($input, $errorMessage));
+        $this->assertNull($errorMessage);
+    }
+
+    /**
+     * Documents a known shortcoming: incomplete numbers, dangling string escapes and partial object
+     * keys are not recovered. Rather than yielding the largest valid prefix, the parser gives up and
+     * returns null with the error message populated.
+     */
+    #[DataProvider('provideUnrecoverablePartials')]
+    public function testKnownShortcomingReturnsNullForRecoverablePartial(string $input)
+    {
+        $errorMessage = null;
+
+        $this->assertNull(PartialJsonParser::parse($input, $errorMessage));
+        $this->assertIsString($errorMessage);
+        $this->assertNotSame('', $errorMessage);
+    }
+
+    /**
      * @return iterable<string, array{string, array<mixed>|scalar|null}>
      */
     public static function provideAlreadyValid(): iterable
@@ -129,5 +162,27 @@ final class PartialJsonParserTest extends TestCase
         yield 'braces inside string value' => ['{"x":"}{"', ['x' => '}{']];
         yield 'brackets inside string value' => ['{"x":"][", "y":1', ['x' => '][', 'y' => 1]];
         yield 'brackets inside unclosed string' => ['{"x":"hello {world', ['x' => 'hello {world']];
+    }
+
+    /**
+     * @return iterable<string, array{string, array<string, string>}>
+     */
+    public static function provideCommaBeforeBracketInsideString(): iterable
+    {
+        yield 'comma before bracket in string' => ['{"k":"a,]', ['k' => 'a]']];
+        yield 'comma before brace in string' => ['{"path":"a,}', ['path' => 'a}']];
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function provideUnrecoverablePartials(): iterable
+    {
+        yield 'incomplete float' => ['{"a": 1.'];
+        yield 'incomplete negative number' => ['{"a": -'];
+        yield 'incomplete exponent' => ['{"a": 1e'];
+        yield 'dangling string escape' => ['{"a":"hello\\'];
+        yield 'incomplete unicode escape' => ['{"a":"\u00'];
+        yield 'partial object key' => ['{"a":1,"bb'];
     }
 }
