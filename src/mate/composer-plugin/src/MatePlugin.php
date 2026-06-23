@@ -78,11 +78,38 @@ final class MatePlugin implements PluginInterface, EventSubscriberInterface
             return;
         }
 
+        // Security: Validate that mateBin is actually a file and not a symlink to a malicious script
+        if (!is_file($mateBin)) {
+            $this->io->writeError('<warning>AI Mate:</warning> mate binary is not a regular file.');
+
+            return;
+        }
+
+        // Security: Use absolute path and validate it's within the project
+        $absoluteMateBin = realpath($mateBin);
+        $absoluteRootDir = realpath($rootDir);
+
+        if (false === $absoluteMateBin || false === $absoluteRootDir) {
+            $this->io->writeError('<warning>AI Mate:</warning> Failed to resolve paths.');
+
+            return;
+        }
+
+        // Ensure the mate binary is within the project directory
+        if (0 !== strpos($absoluteMateBin, $absoluteRootDir)) {
+            $this->io->writeError('<warning>AI Mate:</warning> mate binary is outside the project directory.');
+
+            return;
+        }
+
+        // Security: Use escapeshellarg for the working directory
+        $escapedRootDir = escapeshellarg($absoluteRootDir);
+
         $process = proc_open(
-            [\PHP_BINARY, $mateBin, 'discover', '--composer'],
+            [\PHP_BINARY, $absoluteMateBin, 'discover', '--composer'],
             [1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
             $pipes,
-            $rootDir,
+            $escapedRootDir,
         );
 
         if (!\is_resource($process)) {
