@@ -18,7 +18,7 @@ use Symfony\AI\Mate\Discovery\ComposerExtensionDiscovery;
  * Aggregates agent instructions from all installed extensions.
  *
  * Each extension can provide an INSTRUCTIONS.md file with instructions for AI agents,
- * typically documenting CLI → MCP tool mappings, benefits, and usage modes.
+ * typically documenting CLI \u2192 MCP tool mappings, benefits, and usage modes.
  *
  * These instructions are injected via the MCP protocol's `instructions` field
  * during the server handshake, allowing agents to understand how to best use
@@ -86,6 +86,16 @@ final class AgentInstructionsAggregator
             return null;
         }
 
+        // Security: prevent path traversal
+        if ($this->containsPathTraversal($instructionsPath)) {
+            $this->logger->warning('Invalid instructions path (contains path traversal)', [
+                'package' => $packageName,
+                'path' => $instructionsPath,
+            ]);
+
+            return null;
+        }
+
         $fullPath = $this->rootDir.'/vendor/'.$packageName.'/'.ltrim($instructionsPath, '/');
 
         return $this->readInstructionsFile($fullPath, $packageName);
@@ -99,6 +109,16 @@ final class AgentInstructionsAggregator
         $instructionsPath = $data['instructions'] ?? null;
 
         if (null === $instructionsPath) {
+            return null;
+        }
+
+        // Security: prevent path traversal
+        if ($this->containsPathTraversal($instructionsPath)) {
+            $this->logger->warning('Invalid instructions path (contains path traversal)', [
+                'source' => 'root project',
+                'path' => $instructionsPath,
+            ]);
+
             return null;
         }
 
@@ -177,5 +197,33 @@ final class AgentInstructionsAggregator
         }
 
         return implode("\n", $lines);
+    }
+
+    /**
+     * Check if a path contains directory traversal attempts.
+     *
+     * This method checks for various forms of path traversal including:
+     * - Direct parent directory references (..)
+     * - Encoded variants
+     * - Null bytes
+     */
+    private function containsPathTraversal(string $path): bool
+    {
+        // Check for direct .. sequences
+        if (str_contains($path, '..')) {
+            return true;
+        }
+
+        // Check for URL-encoded ..
+        if (str_contains($path, '%2e%2e') || str_contains($path, '%2E%2E')) {
+            return true;
+        }
+
+        // Check for null bytes (can truncate paths in some contexts)
+        if (str_contains($path, "\0")) {
+            return true;
+        }
+
+        return false;
     }
 }

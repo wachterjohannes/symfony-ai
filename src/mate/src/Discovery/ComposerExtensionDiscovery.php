@@ -264,7 +264,16 @@ final class ComposerExtensionDiscovery
 
         $validDirs = [];
         foreach ($scanDirs as $dir) {
-            if (!\is_string($dir) || '' === trim($dir) || str_contains($dir, '..')) {
+            if (!\is_string($dir) || '' === trim($dir)) {
+                continue;
+            }
+
+            // Security: prevent path traversal using a more robust check
+            if ($this->containsPathTraversal($dir)) {
+                $this->logger->warning('Invalid scan directory (contains path traversal)', [
+                    'package' => $packageName,
+                    'directory' => $dir,
+                ]);
                 continue;
             }
 
@@ -318,7 +327,16 @@ final class ComposerExtensionDiscovery
 
         $validFiles = [];
         foreach ($includes as $file) {
-            if (!\is_string($file) || '' === trim($file) || str_contains($file, '..')) {
+            if (!\is_string($file) || '' === trim($file)) {
+                continue;
+            }
+
+            // Security: prevent path traversal using a more robust check
+            if ($this->containsPathTraversal($file)) {
+                $this->logger->warning('Invalid include file (contains path traversal)', [
+                    'package' => $packageName,
+                    'file' => $file,
+                ]);
                 continue;
             }
 
@@ -362,8 +380,8 @@ final class ComposerExtensionDiscovery
         }
 
         // Security: prevent path traversal
-        if (str_contains($agentInstructions, '..')) {
-            $this->logger->warning('Invalid instructions path (contains "..")', [
+        if ($this->containsPathTraversal($agentInstructions)) {
+            $this->logger->warning('Invalid instructions path (contains path traversal)', [
                 'package' => $packageName,
                 'path' => $agentInstructions,
             ]);
@@ -419,5 +437,33 @@ final class ComposerExtensionDiscovery
         }
 
         return $value;
+    }
+
+    /**
+     * Check if a path contains directory traversal attempts.
+     *
+     * This method checks for various forms of path traversal including:
+     * - Direct parent directory references (..)
+     * - Encoded variants
+     * - Null bytes
+     */
+    private function containsPathTraversal(string $path): bool
+    {
+        // Check for direct .. sequences
+        if (str_contains($path, '..')) {
+            return true;
+        }
+
+        // Check for URL-encoded ..
+        if (str_contains($path, '%2e%2e') || str_contains($path, '%2E%2E')) {
+            return true;
+        }
+
+        // Check for null bytes (can truncate paths in some contexts)
+        if (str_contains($path, "\0")) {
+            return true;
+        }
+
+        return false;
     }
 }
