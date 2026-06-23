@@ -35,6 +35,7 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
 
 return static function (ContainerConfigurator $container): void {
+    // Validate and sanitize environment variables
     $debugLogFile = $_SERVER['MATE_DEBUG_LOG_FILE'] ?? 'dev.log';
     $debugFileEnabled = isset($_SERVER['MATE_DEBUG_FILE'])
         ? filter_var($_SERVER['MATE_DEBUG_FILE'], \FILTER_VALIDATE_BOOLEAN, \FILTER_NULL_ON_FAILURE)
@@ -43,8 +44,44 @@ return static function (ContainerConfigurator $container): void {
         ? filter_var($_SERVER['MATE_DEBUG'], \FILTER_VALIDATE_BOOLEAN, \FILTER_NULL_ON_FAILURE)
         : false;
 
+    // Validate debug log file path to prevent path traversal
+    // Only allow alphanumeric, hyphens, underscores, dots, and forward slashes
+    // Reject paths containing .., null bytes, or other suspicious patterns
+    if (!preg_match('/^[a-zA-Z0-9\-_.\/]+$/', $debugLogFile)) {
+        // Fall back to default if path contains invalid characters
+        $debugLogFile = 'dev.log';
+    }
+
+    // Additional path traversal check
+    if (str_contains($debugLogFile, '..') || str_contains($debugLogFile, '\0')) {
+        $debugLogFile = 'dev.log';
+    }
+
+    // Validate cache directory path
+    $tempDir = sys_get_temp_dir();
+    
+    // Ensure temp directory is valid and accessible
+    if (!is_dir($tempDir) || !is_writable($tempDir)) {
+        throw new \RuntimeException(sprintf(
+            'Invalid or inaccessible temp directory: %s. Please ensure the system temp directory exists and is writable.',
+            $tempDir
+        ));
+    }
+
+    // Build cache directory path with validation
+    $cacheDir = rtrim($tempDir, '/\\') . '/mate';
+    
+    // Validate that the cache directory path doesn't contain path traversal sequences
+    if (str_contains($cacheDir, '..') || str_contains($cacheDir, '\0')) {
+        throw new \RuntimeException('Invalid cache directory path detected.');
+    }
+
+    // Ensure boolean flags are properly validated (filter_var already handles this, but be explicit)
+    $debugFileEnabled = (bool) $debugFileEnabled;
+    $debugEnabled = (bool) $debugEnabled;
+
     $container->parameters()
-        ->set('mate.cache_dir', sys_get_temp_dir().'/mate')
+        ->set('mate.cache_dir', $cacheDir)
         ->set('mate.env_file', null)
         ->set('mate.disabled_features', [])
         ->set('mate.debug_log_file', $debugLogFile)
