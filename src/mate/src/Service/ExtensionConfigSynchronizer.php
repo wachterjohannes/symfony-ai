@@ -12,6 +12,7 @@
 namespace Symfony\AI\Mate\Service;
 
 use Symfony\AI\Mate\Discovery\ComposerExtensionDiscovery;
+use Symfony\AI\Mate\Exception\InvalidPackageNameException;
 
 /**
  * Synchronizes discovered extensions with mate/extensions.php while preserving enabled flags.
@@ -75,6 +76,9 @@ final class ExtensionConfigSynchronizer
                 }
             }
 
+            // Validate package name before using it in file generation
+            $this->validatePackageName($packageName);
+
             $finalExtensions[$packageName] = [
                 'enabled' => $enabled,
             ];
@@ -109,6 +113,36 @@ final class ExtensionConfigSynchronizer
     }
 
     /**
+     * Validate that a package name is safe to use in PHP code generation.
+     *
+     * @throws InvalidPackageNameException If the package name contains unsafe characters
+     */
+    private function validatePackageName(string $packageName): void
+    {
+        // Package names should only contain alphanumeric characters, hyphens, underscores, slashes, and dots
+        // This follows Composer package naming conventions
+        if (!preg_match('/^[a-z0-9_\-\.\/]+$/i', $packageName)) {
+            throw new InvalidPackageNameException(\sprintf(
+                'Invalid package name "%s": package names can only contain alphanumeric characters, hyphens, underscores, dots, and slashes.',
+                $packageName
+            ));
+        }
+
+        // Additional safety: ensure the package name doesn't contain PHP special characters
+        // that could break the generated PHP code
+        $forbiddenChars = ['\'', '"', '$', ';', '{', '}', '?', '>', '<', '|', '&', '~', '`'];
+        foreach ($forbiddenChars as $char) {
+            if (str_contains($packageName, $char)) {
+                throw new InvalidPackageNameException(\sprintf(
+                    'Invalid package name "%s": package name contains forbidden character "%s".',
+                    $packageName,
+                    $char
+                ));
+            }
+        }
+    }
+
+    /**
      * @param ExtensionConfigMap $extensions
      */
     private function writeExtensionsFile(string $filePath, array $extensions): void
@@ -124,12 +158,24 @@ final class ExtensionConfigSynchronizer
         $content .= "return [\n";
 
         foreach ($extensions as $packageName => $config) {
+            // Sanitize package name for use in PHP string context
+            $safePackageName = $this->sanitizePackageNameForPhp($packageName);
             $enabled = $config['enabled'] ? 'true' : 'false';
-            $content .= "    '$packageName' => ['enabled' => $enabled],\n";
+            $content .= "    '$safePackageName' => ['enabled' => $enabled],\n";
         }
 
         $content .= "];\n";
 
         file_put_contents($filePath, $content);
+    }
+
+    /**
+     * Sanitize a package name for safe use in PHP string context.
+     * Escapes single quotes to prevent PHP code injection.
+     */
+    private function sanitizePackageNameForPhp(string $packageName): string
+    {
+        // Escape single quotes by replacing them with escaped single quotes
+        return str_replace("'", "\\'", $packageName);
     }
 }
