@@ -20,6 +20,12 @@ use Symfony\AI\Mate\Exception\FileWriteException;
  */
 class Logger extends AbstractLogger
 {
+    // Secure file permissions: owner read/write, group read, others nothing
+    private const FILE_MODE = 0640;
+
+    // Secure directory permissions: owner read/write/execute, group read/execute, others nothing
+    private const DIR_MODE = 0750;
+
     public function __construct(
         private string $logFile = 'dev.log',
         private bool $fileLogEnabled = false,
@@ -60,6 +66,9 @@ class Logger extends AbstractLogger
 
                 throw new FileWriteException($errorMessage);
             }
+
+            // Ensure the log file has secure permissions
+            @chmod($this->logFile, self::FILE_MODE);
         } else {
             fwrite(\STDERR, $logMessage);
         }
@@ -116,9 +125,13 @@ class Logger extends AbstractLogger
         $directory = \dirname($filePath);
 
         if (!is_dir($directory)) {
-            if (!@mkdir($directory, 0755, true) && !is_dir($directory)) {
+            $oldUmask = umask(0027); // Restrict group and others to read/execute only
+            if (!@mkdir($directory, self::DIR_MODE, true) && !is_dir($directory)) {
+                umask($oldUmask);
                 throw new FileWriteException(\sprintf('Failed to create log directory: "%s"', $directory));
             }
+            umask($oldUmask);
+            @chmod($directory, self::DIR_MODE);
         }
     }
 }

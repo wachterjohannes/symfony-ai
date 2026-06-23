@@ -31,6 +31,12 @@ final class AgentInstructionsMaterializer
     public const AGENTS_START_MARKER = '<!-- BEGIN AI_MATE_INSTRUCTIONS -->';
     public const AGENTS_END_MARKER = '<!-- END AI_MATE_INSTRUCTIONS -->';
 
+    // Secure file permissions: owner read/write, group read, others nothing
+    private const FILE_MODE = 0640;
+
+    // Secure directory permissions: owner read/write/execute, group read/execute, others nothing
+    private const DIR_MODE = 0750;
+
     public function __construct(
         private string $rootDir,
         private AgentInstructionsAggregator $aggregator,
@@ -87,7 +93,10 @@ final class AgentInstructionsMaterializer
         $path = $this->getInstructionsFilePath();
         $directory = \dirname($path);
         if (!is_dir($directory)) {
-            mkdir($directory, 0755, true);
+            $oldUmask = umask(0027);
+            mkdir($directory, self::DIR_MODE, true);
+            umask($oldUmask);
+            @chmod($directory, self::DIR_MODE);
         }
 
         $written = @file_put_contents($path, $this->normalizeContent($instructions));
@@ -98,6 +107,8 @@ final class AgentInstructionsMaterializer
 
             return false;
         }
+
+        @chmod($path, self::FILE_MODE);
 
         return true;
     }
@@ -120,6 +131,8 @@ final class AgentInstructionsMaterializer
                 return false;
             }
 
+            @chmod($path, self::FILE_MODE);
+
             return true;
         }
 
@@ -141,6 +154,8 @@ final class AgentInstructionsMaterializer
 
             return false;
         }
+
+        @chmod($path, self::FILE_MODE);
 
         return true;
     }

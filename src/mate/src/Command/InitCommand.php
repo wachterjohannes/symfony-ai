@@ -29,6 +29,12 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 #[AsCommand('init', 'Initialize Mate configuration and directory structure')]
 class InitCommand extends Command
 {
+    // Secure file permissions: owner read/write, group read, others nothing
+    private const FILE_MODE = 0640;
+
+    // Secure directory permissions: owner read/write/execute, group read/execute, others nothing
+    private const DIR_MODE = 0750;
+
     public function __construct(
         private string $rootDir,
         private AgentInstructionsMaterializer $instructionsMaterializer,
@@ -58,8 +64,8 @@ class InitCommand extends Command
 
         $mateDir = $this->rootDir.'/mate';
         if (!is_dir($mateDir)) {
-            mkdir($mateDir, 0755, true);
-            $actions[] = ['✓', 'Created', 'mate/ directory'];
+            $this->mkdirSecure($mateDir, true);
+            $actions[] = ['\u2713', 'Created', 'mate/ directory'];
         }
 
         $files = [
@@ -77,14 +83,14 @@ class InitCommand extends Command
             if (!file_exists($fullPath)) {
                 $this->copyTemplate($file, $fullPath);
                 $this->postCopyTemplateAction($file, $fullPath);
-                $actions[] = ['✓', 'Created', $file];
+                $actions[] = ['\u2713', 'Created', $file];
             } elseif ($io->confirm(\sprintf('<question>%s already exists. Overwrite?</question>', $fullPath), false)) {
                 unlink($fullPath);
                 $this->copyTemplate($file, $fullPath);
                 $this->postCopyTemplateAction($file, $fullPath);
-                $actions[] = ['✓', 'Updated', $file];
+                $actions[] = ['\u2713', 'Updated', $file];
             } else {
-                $actions[] = ['○', 'Skipped', $file.' (already exists)'];
+                $actions[] = ['\u25cb', 'Skipped', $file.' (already exists)'];
             }
         }
 
@@ -97,23 +103,25 @@ class InitCommand extends Command
             }
             if (!file_exists($mcpJsonSymlink)) {
                 symlink('mcp.json', $mcpJsonSymlink);
-                $actions[] = ['✓', 'Created', '.mcp.json (symlink to mcp.json)'];
+                $actions[] = ['\u2713', 'Created', '.mcp.json (symlink to mcp.json)'];
             } elseif ($io->confirm(\sprintf('<question>%s already exists. Replace with symlink?</question>', $mcpJsonSymlink), false)) {
                 unlink($mcpJsonSymlink);
                 symlink('mcp.json', $mcpJsonSymlink);
-                $actions[] = ['✓', 'Updated', '.mcp.json (symlink to mcp.json)'];
+                $actions[] = ['\u2713', 'Updated', '.mcp.json (symlink to mcp.json)'];
             } else {
-                $actions[] = ['○', 'Skipped', '.mcp.json (already exists)'];
+                $actions[] = ['\u25cb', 'Skipped', '.mcp.json (already exists)'];
             }
         }
 
         $mateSrcDir = $this->rootDir.'/mate/src';
         if (!is_dir($mateSrcDir)) {
-            mkdir($mateSrcDir, 0755, true);
+            $this->mkdirSecure($mateSrcDir, true);
             file_put_contents($mateSrcDir.'/.gitignore', '');
-            $actions[] = ['✓', 'Created', 'mate/src/ directory (for custom MCP tools)'];
+            // Ensure the .gitignore file has secure permissions
+            chmod($mateSrcDir.'/.gitignore', self::FILE_MODE);
+            $actions[] = ['\u2713', 'Created', 'mate/src/ directory (for custom MCP tools)'];
         } else {
-            $actions[] = ['○', 'Exists', 'mate/src/ directory'];
+            $actions[] = ['\u25cb', 'Exists', 'mate/src/ directory'];
         }
 
         $composerActions = $this->updateComposerJson();
@@ -121,9 +129,9 @@ class InitCommand extends Command
 
         $materializationResult = $this->instructionsMaterializer->synchronizeFromCurrentInstructionsFile();
         if ($materializationResult['agents_file_updated']) {
-            $actions[] = ['✓', 'Updated', 'AGENTS.md (AI Mate managed instructions block)'];
+            $actions[] = ['\u2713', 'Updated', 'AGENTS.md (AI Mate managed instructions block)'];
         } else {
-            $actions[] = ['⚠', 'Warning', 'Could not update AGENTS.md managed instructions block'];
+            $actions[] = ['\u26a0', 'Warning', 'Could not update AGENTS.md managed instructions block'];
         }
 
         $io->section('Summary');
@@ -135,7 +143,7 @@ class InitCommand extends Command
             'Next steps:',
             '  1. Run "composer dump-autoload" to register the Mate\\ autoloader',
             '  2. Add custom MCP tools/resources/prompts to mate/src/',
-            '  3. Run your preferred coding agent (e.g. Claude Code) — it picks up the generated mcp.json; for Codex, use "./bin/codex"',
+            '  3. Run your preferred coding agent (e.g. Claude Code) \u2014 it picks up the generated mcp.json; for Codex, use "./bin/codex"',
         ]);
 
         if (!class_exists(Toon::class)) {
@@ -149,19 +157,48 @@ class InitCommand extends Command
     {
         $directory = \dirname($destination);
         if (!is_dir($directory)) {
-            mkdir($directory, 0755, true);
+            $this->mkdirSecure($directory, true);
         }
 
         copy(__DIR__.'/../../resources/'.$template, $destination);
+
+        // Ensure the copied file has secure permissions
+        chmod($destination, self::FILE_MODE);
     }
 
     private function postCopyTemplateAction(string $template, string $destination): void
     {
         if ('bin/codex' !== $template) {
+            // Ensure all files have secure permissions by default
+            chmod($destination, self::FILE_MODE);
+
             return;
         }
 
-        chmod($destination, 0755);
+        // Executable files need execute permission
+        chmod($destination, 0750);
+    }
+
+    /**
+     * Create a directory with secure permissions.
+     *
+     * @param bool $recursive Whether to create parent directories
+     */
+    private function mkdirSecure(string $path, bool $recursive = false): bool
+    {
+        if (!is_dir($path)) {
+            $oldUmask = umask(0027); // Restrict group and others to read/execute only
+            $result = mkdir($path, self::DIR_MODE, $recursive);
+            umask($oldUmask);
+
+            if ($result) {
+                chmod($path, self::DIR_MODE);
+            }
+
+            return $result;
+        }
+
+        return true;
     }
 
     /**
@@ -173,14 +210,14 @@ class InitCommand extends Command
         $actions = [];
 
         if (!file_exists($composerJsonPath)) {
-            $actions[] = ['⚠', 'Warning', 'composer.json not found in project root'];
+            $actions[] = ['\u26a0', 'Warning', 'composer.json not found in project root'];
 
             return $actions;
         }
 
         $composerContent = file_get_contents($composerJsonPath);
         if (false === $composerContent) {
-            $actions[] = ['✗', 'Error', 'Failed to read composer.json'];
+            $actions[] = ['\u2717', 'Error', 'Failed to read composer.json'];
 
             return $actions;
         }
@@ -188,7 +225,7 @@ class InitCommand extends Command
         $composerJson = json_decode($composerContent, true);
 
         if (\JSON_ERROR_NONE !== json_last_error() || !\is_array($composerJson)) {
-            $actions[] = ['✗', 'Error', 'Failed to parse composer.json: '.json_last_error_msg()];
+            $actions[] = ['\u2717', 'Error', 'Failed to parse composer.json: '.json_last_error_msg()];
 
             return $actions;
         }
@@ -206,17 +243,17 @@ class InitCommand extends Command
                 'includes' => ['mate/config.php'],
             ];
             $modified = true;
-            $actions[] = ['✓', 'Added', 'extra.ai-mate configuration'];
+            $actions[] = ['\u2713', 'Added', 'extra.ai-mate configuration'];
         } else {
-            $actions[] = ['○', 'Exists', 'extra.ai-mate configuration'];
+            $actions[] = ['\u25cb', 'Exists', 'extra.ai-mate configuration'];
         }
 
         if (!isset($composerJson['autoload-dev']['psr-4']['Mate\\'])) {
             $composerJson['autoload-dev']['psr-4']['Mate\\'] = 'mate/src/';
             $modified = true;
-            $actions[] = ['✓', 'Added', 'Mate\\ autoloader'];
+            $actions[] = ['\u2713', 'Added', 'Mate\\ autoloader'];
         } else {
-            $actions[] = ['○', 'Exists', 'Mate\\ autoloader'];
+            $actions[] = ['\u25cb', 'Exists', 'Mate\\ autoloader'];
         }
 
         if ($modified) {
@@ -224,7 +261,8 @@ class InitCommand extends Command
                 $composerJsonPath,
                 json_encode($composerJson, \JSON_PRETTY_PRINT | \JSON_UNESCAPED_SLASHES)."\n"
             );
-            $actions[] = ['✓', 'Updated', 'composer.json'];
+            chmod($composerJsonPath, self::FILE_MODE);
+            $actions[] = ['\u2713', 'Updated', 'composer.json'];
         }
 
         return $actions;

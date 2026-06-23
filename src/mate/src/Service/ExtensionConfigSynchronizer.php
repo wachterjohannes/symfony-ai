@@ -32,6 +32,12 @@ use Symfony\AI\Mate\Exception\InvalidPackageNameException;
  */
 final class ExtensionConfigSynchronizer
 {
+    // Secure file permissions: owner read/write, group read, others nothing
+    private const FILE_MODE = 0640;
+
+    // Secure directory permissions: owner read/write/execute, group read/execute, others nothing
+    private const DIR_MODE = 0750;
+
     public function __construct(
         private string $rootDir,
     ) {
@@ -149,7 +155,10 @@ final class ExtensionConfigSynchronizer
     {
         $dir = \dirname($filePath);
         if (!is_dir($dir)) {
-            mkdir($dir, 0755, true);
+            $oldUmask = umask(0027); // Restrict group and others to read/execute only
+            mkdir($dir, self::DIR_MODE, true);
+            umask($oldUmask);
+            @chmod($dir, self::DIR_MODE);
         }
 
         $content = "<?php\n\n";
@@ -167,6 +176,7 @@ final class ExtensionConfigSynchronizer
         $content .= "];\n";
 
         file_put_contents($filePath, $content);
+        @chmod($filePath, self::FILE_MODE);
     }
 
     /**
