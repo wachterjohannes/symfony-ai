@@ -26,6 +26,48 @@ class Logger extends AbstractLogger
     // Secure directory permissions: owner read/write/execute, group read/execute, others nothing
     private const DIR_MODE = 0750;
 
+    /**
+     * @var array<string, string> Patterns to redact from log messages
+     */
+    private const REDACT_PATTERNS = [
+        '/password\s*[=:]\s*[^\s]+/',
+        '/passwd\s*[=:]\s*[^\s]+/',
+        '/secret\s*[=:]\s*[^\s]+/',
+        '/api[_-]?key\s*[=:]\s*[^\s]+/',
+        '/apikey\s*[=:]\s*[^\s]+/',
+        '/token\s*[=:]\s*[^\s]+/',
+        '/auth\s*[=:]\s*[^\s]+/',
+        '/database[_-]?url\s*[=:]\s*[^\s]+/',
+        '/db[_-]?url\s*[=:]\s*[^\s]+/',
+        '/mysql:\/\/[^\s]+/',
+        '/pgsql:\/\/[^\s]+/',
+        '/mongodb:\/\/[^\s]+/',
+        '/redis:\/\/[^\s]+/',
+        '/amqp:\/\/[^\s]+/',
+    ];
+
+    /**
+     * @var array<string, string> Sensitive context keys that should be redacted
+     */
+    private const SENSITIVE_KEYS = [
+        'password',
+        'passwd',
+        'secret',
+        'token',
+        'api_key',
+        'apikey',
+        'api-key',
+        'auth',
+        'authorization',
+        'credential',
+        'credentials',
+        'private_key',
+        'privatekey',
+        'access_key',
+        'accesskey',
+        'access-key',
+    ];
+
     public function __construct(
         private string $logFile = 'dev.log',
         private bool $fileLogEnabled = false,
@@ -45,11 +87,17 @@ class Logger extends AbstractLogger
             default => 'unknown',
         };
 
+        // Sanitize message to redact sensitive information
+        $sanitizedMessage = $this->sanitizeMessage($message);
+
+        // Sanitize context to redact sensitive information
+        $sanitizedContext = $this->sanitizeContext($context);
+
         $logMessage = \sprintf(
             "[%s] %s %s\n",
             strtoupper($levelString),
-            $message,
-            ([] === $context || !$this->debugEnabled) ? '' : json_encode($this->normalizeContext($context)),
+            $sanitizedMessage,
+            ([] === $sanitizedContext || !$this->debugEnabled) ? '' : json_encode($sanitizedContext),
         );
 
         if ($this->fileLogEnabled || !\defined('STDERR')) {
@@ -75,7 +123,61 @@ class Logger extends AbstractLogger
     }
 
     /**
-     * Normalize context data to be JSON-serializable.
+     * Sanitize a log message to redact sensitive information.
+     */
+    private function sanitizeMessage(\Stringable|string $message): string
+    {
+        $messageString = (string) $message;
+
+        foreach (self::REDACT_PATTERNS as $pattern) {
+            $messageString = preg_replace($pattern, '$1[REDACTED]', $messageString);
+        }
+
+        return $messageString;
+    }
+
+    /**
+     * Sanitize context data to redact sensitive information.
+     *
+     * @param array<string, mixed> $context
+     *
+     * @return array<string, mixed>
+     */
+    private function sanitizeContext(array $context): array
+    {
+        $sanitized = [];
+
+        foreach ($context as $key => $value) {
+            // Redact sensitive keys
+            if ($this->isSensitiveKey($key)) {
+                $sanitized[$key] = '[REDACTED]';
+                continue;
+            }
+
+            $sanitized[$key] = $this->sanitizeValue($value);
+        }
+
+        return $sanitized;
+    }
+
+    /**
+     * Check if a context key is sensitive and should be redacted.
+     */
+    private function isSensitiveKey(string $key): bool
+    {
+        $lowerKey = strtolower($key);
+
+        foreach (self::SENSITIVE_KEYS as $sensitiveKey) {
+            if (str_contains($lowerKey, $sensitiveKey)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Normalize context data to be JSON-serializable and sanitize sensitive data.
      *
      * @param array<string, mixed> $context
      *
@@ -97,11 +199,12 @@ class Logger extends AbstractLogger
         if ($value instanceof \Throwable) {
             return [
                 'class' => $value::class,
-                'message' => $value->getMessage(),
+                'message' => $this->sanitizeMessage($value->getMessage()),
                 'code' => $value->getCode(),
                 'file' => $value->getFile(),
                 'line' => $value->getLine(),
-                'trace' => $this->debugEnabled ? $value->getTraceAsString() : null,
+                // Only include trace in debug mode, but sanitize it first
+                'trace' => $this->debugEnabled ? $this->sanitizeTrace($value->getTraceAsString()) : null,
             ];
         }
 
@@ -111,13 +214,25 @@ class Logger extends AbstractLogger
 
         if (\is_object($value)) {
             if (method_exists($value, '__toString')) {
-                return (string) $value;
+                return $this->sanitizeMessage((string) $value);
             }
 
             return ['object' => $value::class];
         }
 
         return $value;
+    }
+
+    /**
+     * Sanitize a stack trace to redact sensitive information.
+     */
+    private function sanitizeTrace(string $trace): string
+    {
+        foreach (self::REDACT_PATTERNS as $pattern) {
+            $trace = preg_replace($pattern, '$1[REDACTED]', $trace);
+        }
+
+        return $trace;
     }
 
     private function ensureDirectoryExists(string $filePath): void
