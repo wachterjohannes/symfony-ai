@@ -15,6 +15,8 @@ use Mcp\Capability\Discovery\Discoverer;
 use Psr\Log\LoggerInterface;
 use Symfony\AI\Mate\Discovery\ComposerExtensionDiscovery;
 use Symfony\AI\Mate\Exception\MissingDependencyException;
+use Symfony\AI\Mate\Exception\UnsafeFileException;
+use Symfony\AI\Mate\Utility\PathValidator;
 use Symfony\Component\Config\FileLocator;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -41,7 +43,9 @@ final class ContainerFactory
         $this->registerCoreServices($container);
 
         $logger = $container->get('_build.logger');
-        \assert($logger instanceof LoggerInterface);
+        if (!$logger instanceof LoggerInterface) {
+            throw new \RuntimeException('Logger service not found or invalid');
+        }
 
         $extensionDiscovery = new ComposerExtensionDiscovery($this->rootDir, $logger);
 
@@ -192,6 +196,41 @@ final class ContainerFactory
     private function loadExtensionIncludes(ContainerBuilder $container, LoggerInterface $logger, string $packageName, array $includeFiles): void
     {
         foreach ($includeFiles as $includeFile) {
+            // Validate the include file path for security
+            if (!PathValidator::isSafePath($includeFile)) {
+                $logger->warning('Skipping unsafe include file path', [
+                    'package' => $packageName,
+                    'file' => $includeFile,
+                    'reason' => 'Path contains traversal sequences or invalid characters',
+                ]);
+                continue;
+            }
+
+            // Resolve the absolute path
+            $absolutePath = realpath($includeFile) ?: $includeFile;
+            
+            // Ensure the file is a regular file (not a symlink, directory, etc.)
+            if (!PathValidator::isRegularFile($absolutePath)) {
+                $logger->warning('Skipping non-regular file', [
+                    'package' => $packageName,
+                    'file' => $includeFile,
+                    'reason' => 'File is not a regular file (may be a symlink or directory)',
+                ]);
+                continue;
+            }
+
+            // Verify the file is within the package directory or root directory
+            // For security, we allow files within the root directory or vendor directory
+            $isSafe = PathValidator::isWithinDirectory($absolutePath, $this->rootDir);
+            if (!$isSafe) {
+                $logger->warning('Skipping file outside allowed directories', [
+                    'package' => $packageName,
+                    'file' => $includeFile,
+                    'reason' => 'File is outside the project directory',
+                ]);
+                continue;
+            }
+
             if (!file_exists($includeFile)) {
                 continue;
             }
@@ -240,6 +279,36 @@ final class ContainerFactory
 
         $loader = new PhpFileLoader($container, new FileLocator($this->rootDir));
         foreach ($rootProject['includes'] as $include) {
+            // Validate the include path for security
+            if (!PathValidator::isSafePath($include)) {
+                $logger->warning('Skipping unsafe user service include path', [
+                    'file' => $include,
+                    'reason' => 'Path contains traversal sequences or invalid characters',
+                ]);
+                continue;
+            }
+
+            // Resolve the absolute path
+            $absolutePath = realpath($this->rootDir . '/' . $include) ?: $this->rootDir . '/' . $include;
+            
+            // Ensure the file is a regular file (not a symlink, directory, etc.)
+            if (!PathValidator::isRegularFile($absolutePath)) {
+                $logger->warning('Skipping non-regular user service file', [
+                    'file' => $include,
+                    'reason' => 'File is not a regular file (may be a symlink or directory)',
+                ]);
+                continue;
+            }
+
+            // Verify the file is within the root directory
+            if (!PathValidator::isWithinDirectory($absolutePath, $this->rootDir)) {
+                $logger->warning('Skipping user service file outside project directory', [
+                    'file' => $include,
+                    'reason' => 'File is outside the project directory',
+                ]);
+                continue;
+            }
+
             try {
                 $loader->load($include);
 
