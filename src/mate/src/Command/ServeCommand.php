@@ -19,7 +19,9 @@ use Mcp\Server\Transport\StdioTransport;
 use Psr\Log\LoggerInterface;
 use Symfony\AI\Mate\Agent\AgentInstructionsAggregator;
 use Symfony\AI\Mate\App;
+use Symfony\AI\Mate\Exception\PidFileException;
 use Symfony\AI\Mate\Service\RegistryProvider;
+use Symfony\AI\Mate\Utility\PidFileManager;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -93,16 +95,35 @@ class ServeCommand extends Command
 
         $server = $serverBuilder->build();
 
+        // Create PID file manager for secure PID file handling
         $pidFileName = \sprintf('%s/server_%d.pid', $this->cacheDir, getmypid());
-        if (false === @file_put_contents($pidFileName, (string) getmypid())) {
-            $this->logger->warning('Failed to create PID file', ['path' => $pidFileName]);
+        $pidFileManager = new PidFileManager($pidFileName);
+
+        try {
+            // Create PID file atomically with locking
+            $pidFileManager->create();
+
+            $this->logger->debug('PID file created', ['path' => $pidFileName]);
+        } catch (PidFileException $e) {
+            $this->logger->warning('Failed to create PID file', [
+                'path' => $pidFileName,
+                'error' => $e->getMessage(),
+            ]);
+            // Continue without PID file - not critical for operation
         }
 
         try {
             $server->run(new StdioTransport());
         } finally {
-            if (file_exists($pidFileName)) {
-                @unlink($pidFileName);
+            // Clean up PID file securely
+            try {
+                $pidFileManager->cleanup();
+                $this->logger->debug('PID file cleaned up', ['path' => $pidFileName]);
+            } catch (\Throwable $e) {
+                $this->logger->warning('Failed to clean up PID file', [
+                    'path' => $pidFileName,
+                    'error' => $e->getMessage(),
+                ]);
             }
         }
 
