@@ -62,14 +62,26 @@ final class RequestCollectorFormatter implements CollectorFormatterInterface
     ];
 
     /**
+     * Substrings that mark a header as sensitive (case-insensitive). Matching by
+     * substring rather than an exact name list so variants and vendor-specific
+     * headers (e.g. `proxy-authorization`, `www-authenticate`, `x-csrf-token`,
+     * `x-amz-security-token`) are covered without enumerating every spelling.
+     *
      * @var array<string>
      */
-    private const SENSITIVE_HEADERS = [
+    private const SENSITIVE_HEADER_PATTERNS = [
         'authorization',
         'cookie',
-        'set-cookie',
-        'x-api-key',
-        'x-auth-token',
+        'auth',
+        'token',
+        'secret',
+        'credential',
+        'csrf',
+        'xsrf',
+        'api-key',
+        'apikey',
+        'session',
+        'x-amz-security',
     ];
 
     /**
@@ -208,13 +220,24 @@ final class RequestCollectorFormatter implements CollectorFormatterInterface
     private function sanitizeHeaders(array $headers): array
     {
         foreach ($headers as $key => $value) {
-            $lowerKey = strtolower($key);
-            if (\in_array($lowerKey, self::SENSITIVE_HEADERS, true)) {
+            if ($this->isSensitiveHeader($key)) {
                 $headers[$key] = '***REDACTED***';
             }
         }
 
         return $headers;
+    }
+
+    private function isSensitiveHeader(string $name): bool
+    {
+        $lowerName = strtolower($name);
+        foreach (self::SENSITIVE_HEADER_PATTERNS as $pattern) {
+            if (str_contains($lowerName, $pattern)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

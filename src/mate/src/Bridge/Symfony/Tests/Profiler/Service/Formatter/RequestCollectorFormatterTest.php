@@ -156,6 +156,32 @@ final class RequestCollectorFormatterTest extends TestCase
         $this->assertSame('***REDACTED***', $data['request_server']['DATABASE_PASSWORD']);
     }
 
+    public function testFormatRedactsBroadSetOfSensitiveHeaders()
+    {
+        $request = Request::create('/');
+        $request->headers->set('Proxy-Authorization', 'Basic abc');
+        $request->headers->set('Www-Authenticate', 'Bearer realm="x"');
+        $request->headers->set('X-Csrf-Token', 'csrf-123');
+        $request->headers->set('X-Xsrf-Token', 'xsrf-123');
+        $request->headers->set('X-Api-Key', 'key-123');
+        $request->headers->set('X-Amz-Security-Token', 'amz-123');
+        $request->headers->set('X-Custom-Auth', 'auth-123');
+        $request->headers->set('Accept', 'application/json');
+
+        $data = $this->format($this->collect($request));
+
+        $this->assertSame('***REDACTED***', $data['request_headers']['proxy-authorization']);
+        $this->assertSame('***REDACTED***', $data['request_headers']['www-authenticate']);
+        $this->assertSame('***REDACTED***', $data['request_headers']['x-csrf-token']);
+        $this->assertSame('***REDACTED***', $data['request_headers']['x-xsrf-token']);
+        $this->assertSame('***REDACTED***', $data['request_headers']['x-api-key']);
+        $this->assertSame('***REDACTED***', $data['request_headers']['x-amz-security-token']);
+        $this->assertSame('***REDACTED***', $data['request_headers']['x-custom-auth']);
+
+        // Non-sensitive headers stay untouched.
+        $this->assertNotSame('***REDACTED***', $data['request_headers']['accept']);
+    }
+
     public function testGetSummaryExposesOnlyNonSensitiveMetadata()
     {
         $summary = $this->formatter->getSummary($this->collect(Request::create('/login', 'POST', ['password' => 'hunter2'])));
