@@ -16,8 +16,19 @@ use Symfony\AI\Platform\Vector\Vector;
 use Symfony\AI\Store\Document\Metadata;
 use Symfony\AI\Store\Document\VectorDocument;
 use Symfony\AI\Store\Exception\InvalidArgumentException;
+use Symfony\AI\Store\Exception\UnsupportedFeatureException;
 use Symfony\AI\Store\Exception\UnsupportedQueryTypeException;
 use Symfony\AI\Store\ManagedStoreInterface;
+use Symfony\AI\Store\Query\Filter\AndFilter;
+use Symfony\AI\Store\Query\Filter\EqualFilter;
+use Symfony\AI\Store\Query\Filter\FilterInterface;
+use Symfony\AI\Store\Query\Filter\GreaterThanFilter;
+use Symfony\AI\Store\Query\Filter\GreaterThanOrEqualFilter;
+use Symfony\AI\Store\Query\Filter\InFilter;
+use Symfony\AI\Store\Query\Filter\LessThanFilter;
+use Symfony\AI\Store\Query\Filter\LessThanOrEqualFilter;
+use Symfony\AI\Store\Query\Filter\NotEqualFilter;
+use Symfony\AI\Store\Query\Filter\OrFilter;
 use Symfony\AI\Store\Query\HybridQuery;
 use Symfony\AI\Store\Query\QueryInterface;
 use Symfony\AI\Store\Query\VectorQuery;
@@ -109,10 +120,12 @@ final class Store implements ManagedStoreInterface, StoreInterface
             $vector = $query->getVector();
             $text = $query->getText();
             $semanticRatio = $options['semanticRatio'] ?? $query->getSemanticRatio();
+            $filter = $query->getFilter();
         } elseif ($query instanceof VectorQuery) {
             $vector = $query->getVector();
             $text = '';
             $semanticRatio = $options['semanticRatio'] ?? $this->semanticRatio;
+            $filter = $query->getFilter();
         } else {
             throw new UnsupportedQueryTypeException($query::class, $this);
         }
@@ -121,7 +134,7 @@ final class Store implements ManagedStoreInterface, StoreInterface
             throw new InvalidArgumentException(\sprintf('The semantic ratio must be between 0.0 and 1.0, "%s" given.', $semanticRatio));
         }
 
-        $result = $this->request('POST', \sprintf('indexes/%s/search', $this->indexName), [
+        $payload = [
             'q' => $text,
             'vector' => $vector->getData(),
             'showRankingScore' => true,
@@ -130,7 +143,13 @@ final class Store implements ManagedStoreInterface, StoreInterface
                 'embedder' => $this->embedder,
                 'semanticRatio' => $semanticRatio,
             ],
-        ]);
+        ];
+
+        if (null !== $filter) {
+            $payload['filter'] = $this->convertFilter($filter);
+        }
+
+        $result = $this->request('POST', \sprintf('indexes/%s/search', $this->indexName), $payload);
 
         foreach ($result['hits'] as $item) {
             yield $this->convertToVectorDocument($item);
@@ -187,5 +206,60 @@ final class Store implements ManagedStoreInterface, StoreInterface
         unset($data['id'], $data[$this->vectorFieldName], $data['_rankingScore']);
 
         return new VectorDocument($id, $vector, new Metadata($data), $score);
+    }
+
+    /**
+     * Converts a query-level filter into a Meilisearch filter expression.
+     *
+     * The filtered attributes must be declared as `filterableAttributes` in
+     * the index settings.
+     *
+     * @see https://www.meilisearch.com/docs/learn/filtering_and_sorting/filter_expression_reference
+     */
+    private function convertFilter(FilterInterface $filter): string
+    {
+        return match (true) {
+            $filter instanceof AndFilter => '('.implode(' AND ', array_map($this->convertFilter(...), $filter->getFilters())).')',
+            $filter instanceof OrFilter => '('.implode(' OR ', array_map($this->convertFilter(...), $filter->getFilters())).')',
+            $filter instanceof EqualFilter => \sprintf('%s = %s', $this->convertField($filter->getField()), $this->convertValue($filter->getValue())),
+            $filter instanceof NotEqualFilter => \sprintf('%s != %s', $this->convertField($filter->getField()), $this->convertValue($filter->getValue())),
+            $filter instanceof InFilter => \sprintf('%s IN [%s]', $this->convertField($filter->getField()), implode(', ', array_map($this->convertValue(...), $filter->getValues()))),
+            $filter instanceof GreaterThanFilter => \sprintf('%s > %s', $this->convertField($filter->getField()), $this->convertRangeValue($filter->getValue())),
+            $filter instanceof GreaterThanOrEqualFilter => \sprintf('%s >= %s', $this->convertField($filter->getField()), $this->convertRangeValue($filter->getValue())),
+            $filter instanceof LessThanFilter => \sprintf('%s < %s', $this->convertField($filter->getField()), $this->convertRangeValue($filter->getValue())),
+            $filter instanceof LessThanOrEqualFilter => \sprintf('%s <= %s', $this->convertField($filter->getField()), $this->convertRangeValue($filter->getValue())),
+            default => throw new UnsupportedFeatureException(\sprintf('Filter type "%s" is not supported by store "%s".', $filter::class, self::class)),
+        };
+    }
+
+    private function convertField(string $field): string
+    {
+        if (1 !== preg_match('/^[a-zA-Z0-9_.\\-]+$/', $field)) {
+            throw new InvalidArgumentException(\sprintf('Invalid filter field name "%s".', $field));
+        }
+
+        return $field;
+    }
+
+    private function convertValue(string|int|float|bool $value): string
+    {
+        if (\is_bool($value)) {
+            return $value ? 'true' : 'false';
+        }
+
+        if (\is_string($value)) {
+            return '"'.addcslashes($value, '\\"').'"';
+        }
+
+        return (string) $value;
+    }
+
+    private function convertRangeValue(string|int|float $value): string
+    {
+        if (\is_string($value)) {
+            throw new UnsupportedFeatureException(\sprintf('Store "%s" only supports numeric values in range filters, "string" given.', self::class));
+        }
+
+        return (string) $value;
     }
 }

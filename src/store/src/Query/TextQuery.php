@@ -11,6 +11,8 @@
 
 namespace Symfony\AI\Store\Query;
 
+use Symfony\AI\Store\Query\Filter\FilterInterface;
+
 /**
  * Full-text search query using textual keywords.
  *
@@ -30,6 +32,7 @@ final class TextQuery implements QueryInterface
      */
     public function __construct(
         private readonly string|array $text,
+        private readonly ?FilterInterface $filter = null,
     ) {
     }
 
@@ -44,5 +47,10 @@ final class TextQuery implements QueryInterface
     public function getTexts(): array
     {
         return \is_array($this->text) ? $this->text : [$this->text];
+    }
+
+    public function getFilter(): ?FilterInterface
+    {
+        return $this->filter;
     }
 }

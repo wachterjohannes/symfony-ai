@@ -119,6 +119,81 @@ Similarity Search Examples
     memory of the PHP process. They can be used only the amount of data fits in the
     PHP memory limit, typically for testing.
 
+Metadata Filtering
+------------------
+
+Query objects can carry an optional metadata filter to restrict the search to documents
+whose metadata match the given constraints. Filters live in the
+``Symfony\AI\Store\Query\Filter`` namespace and are translated by each store into its
+native filtering mechanism::
+
+    use Symfony\AI\Store\Query\Filter\EqualFilter;
+    use Symfony\AI\Store\Query\VectorQuery;
+
+    $query = new VectorQuery($vector, new EqualFilter('locale', 'en'));
+    $documents = $store->query($query, ['limit' => 10]);
+
+The following filters are available:
+
+* :class:`Symfony\\AI\\Store\\Query\\Filter\\EqualFilter` and :class:`Symfony\\AI\\Store\\Query\\Filter\\NotEqualFilter`:
+  the field equals / does not equal a string, number or boolean value
+* :class:`Symfony\\AI\\Store\\Query\\Filter\\GreaterThanFilter`, :class:`Symfony\\AI\\Store\\Query\\Filter\\GreaterThanOrEqualFilter`,
+  :class:`Symfony\\AI\\Store\\Query\\Filter\\LessThanFilter` and :class:`Symfony\\AI\\Store\\Query\\Filter\\LessThanOrEqualFilter`:
+  range comparisons on numbers or strings
+* :class:`Symfony\\AI\\Store\\Query\\Filter\\InFilter`: the field equals one of the given values
+* :class:`Symfony\\AI\\Store\\Query\\Filter\\AndFilter` and :class:`Symfony\\AI\\Store\\Query\\Filter\\OrFilter`:
+  combine a list of filters
+
+Composite filters can be nested arbitrarily and work with every query type::
+
+    use Symfony\AI\Store\Query\Filter\AndFilter;
+    use Symfony\AI\Store\Query\Filter\EqualFilter;
+    use Symfony\AI\Store\Query\Filter\GreaterThanOrEqualFilter;
+    use Symfony\AI\Store\Query\Filter\OrFilter;
+    use Symfony\AI\Store\Query\TextQuery;
+
+    $filter = new AndFilter([
+        new EqualFilter('locale', 'en'),
+        new OrFilter([
+            new EqualFilter('category', 'scifi'),
+            new GreaterThanOrEqualFilter('year', 2020),
+        ]),
+    ]);
+
+    $documents = $store->query(new TextQuery('space adventure', $filter));
+
+Query-level filters are currently supported by the following stores:
+
+.. list-table::
+    :header-rows: 1
+
+    * - Store
+      - Native translation
+    * - InMemory
+      - PHP-side evaluation via :class:`Symfony\\AI\\Store\\Query\\Filter\\InMemoryFilterEvaluator`
+    * - Meilisearch
+      - Filter expression strings (``filter`` search parameter)
+    * - Postgres
+      - Parameterized SQL ``WHERE`` clauses over the ``metadata`` JSONB column
+    * - Qdrant
+      - JSON filter objects (``must``/``should``/``must_not``)
+
+A store that cannot express a given filter construct throws an
+:class:`Symfony\\AI\\Store\\Exception\\UnsupportedFeatureException`. Stores not listed
+above currently do not evaluate query-level filters; support is added incrementally.
+
+.. note::
+
+    Meilisearch only applies filters to attributes that are declared as `filterable attributes`_
+    in the index settings.
+
+.. note::
+
+    Qdrant match conditions (``EqualFilter``, ``NotEqualFilter`` and ``InFilter``) only
+    support string, integer and boolean values. Float values are rejected with an
+    :class:`Symfony\\AI\\Store\\Exception\\UnsupportedFeatureException`, use range
+    filters for float comparisons instead.
+
 Supported Stores
 ----------------
 
@@ -336,3 +411,4 @@ This leads to a store implementing two methods::
 .. _`SQLite`: https://www.sqlite.org/
 .. _`Supabase`: https://supabase.com/
 .. _`RAG Implementation cookbook`: https://symfony.com/doc/current/ai/cookbook/rag-implementation.html
+.. _`filterable attributes`: https://www.meilisearch.com/docs/learn/filtering_and_sorting/filter_search_results

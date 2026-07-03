@@ -16,6 +16,14 @@ use Symfony\AI\Platform\Vector\Vector;
 use Symfony\AI\Store\Bridge\Meilisearch\Store;
 use Symfony\AI\Store\Document\VectorDocument;
 use Symfony\AI\Store\Exception\InvalidArgumentException;
+use Symfony\AI\Store\Exception\UnsupportedFeatureException;
+use Symfony\AI\Store\Query\Filter\AndFilter;
+use Symfony\AI\Store\Query\Filter\EqualFilter;
+use Symfony\AI\Store\Query\Filter\GreaterThanFilter;
+use Symfony\AI\Store\Query\Filter\InFilter;
+use Symfony\AI\Store\Query\Filter\LessThanOrEqualFilter;
+use Symfony\AI\Store\Query\Filter\NotEqualFilter;
+use Symfony\AI\Store\Query\Filter\OrFilter;
 use Symfony\AI\Store\Query\HybridQuery;
 use Symfony\AI\Store\Query\TextQuery;
 use Symfony\AI\Store\Query\VectorQuery;
@@ -454,6 +462,127 @@ final class StoreTest extends TestCase
         $store->remove([]);
 
         $this->assertSame(0, $httpClient->getRequestsCount());
+    }
+
+    public function testQueryWithEqualQueryFilter()
+    {
+        $responses = [
+            new MockResponse(json_encode([
+                'hits' => [],
+            ])),
+        ];
+
+        $httpClient = new MockHttpClient($responses);
+        $store = new Store($httpClient, 'index');
+
+        iterator_to_array($store->query(new VectorQuery(new Vector([0.1, 0.2, 0.3]), new EqualFilter('locale', 'en'))));
+
+        $body = json_decode($responses[0]->getRequestOptions()['body'], true);
+
+        $this->assertSame('locale = "en"', $body['filter']);
+    }
+
+    public function testQueryWithInQueryFilter()
+    {
+        $responses = [
+            new MockResponse(json_encode([
+                'hits' => [],
+            ])),
+        ];
+
+        $httpClient = new MockHttpClient($responses);
+        $store = new Store($httpClient, 'index');
+
+        iterator_to_array($store->query(new VectorQuery(new Vector([0.1, 0.2, 0.3]), new InFilter('category', ['scifi', 'fantasy']))));
+
+        $body = json_decode($responses[0]->getRequestOptions()['body'], true);
+
+        $this->assertSame('category IN ["scifi", "fantasy"]', $body['filter']);
+    }
+
+    public function testQueryWithCompositeQueryFilter()
+    {
+        $responses = [
+            new MockResponse(json_encode([
+                'hits' => [],
+            ])),
+        ];
+
+        $httpClient = new MockHttpClient($responses);
+        $store = new Store($httpClient, 'index');
+
+        $filter = new AndFilter([
+            new EqualFilter('enabled', true),
+            new OrFilter([
+                new NotEqualFilter('category', 'crime'),
+                new GreaterThanFilter('year', 2020),
+            ]),
+            new LessThanOrEqualFilter('price', 99.9),
+        ]);
+
+        iterator_to_array($store->query(new VectorQuery(new Vector([0.1, 0.2, 0.3]), $filter)));
+
+        $body = json_decode($responses[0]->getRequestOptions()['body'], true);
+
+        $this->assertSame('(enabled = true AND (category != "crime" OR year > 2020) AND price <= 99.9)', $body['filter']);
+    }
+
+    public function testQueryWithHybridQueryFilter()
+    {
+        $responses = [
+            new MockResponse(json_encode([
+                'hits' => [],
+            ])),
+        ];
+
+        $httpClient = new MockHttpClient($responses);
+        $store = new Store($httpClient, 'index');
+
+        iterator_to_array($store->query(new HybridQuery(new Vector([0.1, 0.2, 0.3]), 'search terms', 0.5, new EqualFilter('locale', 'en'))));
+
+        $body = json_decode($responses[0]->getRequestOptions()['body'], true);
+
+        $this->assertSame('locale = "en"', $body['filter']);
+    }
+
+    public function testQueryFilterEscapesStringValues()
+    {
+        $responses = [
+            new MockResponse(json_encode([
+                'hits' => [],
+            ])),
+        ];
+
+        $httpClient = new MockHttpClient($responses);
+        $store = new Store($httpClient, 'index');
+
+        iterator_to_array($store->query(new VectorQuery(new Vector([0.1, 0.2, 0.3]), new EqualFilter('title', 'say "hi" \\ bye'))));
+
+        $body = json_decode($responses[0]->getRequestOptions()['body'], true);
+
+        $this->assertSame('title = "say \\"hi\\" \\\\ bye"', $body['filter']);
+    }
+
+    public function testQueryCannotUseStringRangeQueryFilter()
+    {
+        $httpClient = new MockHttpClient();
+        $store = new Store($httpClient, 'index');
+
+        $this->expectException(UnsupportedFeatureException::class);
+        $this->expectExceptionMessage('only supports numeric values in range filters');
+
+        iterator_to_array($store->query(new VectorQuery(new Vector([0.1, 0.2, 0.3]), new GreaterThanFilter('title', 'alpha'))));
+    }
+
+    public function testQueryCannotUseInvalidFilterFieldName()
+    {
+        $httpClient = new MockHttpClient();
+        $store = new Store($httpClient, 'index');
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Invalid filter field name "locale = "en" OR x".');
+
+        iterator_to_array($store->query(new VectorQuery(new Vector([0.1, 0.2, 0.3]), new EqualFilter('locale = "en" OR x', 'en'))));
     }
 
     public function testStoreSupportsVectorQuery()

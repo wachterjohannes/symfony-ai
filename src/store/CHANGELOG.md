@@ -4,6 +4,10 @@ CHANGELOG
 0.11
 ----
 
+ * Add query-level metadata filter system: `Symfony\AI\Store\Query\Filter` namespace with `EqualFilter`, `NotEqualFilter`,
+   `GreaterThanFilter`, `GreaterThanOrEqualFilter`, `LessThanFilter`, `LessThanOrEqualFilter`, `InFilter`, `AndFilter` and `OrFilter`,
+   plus an optional `$filter` constructor argument on `VectorQuery`, `TextQuery` and `HybridQuery`
+ * Add `InMemoryFilterEvaluator` for PHP-side filter evaluation, used by the `InMemory` store
  * Add `DirectoryLoader` that scans a directory and delegates each file to a per-extension sub-loader, with optional recursion
  * `Vectorizer` now always sends a single batched `Platform::invoke()` call when vectorizing multiple strings or documents, instead of consulting the model catalog and falling back to one call per item
 
