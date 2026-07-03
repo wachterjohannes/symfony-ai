@@ -4,6 +4,7 @@ CHANGELOG
 0.11
 ----
 
+ * Add support for query-level metadata filters, translated to native Qdrant filter objects (`must`/`should`/`must_not`)
  * Normalize the `endpoint` URL and tolerate a missing trailing slash on path-prefixed endpoints
 
 0.6

@@ -16,6 +16,8 @@ use Symfony\AI\Store\Document\VectorDocument;
 use Symfony\AI\Store\Exception\InvalidArgumentException;
 use Symfony\AI\Store\Exception\UnsupportedQueryTypeException;
 use Symfony\AI\Store\ManagedStoreInterface;
+use Symfony\AI\Store\Query\Filter\FilterInterface;
+use Symfony\AI\Store\Query\Filter\InMemoryFilterEvaluator;
 use Symfony\AI\Store\Query\HybridQuery;
 use Symfony\AI\Store\Query\QueryInterface;
 use Symfony\AI\Store\Query\TextQuery;
@@ -33,9 +35,12 @@ final class Store implements ManagedStoreInterface, StoreInterface, ResetInterfa
      */
     private array $documents = [];
 
+    private readonly InMemoryFilterEvaluator $filterEvaluator;
+
     public function __construct(
         private readonly DistanceCalculator $distanceCalculator = new DistanceCalculator(),
     ) {
+        $this->filterEvaluator = new InMemoryFilterEvaluator();
     }
 
     public function setup(array $options = []): void
@@ -114,7 +119,7 @@ final class Store implements ManagedStoreInterface, StoreInterface, ResetInterfa
      */
     private function queryVector(VectorQuery $query, array $options): iterable
     {
-        $documents = $this->documents;
+        $documents = $this->filterDocuments($this->documents, $query->getFilter());
 
         if (isset($options['filter'])) {
             $documents = array_values(array_filter($documents, $options['filter']));
@@ -130,7 +135,9 @@ final class Store implements ManagedStoreInterface, StoreInterface, ResetInterfa
      */
     private function queryText(TextQuery $query, array $options): iterable
     {
-        $documents = array_filter($this->documents, static function (VectorDocument $doc) use ($query) {
+        $documents = $this->filterDocuments($this->documents, $query->getFilter());
+
+        $documents = array_filter($documents, static function (VectorDocument $doc) use ($query) {
             $text = strtolower($doc->getMetadata()->getText() ?? '');
 
             // OR logic: match if ANY of the search texts is found
@@ -159,12 +166,12 @@ final class Store implements ManagedStoreInterface, StoreInterface, ResetInterfa
     private function queryHybrid(HybridQuery $query, array $options): iterable
     {
         $vectorResults = iterator_to_array($this->queryVector(
-            new VectorQuery($query->getVector()),
+            new VectorQuery($query->getVector(), $query->getFilter()),
             $options
         ));
 
         $textResults = iterator_to_array($this->queryText(
-            new TextQuery($query->getTexts()),
+            new TextQuery($query->getTexts(), $query->getFilter()),
             $options
         ));
 
@@ -197,5 +204,19 @@ final class Store implements ManagedStoreInterface, StoreInterface, ResetInterfa
         }
 
         yield from $mergedResults;
+    }
+
+    /**
+     * @param VectorDocument[] $documents
+     *
+     * @return VectorDocument[]
+     */
+    private function filterDocuments(array $documents, ?FilterInterface $filter): array
+    {
+        if (null === $filter) {
+            return $documents;
+        }
+
+        return array_values(array_filter($documents, fn (VectorDocument $document): bool => $this->filterEvaluator->matches($filter, $document->getMetadata())));
     }
 }

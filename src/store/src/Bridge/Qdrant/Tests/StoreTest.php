@@ -16,6 +16,15 @@ use Symfony\AI\Platform\Vector\Vector;
 use Symfony\AI\Store\Bridge\Qdrant\Store;
 use Symfony\AI\Store\Bridge\Qdrant\StoreFactory;
 use Symfony\AI\Store\Document\VectorDocument;
+use Symfony\AI\Store\Exception\InvalidArgumentException;
+use Symfony\AI\Store\Exception\UnsupportedFeatureException;
+use Symfony\AI\Store\Query\Filter\AndFilter;
+use Symfony\AI\Store\Query\Filter\EqualFilter;
+use Symfony\AI\Store\Query\Filter\GreaterThanFilter;
+use Symfony\AI\Store\Query\Filter\InFilter;
+use Symfony\AI\Store\Query\Filter\LessThanOrEqualFilter;
+use Symfony\AI\Store\Query\Filter\NotEqualFilter;
+use Symfony\AI\Store\Query\Filter\OrFilter;
 use Symfony\AI\Store\Query\HybridQuery;
 use Symfony\AI\Store\Query\TextQuery;
 use Symfony\AI\Store\Query\VectorQuery;
@@ -303,6 +312,162 @@ final class StoreTest extends TestCase
                 "Value should be 'bar' or an array containing 'bar'"
             );
         }
+    }
+
+    public function testStoreCanQueryWithEqualQueryFilter()
+    {
+        $response = new JsonMockResponse([
+            'result' => [
+                'points' => [],
+            ],
+        ], [
+            'http_code' => 200,
+        ]);
+        $httpClient = new MockHttpClient([$response], 'http://127.0.0.1:6333');
+
+        $store = new Store($httpClient, 'test');
+
+        iterator_to_array($store->query(new VectorQuery(new Vector([0.1, 0.2, 0.3]), new EqualFilter('locale', 'en'))));
+
+        $body = json_decode($response->getRequestOptions()['body'], true);
+
+        $this->assertSame([
+            'must' => [
+                ['key' => 'locale', 'match' => ['value' => 'en']],
+            ],
+        ], $body['filter']);
+    }
+
+    public function testStoreCanQueryWithInQueryFilter()
+    {
+        $response = new JsonMockResponse([
+            'result' => [
+                'points' => [],
+            ],
+        ], [
+            'http_code' => 200,
+        ]);
+        $httpClient = new MockHttpClient([$response], 'http://127.0.0.1:6333');
+
+        $store = new Store($httpClient, 'test');
+
+        iterator_to_array($store->query(new VectorQuery(new Vector([0.1, 0.2, 0.3]), new InFilter('category', ['scifi', 'fantasy']))));
+
+        $body = json_decode($response->getRequestOptions()['body'], true);
+
+        $this->assertSame([
+            'must' => [
+                ['key' => 'category', 'match' => ['any' => ['scifi', 'fantasy']]],
+            ],
+        ], $body['filter']);
+    }
+
+    public function testStoreCanQueryWithCompositeQueryFilter()
+    {
+        $response = new JsonMockResponse([
+            'result' => [
+                'points' => [],
+            ],
+        ], [
+            'http_code' => 200,
+        ]);
+        $httpClient = new MockHttpClient([$response], 'http://127.0.0.1:6333');
+
+        $store = new Store($httpClient, 'test');
+
+        $filter = new AndFilter([
+            new EqualFilter('locale', 'en'),
+            new OrFilter([
+                new NotEqualFilter('category', 'crime'),
+                new GreaterThanFilter('year', 2020),
+            ]),
+            new LessThanOrEqualFilter('price', 99.9),
+        ]);
+
+        iterator_to_array($store->query(new VectorQuery(new Vector([0.1, 0.2, 0.3]), $filter)));
+
+        $body = json_decode($response->getRequestOptions()['body'], true);
+
+        $this->assertSame([
+            'must' => [
+                ['key' => 'locale', 'match' => ['value' => 'en']],
+                [
+                    'should' => [
+                        ['must_not' => [['key' => 'category', 'match' => ['value' => 'crime']]]],
+                        ['key' => 'year', 'range' => ['gt' => 2020]],
+                    ],
+                ],
+                ['key' => 'price', 'range' => ['lte' => 99.9]],
+            ],
+        ], $body['filter']);
+    }
+
+    public function testStoreCannotCombineQueryFilterWithFilterOption()
+    {
+        $httpClient = new MockHttpClient([], 'http://127.0.0.1:6333');
+        $store = new Store($httpClient, 'test');
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('The "filter" option cannot be combined with a query-level filter.');
+
+        iterator_to_array($store->query(new VectorQuery(new Vector([0.1, 0.2, 0.3]), new EqualFilter('locale', 'en')), [
+            'filter' => ['must' => [['key' => 'locale', 'match' => ['value' => 'en']]]],
+        ]));
+    }
+
+    public function testStoreCannotQueryWithStringRangeQueryFilter()
+    {
+        $httpClient = new MockHttpClient([], 'http://127.0.0.1:6333');
+        $store = new Store($httpClient, 'test');
+
+        $this->expectException(UnsupportedFeatureException::class);
+        $this->expectExceptionMessage('only supports numeric values in range filters');
+
+        iterator_to_array($store->query(new VectorQuery(new Vector([0.1, 0.2, 0.3]), new GreaterThanFilter('title', 'alpha'))));
+    }
+
+    public function testStoreCannotQueryWithFloatEqualQueryFilter()
+    {
+        $httpClient = new MockHttpClient([], 'http://127.0.0.1:6333');
+        $store = new Store($httpClient, 'test');
+
+        $this->expectException(UnsupportedFeatureException::class);
+        $this->expectExceptionMessage('does not support float values in match conditions');
+
+        iterator_to_array($store->query(new VectorQuery(new Vector([0.1, 0.2, 0.3]), new EqualFilter('price', 9.99))));
+    }
+
+    public function testStoreCannotQueryWithFloatNotEqualQueryFilter()
+    {
+        $httpClient = new MockHttpClient([], 'http://127.0.0.1:6333');
+        $store = new Store($httpClient, 'test');
+
+        $this->expectException(UnsupportedFeatureException::class);
+        $this->expectExceptionMessage('does not support float values in match conditions');
+
+        iterator_to_array($store->query(new VectorQuery(new Vector([0.1, 0.2, 0.3]), new NotEqualFilter('price', 9.99))));
+    }
+
+    public function testStoreCannotQueryWithFloatInQueryFilter()
+    {
+        $httpClient = new MockHttpClient([], 'http://127.0.0.1:6333');
+        $store = new Store($httpClient, 'test');
+
+        $this->expectException(UnsupportedFeatureException::class);
+        $this->expectExceptionMessage('does not support float values');
+
+        iterator_to_array($store->query(new VectorQuery(new Vector([0.1, 0.2, 0.3]), new InFilter('price', [9.99, 19.99]))));
+    }
+
+    public function testStoreCannotQueryWithBooleanInQueryFilter()
+    {
+        $httpClient = new MockHttpClient([], 'http://127.0.0.1:6333');
+        $store = new Store($httpClient, 'test');
+
+        $this->expectException(UnsupportedFeatureException::class);
+        $this->expectExceptionMessage('does not support boolean values');
+
+        iterator_to_array($store->query(new VectorQuery(new Vector([0.1, 0.2, 0.3]), new InFilter('enabled', [true, false]))));
     }
 
     public function testStoreSupportsVectorQuery()

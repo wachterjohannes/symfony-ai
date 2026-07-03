@@ -4,6 +4,7 @@ CHANGELOG
 0.11
 ----
 
+ * Add support for query-level metadata filters, translated to Meilisearch filter expressions
  * Normalize the `endpoint` URL and tolerate a missing trailing slash on path-prefixed endpoints
 
 0.9

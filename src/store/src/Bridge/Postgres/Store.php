@@ -15,8 +15,20 @@ use Symfony\AI\Platform\Vector\Vector;
 use Symfony\AI\Platform\Vector\VectorInterface;
 use Symfony\AI\Store\Document\Metadata;
 use Symfony\AI\Store\Document\VectorDocument;
+use Symfony\AI\Store\Exception\InvalidArgumentException;
+use Symfony\AI\Store\Exception\UnsupportedFeatureException;
 use Symfony\AI\Store\Exception\UnsupportedQueryTypeException;
 use Symfony\AI\Store\ManagedStoreInterface;
+use Symfony\AI\Store\Query\Filter\AndFilter;
+use Symfony\AI\Store\Query\Filter\EqualFilter;
+use Symfony\AI\Store\Query\Filter\FilterInterface;
+use Symfony\AI\Store\Query\Filter\GreaterThanFilter;
+use Symfony\AI\Store\Query\Filter\GreaterThanOrEqualFilter;
+use Symfony\AI\Store\Query\Filter\InFilter;
+use Symfony\AI\Store\Query\Filter\LessThanFilter;
+use Symfony\AI\Store\Query\Filter\LessThanOrEqualFilter;
+use Symfony\AI\Store\Query\Filter\NotEqualFilter;
+use Symfony\AI\Store\Query\Filter\OrFilter;
 use Symfony\AI\Store\Query\HybridQuery;
 use Symfony\AI\Store\Query\QueryInterface;
 use Symfony\AI\Store\Query\TextQuery;
@@ -167,6 +179,12 @@ final class Store implements ManagedStoreInterface, StoreInterface
             $params['maxScore'] = $options['maxScore'];
         }
 
+        if (null !== $query->getFilter()) {
+            $filterParams = [];
+            $whereClauses[] = $this->convertFilter($query->getFilter(), $filterParams);
+            $params = array_merge($params, $filterParams);
+        }
+
         if (isset($options['where'])) {
             // Only wrap in parentheses if combining with other conditions
             $whereClauses[] = [] !== $whereClauses ? '('.$options['where'].')' : $options['where'];
@@ -232,11 +250,19 @@ final class Store implements ManagedStoreInterface, StoreInterface
         $tsqueryExpression = implode(' || ', $tsqueryParts); // OR operator in PostgreSQL
         $tsvectorExpression = \sprintf("to_tsvector('%s', metadata->>'_text')", $this->lang);
 
+        $filterClause = '';
+
+        if (null !== $query->getFilter()) {
+            $filterParams = [];
+            $filterClause = ' AND '.$this->convertFilter($query->getFilter(), $filterParams);
+            $params = array_merge($params, $filterParams);
+        }
+
         $sql = \sprintf(<<<SQL
             SELECT id, %s AS embedding, metadata,
                    ts_rank(%s, %s) AS score
             FROM %s
-            WHERE %s @@ (%s)
+            WHERE %s @@ (%s)%s
             ORDER BY score DESC
             LIMIT %d
             SQL,
@@ -246,6 +272,7 @@ final class Store implements ManagedStoreInterface, StoreInterface
             $this->tableName,
             $tsvectorExpression,
             $tsqueryExpression,
+            $filterClause,
             $options['limit'] ?? 5,
         );
 
@@ -292,6 +319,12 @@ final class Store implements ManagedStoreInterface, StoreInterface
         $tsvectorExpression = \sprintf("to_tsvector('%s', metadata->>'_text')", $this->lang);
 
         $where = \sprintf('WHERE %s @@ %s', $tsvectorExpression, $tsqueryExpression);
+
+        if (null !== $query->getFilter()) {
+            $filterParams = [];
+            $where .= ' AND '.$this->convertFilter($query->getFilter(), $filterParams);
+            $params = array_merge($params, $filterParams);
+        }
 
         if (isset($options['maxScore'])) {
             $where .= \sprintf(' AND ((:semantic_ratio * (1 - (%s %s :embedding))) + (:keyword_ratio * ts_rank(%s, %s))) >= :maxScore',
@@ -351,5 +384,101 @@ final class Store implements ManagedStoreInterface, StoreInterface
     private function fromPgvector(string $vector): array
     {
         return json_decode($vector, true, 512, \JSON_THROW_ON_ERROR);
+    }
+
+    /**
+     * Converts a query-level filter into a SQL clause over the metadata JSONB
+     * column. The parameter values are appended to $params, values are never
+     * interpolated into the SQL string.
+     *
+     * @param array<string, string|int|float> $params
+     */
+    private function convertFilter(FilterInterface $filter, array &$params): string
+    {
+        return match (true) {
+            $filter instanceof AndFilter => $this->convertCompositeFilter($filter->getFilters(), ' AND ', $params),
+            $filter instanceof OrFilter => $this->convertCompositeFilter($filter->getFilters(), ' OR ', $params),
+            $filter instanceof EqualFilter => \sprintf('%s = :%s', $this->convertFieldAccess($filter->getField(), $filter->getValue()), $this->registerFilterParameter($filter->getValue(), $params)),
+            $filter instanceof NotEqualFilter => \sprintf('%s IS DISTINCT FROM :%s', $this->convertFieldAccess($filter->getField(), $filter->getValue()), $this->registerFilterParameter($filter->getValue(), $params)),
+            $filter instanceof InFilter => $this->convertInFilter($filter, $params),
+            $filter instanceof GreaterThanFilter => \sprintf('%s > :%s', $this->convertFieldAccess($filter->getField(), $filter->getValue()), $this->registerFilterParameter($filter->getValue(), $params)),
+            $filter instanceof GreaterThanOrEqualFilter => \sprintf('%s >= :%s', $this->convertFieldAccess($filter->getField(), $filter->getValue()), $this->registerFilterParameter($filter->getValue(), $params)),
+            $filter instanceof LessThanFilter => \sprintf('%s < :%s', $this->convertFieldAccess($filter->getField(), $filter->getValue()), $this->registerFilterParameter($filter->getValue(), $params)),
+            $filter instanceof LessThanOrEqualFilter => \sprintf('%s <= :%s', $this->convertFieldAccess($filter->getField(), $filter->getValue()), $this->registerFilterParameter($filter->getValue(), $params)),
+            default => throw new UnsupportedFeatureException(\sprintf('Filter type "%s" is not supported by store "%s".', $filter::class, self::class)),
+        };
+    }
+
+    /**
+     * @param list<FilterInterface>           $filters
+     * @param array<string, string|int|float> $params
+     */
+    private function convertCompositeFilter(array $filters, string $operator, array &$params): string
+    {
+        $clauses = [];
+
+        foreach ($filters as $filter) {
+            $clauses[] = $this->convertFilter($filter, $params);
+        }
+
+        return '('.implode($operator, $clauses).')';
+    }
+
+    /**
+     * @param array<string, string|int|float> $params
+     */
+    private function convertInFilter(InFilter $filter, array &$params): string
+    {
+        $placeholders = [];
+
+        foreach ($filter->getValues() as $value) {
+            $placeholders[] = ':'.$this->registerFilterParameter($value, $params);
+        }
+
+        return \sprintf('%s IN (%s)', $this->convertFieldAccess($filter->getField(), $filter->getValues()[0]), implode(', ', $placeholders));
+    }
+
+    /**
+     * Builds the JSONB access expression for a metadata field, cast based on
+     * the compared value type. The field name is validated as identifier to
+     * prevent SQL injection.
+     *
+     * Casts are guarded by jsonb_typeof() so that a row holding a different
+     * JSON type in the field evaluates to NULL (a non-match) instead of
+     * aborting the whole query with a cast error.
+     */
+    private function convertFieldAccess(string $field, string|int|float|bool $value): string
+    {
+        if (1 !== preg_match('/^[a-zA-Z0-9_.\\-]+$/', $field)) {
+            throw new InvalidArgumentException(\sprintf('Invalid filter field name "%s".', $field));
+        }
+
+        $access = \sprintf("metadata->>'%s'", $field);
+
+        if (\is_int($value) || \is_float($value)) {
+            return \sprintf("(CASE WHEN jsonb_typeof(metadata->'%s') = 'number' THEN (%s)::numeric END)", $field, $access);
+        }
+
+        if (\is_bool($value)) {
+            return \sprintf("(CASE WHEN jsonb_typeof(metadata->'%s') = 'boolean' THEN (%s)::boolean END)", $field, $access);
+        }
+
+        return $access;
+    }
+
+    /**
+     * @param array<string, string|int|float> $params
+     */
+    private function registerFilterParameter(string|int|float|bool $value, array &$params): string
+    {
+        $name = 'metadata_filter_'.\count($params);
+
+        if (\is_bool($value)) {
+            $value = $value ? 'true' : 'false';
+        }
+
+        $params[$name] = $value;
+
+        return $name;
     }
 }

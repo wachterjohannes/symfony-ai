@@ -18,8 +18,17 @@ use Symfony\AI\Store\Distance\DistanceStrategy;
 use Symfony\AI\Store\Document\Metadata;
 use Symfony\AI\Store\Document\VectorDocument;
 use Symfony\AI\Store\Exception\InvalidArgumentException;
+use Symfony\AI\Store\Exception\UnsupportedFeatureException;
 use Symfony\AI\Store\Exception\UnsupportedQueryTypeException;
 use Symfony\AI\Store\InMemory\Store;
+use Symfony\AI\Store\Query\Filter\AndFilter;
+use Symfony\AI\Store\Query\Filter\EqualFilter;
+use Symfony\AI\Store\Query\Filter\FilterInterface;
+use Symfony\AI\Store\Query\Filter\GreaterThanFilter;
+use Symfony\AI\Store\Query\Filter\InFilter;
+use Symfony\AI\Store\Query\Filter\LessThanFilter;
+use Symfony\AI\Store\Query\Filter\NotEqualFilter;
+use Symfony\AI\Store\Query\Filter\OrFilter;
 use Symfony\AI\Store\Query\HybridQuery;
 use Symfony\AI\Store\Query\QueryInterface;
 use Symfony\AI\Store\Query\TextQuery;
@@ -256,6 +265,136 @@ final class StoreTest extends TestCase
         ]));
 
         $this->assertCount(2, $result);
+    }
+
+    public function testStoreCanSearchWithEqualMetadataFilter()
+    {
+        $store = new Store();
+        $store->add([
+            new VectorDocument(Uuid::v4(), new Vector([0.1, 0.1, 0.5]), new Metadata(['locale' => 'en'])),
+            new VectorDocument(Uuid::v4(), new Vector([0.7, -0.3, 0.0]), new Metadata(['locale' => 'de'])),
+            new VectorDocument(Uuid::v4(), new Vector([0.3, 0.7, 0.1]), new Metadata(['locale' => 'en'])),
+        ]);
+
+        $result = iterator_to_array($store->query(new VectorQuery(new Vector([0.0, 0.1, 0.6]), new EqualFilter('locale', 'en'))));
+
+        $this->assertCount(2, $result);
+        $this->assertSame('en', $result[0]->getMetadata()['locale']);
+        $this->assertSame('en', $result[1]->getMetadata()['locale']);
+    }
+
+    public function testStoreCanSearchWithNotEqualMetadataFilter()
+    {
+        $store = new Store();
+        $store->add([
+            new VectorDocument(Uuid::v4(), new Vector([0.1, 0.1, 0.5]), new Metadata(['locale' => 'en'])),
+            new VectorDocument(Uuid::v4(), new Vector([0.7, -0.3, 0.0]), new Metadata(['locale' => 'de'])),
+            new VectorDocument(Uuid::v4(), new Vector([0.3, 0.7, 0.1])),
+        ]);
+
+        $result = iterator_to_array($store->query(new VectorQuery(new Vector([0.0, 0.1, 0.6]), new NotEqualFilter('locale', 'en'))));
+
+        $this->assertCount(2, $result);
+    }
+
+    public function testStoreCanSearchWithRangeMetadataFilter()
+    {
+        $store = new Store();
+        $store->add([
+            new VectorDocument(Uuid::v4(), new Vector([0.1, 0.1, 0.5]), new Metadata(['year' => 2022])),
+            new VectorDocument(Uuid::v4(), new Vector([0.7, -0.3, 0.0]), new Metadata(['year' => 2023])),
+            new VectorDocument(Uuid::v4(), new Vector([0.3, 0.7, 0.1]), new Metadata(['year' => 2024])),
+        ]);
+
+        $result = iterator_to_array($store->query(new VectorQuery(new Vector([0.0, 0.1, 0.6]), new GreaterThanFilter('year', 2022))));
+
+        $this->assertCount(2, $result);
+
+        $result = iterator_to_array($store->query(new VectorQuery(new Vector([0.0, 0.1, 0.6]), new LessThanFilter('year', 2023))));
+
+        $this->assertCount(1, $result);
+        $this->assertSame(2022, $result[0]->getMetadata()['year']);
+    }
+
+    public function testStoreCanSearchWithInMetadataFilter()
+    {
+        $store = new Store();
+        $store->add([
+            new VectorDocument(Uuid::v4(), new Vector([0.1, 0.1, 0.5]), new Metadata(['category' => 'scifi'])),
+            new VectorDocument(Uuid::v4(), new Vector([0.7, -0.3, 0.0]), new Metadata(['category' => 'crime'])),
+            new VectorDocument(Uuid::v4(), new Vector([0.3, 0.7, 0.1]), new Metadata(['category' => 'fantasy'])),
+        ]);
+
+        $result = iterator_to_array($store->query(new VectorQuery(new Vector([0.0, 0.1, 0.6]), new InFilter('category', ['scifi', 'fantasy']))));
+
+        $this->assertCount(2, $result);
+    }
+
+    public function testStoreCanSearchWithNestedCompositeMetadataFilter()
+    {
+        $store = new Store();
+        $store->add([
+            new VectorDocument(Uuid::v4(), new Vector([0.1, 0.1, 0.5]), new Metadata(['locale' => 'en', 'year' => 2024])),
+            new VectorDocument(Uuid::v4(), new Vector([0.7, -0.3, 0.0]), new Metadata(['locale' => 'en', 'year' => 2020])),
+            new VectorDocument(Uuid::v4(), new Vector([0.3, 0.7, 0.1]), new Metadata(['locale' => 'de', 'year' => 2024])),
+        ]);
+
+        $filter = new AndFilter([
+            new EqualFilter('locale', 'en'),
+            new OrFilter([
+                new GreaterThanFilter('year', 2023),
+                new LessThanFilter('year', 2019),
+            ]),
+        ]);
+
+        $result = iterator_to_array($store->query(new VectorQuery(new Vector([0.0, 0.1, 0.6]), $filter)));
+
+        $this->assertCount(1, $result);
+        $this->assertSame(['locale' => 'en', 'year' => 2024], $result[0]->getMetadata()->getArrayCopy());
+    }
+
+    public function testStoreCanSearchUsingTextQueryWithMetadataFilter()
+    {
+        $store = new Store();
+        $store->add([
+            new VectorDocument(Uuid::v4(), new Vector([0.1, 0.1, 0.5]), new Metadata(['_text' => 'The quick brown fox', 'locale' => 'en'])),
+            new VectorDocument(Uuid::v4(), new Vector([0.7, -0.3, 0.0]), new Metadata(['_text' => 'The quick brown fox', 'locale' => 'de'])),
+        ]);
+
+        $result = iterator_to_array($store->query(new TextQuery('quick brown', new EqualFilter('locale', 'en'))));
+
+        $this->assertCount(1, $result);
+        $this->assertSame('en', $result[0]->getMetadata()['locale']);
+    }
+
+    public function testStoreCanSearchUsingHybridQueryWithMetadataFilter()
+    {
+        $store = new Store();
+        $store->add([
+            new VectorDocument(Uuid::v4(), new Vector([0.1, 0.1, 0.5]), new Metadata(['_text' => 'The quick brown fox', 'locale' => 'en'])),
+            new VectorDocument(Uuid::v4(), new Vector([0.7, -0.3, 0.0]), new Metadata(['_text' => 'The quick brown fox', 'locale' => 'de'])),
+            new VectorDocument(Uuid::v4(), new Vector([0.3, 0.7, 0.1]), new Metadata(['_text' => 'Lorem ipsum', 'locale' => 'en'])),
+        ]);
+
+        $result = iterator_to_array($store->query(new HybridQuery(new Vector([0.0, 0.1, 0.6]), 'quick brown', 0.5, new EqualFilter('locale', 'en'))));
+
+        $this->assertCount(2, $result);
+
+        foreach ($result as $document) {
+            $this->assertSame('en', $document->getMetadata()['locale']);
+        }
+    }
+
+    public function testStoreThrowsOnUnsupportedMetadataFilterType()
+    {
+        $store = new Store();
+        $store->add(new VectorDocument(Uuid::v4(), new Vector([0.1, 0.1, 0.5])));
+
+        $filter = new class implements FilterInterface {};
+
+        $this->expectException(UnsupportedFeatureException::class);
+
+        iterator_to_array($store->query(new VectorQuery(new Vector([0.0, 0.1, 0.6]), $filter)));
     }
 
     public function testStoreCanRemoveSingleDocument()

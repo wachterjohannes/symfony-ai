@@ -19,7 +19,14 @@ use Symfony\AI\Store\Bridge\Postgres\Store;
 use Symfony\AI\Store\Bridge\Postgres\StoreFactory;
 use Symfony\AI\Store\Document\Metadata;
 use Symfony\AI\Store\Document\VectorDocument;
+use Symfony\AI\Store\Exception\InvalidArgumentException;
 use Symfony\AI\Store\Exception\RuntimeException;
+use Symfony\AI\Store\Query\Filter\AndFilter;
+use Symfony\AI\Store\Query\Filter\EqualFilter;
+use Symfony\AI\Store\Query\Filter\GreaterThanFilter;
+use Symfony\AI\Store\Query\Filter\InFilter;
+use Symfony\AI\Store\Query\Filter\NotEqualFilter;
+use Symfony\AI\Store\Query\Filter\OrFilter;
 use Symfony\AI\Store\Query\HybridQuery;
 use Symfony\AI\Store\Query\TextQuery;
 use Symfony\AI\Store\Query\VectorQuery;
@@ -389,6 +396,285 @@ final class StoreTest extends TestCase
         $results = iterator_to_array($store->query(new VectorQuery(new Vector([0.1, 0.2, 0.3]))));
 
         $this->assertCount(0, $results);
+    }
+
+    public function testQueryWithEqualQueryFilter()
+    {
+        $pdo = $this->createMock(\PDO::class);
+        $statement = $this->createMock(\PDOStatement::class);
+
+        $store = new Store($pdo, 'embeddings_table', 'embedding');
+
+        $expectedQuery = "SELECT id, embedding AS embedding, metadata, (embedding <-> :embedding) AS score
+            FROM embeddings_table
+            WHERE metadata->>'locale' = :metadata_filter_0
+            ORDER BY score ASC
+            LIMIT 5";
+
+        $pdo->expects($this->once())
+            ->method('prepare')
+            ->with($this->callback(function ($sql) use ($expectedQuery) {
+                $this->assertSame($this->normalizeQuery($expectedQuery), $this->normalizeQuery($sql));
+
+                return true;
+            }))
+            ->willReturn($statement);
+
+        $statement->expects($this->exactly(2))
+            ->method('bindValue')
+            ->willReturnCallback(function (string $param, string $value): bool {
+                static $callCount = 0;
+                ++$callCount;
+
+                match ($callCount) {
+                    1 => $this->assertSame([':embedding', '[0.1,0.2,0.3]'], [$param, $value]),
+                    2 => $this->assertSame([':metadata_filter_0', 'en'], [$param, $value]),
+                    default => $this->fail('Unexpected bindValue call'),
+                };
+
+                return true;
+            });
+
+        $statement->expects($this->once())
+            ->method('execute');
+
+        $statement->expects($this->once())
+            ->method('fetchAll')
+            ->with(\PDO::FETCH_ASSOC)
+            ->willReturn([]);
+
+        $results = iterator_to_array($store->query(new VectorQuery(new Vector([0.1, 0.2, 0.3]), new EqualFilter('locale', 'en'))));
+
+        $this->assertCount(0, $results);
+    }
+
+    public function testQueryWithCompositeQueryFilter()
+    {
+        $pdo = $this->createMock(\PDO::class);
+        $statement = $this->createMock(\PDOStatement::class);
+
+        $store = new Store($pdo, 'embeddings_table', 'embedding');
+
+        $expectedQuery = "SELECT id, embedding AS embedding, metadata, (embedding <-> :embedding) AS score
+            FROM embeddings_table
+            WHERE ((CASE WHEN jsonb_typeof(metadata->'enabled') = 'boolean' THEN (metadata->>'enabled')::boolean END) = :metadata_filter_0 AND (metadata->>'category' IS DISTINCT FROM :metadata_filter_1 OR (CASE WHEN jsonb_typeof(metadata->'year') = 'number' THEN (metadata->>'year')::numeric END) > :metadata_filter_2))
+            ORDER BY score ASC
+            LIMIT 5";
+
+        $pdo->expects($this->once())
+            ->method('prepare')
+            ->with($this->callback(function ($sql) use ($expectedQuery) {
+                $this->assertSame($this->normalizeQuery($expectedQuery), $this->normalizeQuery($sql));
+
+                return true;
+            }))
+            ->willReturn($statement);
+
+        $statement->expects($this->exactly(4))
+            ->method('bindValue')
+            ->willReturnCallback(function (string $param, string|int $value): bool {
+                static $callCount = 0;
+                ++$callCount;
+
+                match ($callCount) {
+                    1 => $this->assertSame([':embedding', '[0.1,0.2,0.3]'], [$param, $value]),
+                    2 => $this->assertSame([':metadata_filter_0', 'true'], [$param, $value]),
+                    3 => $this->assertSame([':metadata_filter_1', 'crime'], [$param, $value]),
+                    4 => $this->assertSame([':metadata_filter_2', 2020], [$param, $value]),
+                    default => $this->fail('Unexpected bindValue call'),
+                };
+
+                return true;
+            });
+
+        $statement->expects($this->once())
+            ->method('execute');
+
+        $statement->expects($this->once())
+            ->method('fetchAll')
+            ->with(\PDO::FETCH_ASSOC)
+            ->willReturn([]);
+
+        $filter = new AndFilter([
+            new EqualFilter('enabled', true),
+            new OrFilter([
+                new NotEqualFilter('category', 'crime'),
+                new GreaterThanFilter('year', 2020),
+            ]),
+        ]);
+
+        $results = iterator_to_array($store->query(new VectorQuery(new Vector([0.1, 0.2, 0.3]), $filter)));
+
+        $this->assertCount(0, $results);
+    }
+
+    public function testQueryWithInQueryFilter()
+    {
+        $pdo = $this->createMock(\PDO::class);
+        $statement = $this->createMock(\PDOStatement::class);
+
+        $store = new Store($pdo, 'embeddings_table', 'embedding');
+
+        $expectedQuery = "SELECT id, embedding AS embedding, metadata, (embedding <-> :embedding) AS score
+            FROM embeddings_table
+            WHERE metadata->>'category' IN (:metadata_filter_0, :metadata_filter_1)
+            ORDER BY score ASC
+            LIMIT 5";
+
+        $pdo->expects($this->once())
+            ->method('prepare')
+            ->with($this->callback(function ($sql) use ($expectedQuery) {
+                $this->assertSame($this->normalizeQuery($expectedQuery), $this->normalizeQuery($sql));
+
+                return true;
+            }))
+            ->willReturn($statement);
+
+        $statement->expects($this->exactly(3))
+            ->method('bindValue')
+            ->willReturnCallback(function (string $param, string $value): bool {
+                static $callCount = 0;
+                ++$callCount;
+
+                match ($callCount) {
+                    1 => $this->assertSame([':embedding', '[0.1,0.2,0.3]'], [$param, $value]),
+                    2 => $this->assertSame([':metadata_filter_0', 'scifi'], [$param, $value]),
+                    3 => $this->assertSame([':metadata_filter_1', 'fantasy'], [$param, $value]),
+                    default => $this->fail('Unexpected bindValue call'),
+                };
+
+                return true;
+            });
+
+        $statement->expects($this->once())
+            ->method('execute');
+
+        $statement->expects($this->once())
+            ->method('fetchAll')
+            ->with(\PDO::FETCH_ASSOC)
+            ->willReturn([]);
+
+        $results = iterator_to_array($store->query(new VectorQuery(new Vector([0.1, 0.2, 0.3]), new InFilter('category', ['scifi', 'fantasy']))));
+
+        $this->assertCount(0, $results);
+    }
+
+    public function testTextQueryWithQueryFilter()
+    {
+        $pdo = $this->createMock(\PDO::class);
+        $statement = $this->createMock(\PDOStatement::class);
+
+        $store = new Store($pdo, 'embeddings_table', 'embedding');
+
+        $expectedQuery = "SELECT id, embedding AS embedding, metadata,
+                   ts_rank(to_tsvector('english', metadata->>'_text'), plainto_tsquery('english', :search_text_0)) AS score
+            FROM embeddings_table
+            WHERE to_tsvector('english', metadata->>'_text') @@ (plainto_tsquery('english', :search_text_0)) AND metadata->>'locale' = :metadata_filter_0
+            ORDER BY score DESC
+            LIMIT 5";
+
+        $pdo->expects($this->once())
+            ->method('prepare')
+            ->with($this->callback(function ($sql) use ($expectedQuery) {
+                $this->assertSame($this->normalizeQuery($expectedQuery), $this->normalizeQuery($sql));
+
+                return true;
+            }))
+            ->willReturn($statement);
+
+        $statement->expects($this->exactly(2))
+            ->method('bindValue')
+            ->willReturnCallback(function (string $param, string $value): bool {
+                static $callCount = 0;
+                ++$callCount;
+
+                match ($callCount) {
+                    1 => $this->assertSame([':search_text_0', 'hello'], [$param, $value]),
+                    2 => $this->assertSame([':metadata_filter_0', 'en'], [$param, $value]),
+                    default => $this->fail('Unexpected bindValue call'),
+                };
+
+                return true;
+            });
+
+        $statement->expects($this->once())
+            ->method('execute');
+
+        $statement->expects($this->once())
+            ->method('fetchAll')
+            ->with(\PDO::FETCH_ASSOC)
+            ->willReturn([]);
+
+        $results = iterator_to_array($store->query(new TextQuery('hello', new EqualFilter('locale', 'en'))));
+
+        $this->assertCount(0, $results);
+    }
+
+    public function testHybridQueryWithQueryFilter()
+    {
+        $pdo = $this->createMock(\PDO::class);
+        $statement = $this->createMock(\PDOStatement::class);
+
+        $store = new Store($pdo, 'embeddings_table', 'embedding');
+
+        $expectedQuery = "SELECT id, embedding AS embedding, metadata,
+                   ((:semantic_ratio * (1 - (embedding <-> :embedding))) +
+                    (:keyword_ratio * ts_rank(to_tsvector('english', metadata->>'_text'), (plainto_tsquery('english', :search_text_0))))) AS score
+            FROM embeddings_table
+            WHERE to_tsvector('english', metadata->>'_text') @@ (plainto_tsquery('english', :search_text_0)) AND metadata->>'locale' = :metadata_filter_0
+            ORDER BY score DESC
+            LIMIT 5";
+
+        $pdo->expects($this->once())
+            ->method('prepare')
+            ->with($this->callback(function ($sql) use ($expectedQuery) {
+                $this->assertSame($this->normalizeQuery($expectedQuery), $this->normalizeQuery($sql));
+
+                return true;
+            }))
+            ->willReturn($statement);
+
+        $statement->expects($this->exactly(5))
+            ->method('bindValue')
+            ->willReturnCallback(function (string $param, string|float $value): bool {
+                static $callCount = 0;
+                ++$callCount;
+
+                match ($callCount) {
+                    1 => $this->assertSame([':embedding', '[0.1,0.2,0.3]'], [$param, $value]),
+                    2 => $this->assertSame([':semantic_ratio', 0.75], [$param, $value]),
+                    3 => $this->assertSame([':keyword_ratio', 0.25], [$param, $value]),
+                    4 => $this->assertSame([':search_text_0', 'test query'], [$param, $value]),
+                    5 => $this->assertSame([':metadata_filter_0', 'en'], [$param, $value]),
+                    default => $this->fail('Unexpected bindValue call'),
+                };
+
+                return true;
+            });
+
+        $statement->expects($this->once())
+            ->method('execute');
+
+        $statement->expects($this->once())
+            ->method('fetchAll')
+            ->with(\PDO::FETCH_ASSOC)
+            ->willReturn([]);
+
+        $results = iterator_to_array($store->query(new HybridQuery(new Vector([0.1, 0.2, 0.3]), 'test query', 0.75, new EqualFilter('locale', 'en'))));
+
+        $this->assertCount(0, $results);
+    }
+
+    public function testQueryFilterRejectsInvalidFieldName()
+    {
+        $pdo = $this->createMock(\PDO::class);
+
+        $store = new Store($pdo, 'embeddings_table', 'embedding');
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage("Invalid filter field name \"locale' OR '1'='1\".");
+
+        iterator_to_array($store->query(new VectorQuery(new Vector([0.1, 0.2, 0.3]), new EqualFilter("locale' OR '1'='1", 'en'))));
     }
 
     public function testInitialize()
