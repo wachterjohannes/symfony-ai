@@ -12,6 +12,7 @@
 namespace Symfony\AI\Store\Bridge\Doctrine;
 
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\Mapping\ClassMetadata;
 use Symfony\AI\Store\Bridge\Doctrine\Attribute\AiEmbeddable;
 use Symfony\AI\Store\Bridge\Doctrine\Attribute\AiEmbeddableField;
 use Symfony\AI\Store\Document\LoaderInterface;
@@ -69,6 +70,9 @@ final class DoctrineEntityLoader implements LoaderInterface
 
     /**
      * Renders a single managed entity into a document with a deterministic identifier.
+     *
+     * Besides the human-readable source, the document carries structured identity metadata (entity class and
+     * identifier map) so the {@see DoctrineEntityHydrator} can resolve retrieval results back to entities.
      */
     public function loadEntity(object $entity): TextDocument
     {
@@ -80,9 +84,20 @@ final class DoctrineEntityLoader implements LoaderInterface
             throw new InvalidArgumentException(\sprintf('Rendering entity "%s" produced no content; declare at least one #[AiEmbeddableField] with a non-empty value or provide a template.', $entity::class));
         }
 
+        $classMetadata = $this->entityManager->getClassMetadata($entity::class);
+        $identifiers = $this->identifierValuesFor($entity);
+
         $metadata = new Metadata([
             Metadata::KEY_SOURCE => $this->sourceFor($entity),
         ]);
+
+        if ([] !== $identifiers) {
+            $metadata->offsetSet(DoctrineEntityHydrator::METADATA_ENTITY_CLASS, $classMetadata->getName());
+            $metadata->offsetSet(DoctrineEntityHydrator::METADATA_ENTITY_IDENTIFIER, array_map(
+                fn (mixed $value): bool|float|int|string => \is_scalar($value) ? $value : $this->stringify($value),
+                $identifiers,
+            ));
+        }
 
         $title = $this->titleFor($entity, $definition);
         if (null !== $title) {
@@ -201,7 +216,7 @@ final class DoctrineEntityLoader implements LoaderInterface
     private function sourceFor(object $entity): string
     {
         $classMetadata = $this->entityManager->getClassMetadata($entity::class);
-        $identifiers = $classMetadata->getIdentifierValues($entity);
+        $identifiers = $this->identifierValuesFor($entity);
 
         $identifier = implode('-', array_map(
             fn (mixed $value): string => $this->stringify($value),
@@ -212,7 +227,47 @@ final class DoctrineEntityLoader implements LoaderInterface
             $identifier = spl_object_hash($entity);
         }
 
-        return \sprintf('%s#%s', $entity::class, $identifier);
+        return \sprintf('%s#%s', $classMetadata->getName(), $identifier);
+    }
+
+    /**
+     * Identifier values of the entity, with identifier associations (e.g. #[ORM\Id] on a ManyToOne) resolved
+     * recursively to the scalar identifier value of the associated entity, so the metadata stays deterministic
+     * and can be fed back into the database by the {@see DoctrineEntityHydrator}.
+     *
+     * @return array<string, mixed> field => value map, empty when the identifier is not (fully) available
+     */
+    private function identifierValuesFor(object $entity): array
+    {
+        return $this->flattenIdentifierValues($this->entityManager->getClassMetadata($entity::class), $entity);
+    }
+
+    /**
+     * @param ClassMetadata<object> $classMetadata
+     *
+     * @return array<string, mixed>
+     */
+    private function flattenIdentifierValues(ClassMetadata $classMetadata, object $entity): array
+    {
+        $values = $classMetadata->getIdentifierValues($entity);
+
+        $flattened = [];
+        foreach ($values as $field => $value) {
+            if (\is_object($value) && $classMetadata->hasAssociation($field)) {
+                $target = $this->entityManager->getClassMetadata($classMetadata->getAssociationTargetClass($field));
+                $nested = $this->flattenIdentifierValues($target, $value);
+                if (1 !== \count($nested)) {
+                    // the associated entity has no (or a composite) identifier of its own -> the identity of
+                    // this entity cannot be represented as a flat field => value map
+                    return [];
+                }
+                $value = array_values($nested)[0];
+            }
+
+            $flattened[$field] = $value;
+        }
+
+        return $flattened;
     }
 
     private function stringify(mixed $value): string

@@ -15,7 +15,10 @@ use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\EntityRepository;
 use Doctrine\ORM\Mapping\ClassMetadata;
 use PHPUnit\Framework\TestCase;
+use Symfony\AI\Store\Bridge\Doctrine\DoctrineEntityHydrator;
 use Symfony\AI\Store\Bridge\Doctrine\DoctrineEntityLoader;
+use Symfony\AI\Store\Bridge\Doctrine\Tests\Fixtures\Author;
+use Symfony\AI\Store\Bridge\Doctrine\Tests\Fixtures\AuthorProfile;
 use Symfony\AI\Store\Bridge\Doctrine\Tests\Fixtures\Movie;
 use Symfony\AI\Store\Bridge\Doctrine\Tests\Fixtures\PlainEntity;
 use Symfony\AI\Store\Bridge\Doctrine\Tests\Fixtures\Product;
@@ -28,6 +31,8 @@ use Symfony\Component\Uid\Uuid;
  */
 final class DoctrineEntityLoaderTest extends TestCase
 {
+    use OrmEntityManagerTrait;
+
     public function testLoadEntityRendersDeclaredFieldsAndExcludesUndeclaredProperties()
     {
         $product = new Product(42, 'Cast-iron pan', 39.9);
@@ -43,10 +48,21 @@ final class DoctrineEntityLoaderTest extends TestCase
         $this->assertSame(Product::class.'#42', $document->getMetadata()->getSource());
     }
 
+    public function testLoadEntityAddsIdentityMetadataForHydration()
+    {
+        $product = new Product(42, 'Cast-iron pan', 39.9);
+        $loader = new DoctrineEntityLoader($this->createEntityManager(static fn (): array => ['id' => 42]));
+
+        $metadata = $loader->loadEntity($product)->getMetadata();
+
+        $this->assertSame(Product::class, $metadata[DoctrineEntityHydrator::METADATA_ENTITY_CLASS]);
+        $this->assertSame(['id' => 42], $metadata[DoctrineEntityHydrator::METADATA_ENTITY_IDENTIFIER]);
+    }
+
     public function testLoadEntityUsesTemplateWhenProvided()
     {
         $movie = new Movie(7, 'Inception', 2010);
-        $loader = new DoctrineEntityLoader($this->createEntityManager(static fn (): array => ['id' => 7]));
+        $loader = new DoctrineEntityLoader($this->createEntityManager(static fn (): array => ['id' => 7], null, Movie::class));
 
         $document = $loader->loadEntity($movie);
 
@@ -64,6 +80,25 @@ final class DoctrineEntityLoaderTest extends TestCase
         $this->assertInstanceOf(Uuid::class, $id);
         $this->assertSame((string) $id, (string) $loader->loadEntity($product)->getId());
         $this->assertSame((string) $id, (string) $loader->documentIdFor(new Product(42, 'Renamed', 10.0)));
+    }
+
+    public function testLoadEntityFlattensAssociationIdentifiers()
+    {
+        $entityManager = $this->createOrmEntityManager();
+        $herbert = new Author(5, 'Frank Herbert');
+        $profile = new AuthorProfile($herbert, 'Author of the Dune saga.');
+        $entityManager->persist($herbert);
+        $entityManager->persist($profile);
+        $entityManager->flush();
+
+        $loader = new DoctrineEntityLoader($entityManager);
+
+        $document = $loader->loadEntity($profile);
+
+        $this->assertSame(AuthorProfile::class, $document->getMetadata()[DoctrineEntityHydrator::METADATA_ENTITY_CLASS]);
+        $this->assertSame(['author' => 5], $document->getMetadata()[DoctrineEntityHydrator::METADATA_ENTITY_IDENTIFIER]);
+        $this->assertSame(AuthorProfile::class.'#5', $document->getMetadata()->getSource());
+        $this->assertSame((string) $document->getId(), (string) $loader->documentIdFor($profile));
     }
 
     public function testLoadIteratesTheRepository()
@@ -104,11 +139,13 @@ final class DoctrineEntityLoaderTest extends TestCase
     /**
      * @param callable(object): array<string, mixed> $identifierResolver
      * @param EntityRepository<object>|null          $repository
+     * @param class-string                           $class
      */
-    private function createEntityManager(callable $identifierResolver, ?EntityRepository $repository = null): EntityManagerInterface
+    private function createEntityManager(callable $identifierResolver, ?EntityRepository $repository = null, string $class = Product::class): EntityManagerInterface
     {
         $classMetadata = $this->createMock(ClassMetadata::class);
         $classMetadata->method('getIdentifierValues')->willReturnCallback($identifierResolver);
+        $classMetadata->method('getName')->willReturn($class);
 
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->method('getClassMetadata')->willReturn($classMetadata);

@@ -94,6 +94,7 @@ final class EntityIndexSubscriberTest extends TestCase
     {
         $classMetadata = $this->createMock(ClassMetadata::class);
         $classMetadata->method('getIdentifierValues')->willReturnCallback(static fn (object $entity): array => ['id' => $entity->id]);
+        $classMetadata->method('getName')->willReturn(Product::class);
 
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->method('getClassMetadata')->willReturn($classMetadata);

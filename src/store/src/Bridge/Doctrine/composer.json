@@ -1,6 +1,6 @@
 {
     "name": "symfony/ai-doctrine-store",
-    "description": "Doctrine ORM entity loader for Symfony AI Store, turning entities into RAG documents",
+    "description": "Doctrine ORM bridge for Symfony AI Store, turning entities into RAG documents and resolving retrieval results back to entities",
     "license": "MIT",
     "type": "symfony-ai-store",
     "keywords": [
@@ -31,10 +31,13 @@
         "symfony/uid": "^7.3|^8.0"
     },
     "require-dev": {
+        "doctrine/dbal": "^3.6|^4.0",
         "phpstan/phpstan": "^2.1",
         "phpstan/phpstan-phpunit": "^2.0",
         "phpstan/phpstan-strict-rules": "^2.0",
-        "phpunit/phpunit": "^11.5.53"
+        "phpunit/phpunit": "^11.5.53",
+        "symfony/cache": "^7.3|^8.0",
+        "symfony/var-exporter": "^7.3|^8.0"
     },
     "minimum-stability": "dev",
     "autoload": {
