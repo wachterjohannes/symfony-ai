@@ -1,6 +1,11 @@
 CHANGELOG
 =========
 
+0.11
+----
+
+ * Add conversational handoff mesh to `MultiAgent`: the full conversation is now passed to the selected agent, a specialist can hand off to another agent (or back to the orchestrator) by returning a `Handoff\Transfer` result, and a `maxHops` budget prevents runaway routing
+
 0.10
 ----
 

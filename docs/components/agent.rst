@@ -382,6 +382,38 @@ complex logic or to reuse an agent in multiple places or hide sub-agents from th
         ->addTool($subagent, 'research_agent', 'Meaningful description for sub-agent');
     $toolbox = new Toolbox([$subagent], $metadataFactory);
 
+Multi-Agent Orchestration
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The :class:`Symfony\\AI\\Agent\\MultiAgent\\MultiAgent` coordinates several specialized agents behind a single
+``AgentInterface``. An *orchestrator* agent selects the specialist to handle a request based on ``Handoff`` rules,
+and the full conversation is passed along. A specialist can hand the conversation over to another agent by
+returning a :class:`Symfony\\AI\\Agent\\MultiAgent\\Handoff\\Transfer` as its result, forming a handoff mesh with
+hand-back to the orchestrator and a ``maxHops`` budget that stops runaway routing::
+
+    use Symfony\AI\Agent\MultiAgent\Handoff;
+    use Symfony\AI\Agent\MultiAgent\Handoff\Transfer;
+    use Symfony\AI\Agent\MultiAgent\MultiAgent;
+
+    // $orchestrator, $billingAgent, $technicalAgent and $fallback implement AgentInterface
+
+    $multiAgent = new MultiAgent(
+        orchestrator: $orchestrator,
+        handoffs: [
+            new Handoff($billingAgent, ['refund', 'invoice', 'charge']),
+            new Handoff($technicalAgent, ['error', 'bug', 'export']),
+        ],
+        fallback: $fallback,
+        maxHops: 10,
+    );
+
+    $result = $multiAgent->call($messages);
+
+A specialist requests a handoff by returning a ``Transfer`` (e.g. from a tool or via structured output), naming the
+next agent — or the orchestrator's name to hand control back for re-selection::
+
+    return new Transfer('technical', 'This needs the application logs.');
+
 Fault Tolerance
 ~~~~~~~~~~~~~~~
 
