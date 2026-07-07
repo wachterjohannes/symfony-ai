@@ -9,9 +9,15 @@
  * file that was distributed with this source code.
  */
 
+use Symfony\AI\Mate\Bridge\Symfony\Capability\ContextTool;
+use Symfony\AI\Mate\Bridge\Symfony\Capability\GraphTool;
 use Symfony\AI\Mate\Bridge\Symfony\Capability\ProfilerResourceTemplate;
 use Symfony\AI\Mate\Bridge\Symfony\Capability\ProfilerTool;
 use Symfony\AI\Mate\Bridge\Symfony\Capability\ServiceTool;
+use Symfony\AI\Mate\Bridge\Symfony\Graph\StaticGraphCache;
+use Symfony\AI\Mate\Bridge\Symfony\Graph\StaticGraphFactory;
+use Symfony\AI\Mate\Bridge\Symfony\GraphProvider\ContainerGraphProvider;
+use Symfony\AI\Mate\Bridge\Symfony\GraphProvider\RouteGraphProvider;
 use Symfony\AI\Mate\Bridge\Symfony\Profiler\Service\CollectorRegistry;
 use Symfony\AI\Mate\Bridge\Symfony\Profiler\Service\Formatter\DoctrineCollectorFormatter;
 use Symfony\AI\Mate\Bridge\Symfony\Profiler\Service\Formatter\ExceptionCollectorFormatter;
@@ -44,6 +50,34 @@ return static function (ContainerConfigurator $configurator) {
             '%ai_mate_symfony.cache_dir%',
             service(ContainerProvider::class),
         ]);
+
+    // Runtime graph layer (static slice — routes + container).
+    $services->set(ContainerGraphProvider::class)
+        ->args([
+            '%ai_mate_symfony.cache_dir%',
+            service(ContainerProvider::class),
+        ])
+        ->tag('ai_mate.graph_provider');
+
+    $services->set(RouteGraphProvider::class)
+        ->args(['%ai_mate_symfony.cache_dir%'])
+        ->tag('ai_mate.graph_provider');
+
+    $services->set(StaticGraphCache::class)
+        ->args(['%ai_mate_symfony.cache_dir%']);
+
+    $services->set(StaticGraphFactory::class)
+        ->args([
+            tagged_iterator('ai_mate.graph_provider'),
+            service(StaticGraphCache::class),
+            '%ai_mate_symfony.cache_dir%',
+        ]);
+
+    $services->set(ContextTool::class)
+        ->args([service(StaticGraphFactory::class)]);
+
+    $services->set(GraphTool::class)
+        ->args([service(StaticGraphFactory::class)]);
 
     // Profiler services (optional - only if profiler classes are available)
     if (class_exists(Profile::class)) {
