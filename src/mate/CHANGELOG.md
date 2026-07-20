@@ -10,6 +10,11 @@ CHANGELOG
  * Add `skills:list` command: a read-only diagnostic listing declared and installed skills with their enabled/mode/state/status (including stale and broken detection)
  * Add `skills:validate` command: checks the generated folders against the recorded state and fails on hand-edited content, missing folders or a mispointed mirror (`--strict` also fails on warnings)
  * Add `skills:prune` command: removes generated `mate-*` folders that no longer belong to any skill (`--dry-run` to preview)
+ * Replace the MCP server with a native CLI: Mate no longer depends on `mcp/sdk` and no longer runs an MCP server. Tools/resources are discovered by reflection from the native `#[AsTool]`, `#[AsResource]` and `#[AsResourceTemplate]` attributes (in `Symfony\AI\Mate\Attribute`), and agents call them through the `mate` CLI directly
+ * Rename the tool/resource commands from `mcp:tools:*`/`mcp:resources:read` to `tools:list`, `tools:inspect`, `tools:call` and `resources:read`
+ * Change `tools:call` to accept tool parameters as long options (e.g. `tools:call symfony-profiler-list --limit=1`) with a `--json` escape hatch for complex/array inputs, replacing the positional JSON argument
+ * Remove the `serve` and `stop` commands and the MCP server runtime (`App` MCP wiring, `ServeCommand`, `StopCommand`, `CliSession`, `RegistryProvider`)
+ * Change `mate init` to write CLI-oriented agent instructions instead of generating `mcp.json`/`.mcp.json` and the Codex MCP wrappers (`bin/codex`, `bin/codex.bat`)
 
 0.12
 ----
