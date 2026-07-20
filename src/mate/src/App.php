@@ -11,16 +11,12 @@
 
 namespace Symfony\AI\Mate;
 
-use Mcp\Server\Transport\Stdio\RunnerControl;
-use Mcp\Server\Transport\Stdio\RunnerState;
 use Symfony\AI\Mate\Command\ClearCacheCommand;
 use Symfony\AI\Mate\Command\DebugCapabilitiesCommand;
 use Symfony\AI\Mate\Command\DebugExtensionsCommand;
 use Symfony\AI\Mate\Command\DiscoverCommand;
 use Symfony\AI\Mate\Command\InitCommand;
 use Symfony\AI\Mate\Command\ResourcesReadCommand;
-use Symfony\AI\Mate\Command\ServeCommand;
-use Symfony\AI\Mate\Command\StopCommand;
 use Symfony\AI\Mate\Command\ToolsCallCommand;
 use Symfony\AI\Mate\Command\ToolsInspectCommand;
 use Symfony\AI\Mate\Command\ToolsListCommand;
@@ -44,9 +40,7 @@ final class App
 
         $commands = [
             InitCommand::class,
-            ServeCommand::class,
             DiscoverCommand::class,
-            StopCommand::class,
             DebugCapabilitiesCommand::class,
             DebugExtensionsCommand::class,
             ClearCacheCommand::class,
@@ -64,12 +58,6 @@ final class App
             );
 
             self::addCommand($application, $command);
-        }
-
-        if (\defined('SIGUSR1') && class_exists(RunnerControl::class)) {
-            $application->getSignalRegistry()->register(\SIGUSR1, static function () {
-                RunnerControl::$state = RunnerState::STOP;
-            });
         }
 
         return $application;

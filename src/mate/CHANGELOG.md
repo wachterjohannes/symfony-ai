@@ -4,7 +4,11 @@ CHANGELOG
 0.11
 ----
 
- * Add PHP binary prompt to `mate init` (detects `.ddev/` and defaults the generated `mcp.json` launch command to `ddev exec php`, otherwise `php`) so the MCP server can be started from the host for containerized setups
+ * Replace the MCP server with a native CLI: Mate no longer depends on `mcp/sdk` and no longer runs an MCP server. Tools/resources are discovered by reflection from the native `#[AsTool]`, `#[AsResource]` and `#[AsResourceTemplate]` attributes (in `Symfony\AI\Mate\Attribute`), and agents call them through the `mate` CLI directly
+ * Rename the tool/resource commands from `mcp:tools:*`/`mcp:resources:read` to `tools:list`, `tools:inspect`, `tools:call` and `resources:read`
+ * Change `tools:call` to accept tool parameters as long options (e.g. `tools:call symfony-profiler-list --limit=1`) with a `--json` escape hatch for complex/array inputs, replacing the positional JSON argument
+ * Remove the `serve` and `stop` commands and the MCP server runtime (`App` MCP wiring, `ServeCommand`, `StopCommand`, `CliSession`, `RegistryProvider`)
+ * Change `mate init` to write CLI-oriented agent instructions instead of generating `mcp.json`/`.mcp.json` and the Codex MCP wrappers (`bin/codex`, `bin/codex.bat`)
 
 0.9
 ---
