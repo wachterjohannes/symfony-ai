@@ -13,6 +13,7 @@ CHANGELOG
  * Add per-skill intent to `mate/extensions.php` (`enabled` and `override` booleans) and a machine-managed `mate/skills.lock.php` recording how each skill was installed
  * Add `skills:install` command: the idempotent reconciler that (re)builds the generated `.agents/skills/` copies and `.claude/skills/` mirror symlinks from source or user overrides, prunes removed skills and writes the lock; `discover` runs it automatically
  * Add `skills:list` command: a read-only diagnostic listing declared and installed skills with their enabled/overridden/strategy/status (including stale and broken detection)
+ * Add `skills:override` / `skills:reset` commands (ownership axis): `override` materializes an editable copy in `mate/skills/<name>/` and marks it hands-off (idempotent, never clobbers user edits); `reset` discards the copy and returns to the managed source, requiring `--force`
 
 0.9
 ---
