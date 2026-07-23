@@ -21,6 +21,7 @@ use Symfony\AI\Mate\Command\InitCommand;
 use Symfony\AI\Mate\Command\ResourcesReadCommand;
 use Symfony\AI\Mate\Command\ServeCommand;
 use Symfony\AI\Mate\Command\SkillsInstallCommand;
+use Symfony\AI\Mate\Command\SkillsListCommand;
 use Symfony\AI\Mate\Command\StopCommand;
 use Symfony\AI\Mate\Command\ToolsCallCommand;
 use Symfony\AI\Mate\Command\ToolsInspectCommand;
@@ -37,7 +38,7 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 final class App
 {
     public const NAME = 'Symfony AI Mate';
-    public const VERSION = '0.12.0';
+    public const VERSION = '0.11.0';
 
     public static function build(ContainerInterface $container): Application
     {
@@ -56,6 +57,7 @@ final class App
             ToolsCallCommand::class,
             ResourcesReadCommand::class,
             SkillsInstallCommand::class,
+            SkillsListCommand::class,
         ];
 
         foreach ($commands as $commandClass) {

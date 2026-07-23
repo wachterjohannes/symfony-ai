@@ -13,7 +13,7 @@ namespace Symfony\AI\Mate\Tests\Command;
 
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
-use Symfony\AI\Mate\Command\SkillsInstallCommand;
+use Symfony\AI\Mate\Command\SkillsListCommand;
 use Symfony\AI\Mate\Discovery\ComposerExtensionDiscovery;
 use Symfony\AI\Mate\Service\ExtensionConfigSynchronizer;
 use Symfony\AI\Mate\Skill\SkillContentHasher;
@@ -28,7 +28,7 @@ use Symfony\Component\Console\Tester\CommandTester;
 /**
  * @author Johannes Wachter <johannes@sulu.io>
  */
-final class SkillsInstallCommandTest extends TestCase
+final class SkillsListCommandTest extends TestCase
 {
     use SkillFixtureTrait;
 
@@ -36,7 +36,7 @@ final class SkillsInstallCommandTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->rootDir = sys_get_temp_dir().'/mate-skills-install-cmd-'.uniqid();
+        $this->rootDir = sys_get_temp_dir().'/mate-skills-list-cmd-'.uniqid();
         mkdir($this->rootDir, 0777, true);
     }
 
@@ -45,7 +45,7 @@ final class SkillsInstallCommandTest extends TestCase
         $this->removeDirectory($this->rootDir);
     }
 
-    public function testInstallsDeclaredSkills()
+    public function testListsNotInstalledSkillBeforeInstall()
     {
         $this->createPackageWithSkill();
 
@@ -53,26 +53,36 @@ final class SkillsInstallCommandTest extends TestCase
         $tester->execute([]);
 
         $this->assertSame(Command::SUCCESS, $tester->getStatusCode());
-        $this->assertDirectoryExists($this->rootDir.'/.agents/skills/mate-system-information');
-        $this->assertFileExists($this->rootDir.'/mate/skills.lock.php');
-
         $output = $tester->getDisplay();
-        $this->assertStringContainsString('Installed 1 new skill', $output);
         $this->assertStringContainsString('mate-system-information', $output);
+        $this->assertStringContainsString('not installed', $output);
     }
 
-    public function testSecondRunIsIdempotent()
+    public function testListsOkStatusAfterInstall()
     {
         $this->createPackageWithSkill();
-
-        (new CommandTester($this->command()))->execute([]);
+        $this->install();
 
         $tester = new CommandTester($this->command());
         $tester->execute([]);
 
-        $output = $tester->getDisplay();
-        $this->assertStringNotContainsString('Installed 1 new skill', $output);
-        $this->assertStringContainsString('1 skill installed', $output);
+        $this->assertStringContainsString('mate-system-information', $tester->getDisplay());
+        $this->assertStringContainsString('ok', $tester->getDisplay());
+    }
+
+    public function testJsonFormat()
+    {
+        $this->createPackageWithSkill();
+        $this->install();
+
+        $tester = new CommandTester($this->command());
+        $tester->execute(['--format' => 'json']);
+
+        $decoded = json_decode($tester->getDisplay(), true);
+        $this->assertIsArray($decoded);
+        $this->assertSame(1, $decoded['summary']['total']);
+        $this->assertSame('mate-system-information', $decoded['skills'][0]['installed_name']);
+        $this->assertSame('ok', $decoded['skills'][0]['status']);
     }
 
     private function createPackageWithSkill(): void
@@ -91,16 +101,30 @@ final class SkillsInstallCommandTest extends TestCase
         $this->createSkill($this->rootDir.'/vendor/vendor/pkg-a/skills', 'system-information', 'System info.');
     }
 
-    private function command(): SkillsInstallCommand
+    private function install(): void
+    {
+        $logger = new NullLogger();
+        $frontmatter = new SkillFrontmatter();
+        $discovery = new ComposerExtensionDiscovery($this->rootDir, $logger);
+        $extensions = $discovery->discover();
+        $extensions['_custom'] = $discovery->discoverRootProject();
+        $skills = (new SkillDiscovery($this->rootDir, $frontmatter, $logger))->discover($extensions);
+        $installer = new SkillInstaller($this->rootDir, $frontmatter, new SkillLock($this->rootDir), new SkillContentHasher(), $logger);
+        $installer->install($skills, []);
+    }
+
+    private function command(): SkillsListCommand
     {
         $logger = new NullLogger();
         $frontmatter = new SkillFrontmatter();
 
-        return new SkillsInstallCommand(
+        return new SkillsListCommand(
+            $this->rootDir,
             new ComposerExtensionDiscovery($this->rootDir, $logger),
             new ExtensionConfigSynchronizer($this->rootDir),
             new SkillDiscovery($this->rootDir, $frontmatter, $logger),
-            new SkillInstaller($this->rootDir, $frontmatter, new SkillLock($this->rootDir), new SkillContentHasher(), $logger),
+            new SkillLock($this->rootDir),
+            new SkillContentHasher(),
         );
     }
 }

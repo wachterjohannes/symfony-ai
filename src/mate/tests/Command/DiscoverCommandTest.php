@@ -18,10 +18,13 @@ use Symfony\AI\Mate\Agent\AgentInstructionsMaterializer;
 use Symfony\AI\Mate\Command\DiscoverCommand;
 use Symfony\AI\Mate\Discovery\ComposerExtensionDiscovery;
 use Symfony\AI\Mate\Service\ExtensionConfigSynchronizer;
-use Symfony\AI\Mate\Service\SkillsInstaller;
+use Symfony\AI\Mate\Skill\SkillContentHasher;
+use Symfony\AI\Mate\Skill\SkillDiscovery;
+use Symfony\AI\Mate\Skill\SkillFrontmatter;
+use Symfony\AI\Mate\Skill\SkillInstaller;
+use Symfony\AI\Mate\Skill\SkillLock;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Tester\CommandTester;
-use Symfony\Component\Filesystem\Filesystem;
 
 /**
  * @author Johannes Wachter <johannes@sulu.io>
@@ -48,12 +51,10 @@ final class DiscoverCommandTest extends TestCase
             $synchronizer = new ExtensionConfigSynchronizer($rootDir);
             $aggregator = new AgentInstructionsAggregator($rootDir, [], $logger);
             $materializer = new AgentInstructionsMaterializer($rootDir, $aggregator, $logger);
-            $command = new DiscoverCommand(
-                $discoverer,
-                $synchronizer,
-                $materializer,
-                new SkillsInstaller($rootDir, $logger, new Filesystem(), '.agents/skills', ['claude' => '.claude/skills']),
-            );
+            $frontmatter = new SkillFrontmatter();
+            $skillDiscovery = new SkillDiscovery($rootDir, $frontmatter, $logger);
+            $skillInstaller = new SkillInstaller($rootDir, $frontmatter, new SkillLock($rootDir), new SkillContentHasher(), $logger);
+            $command = new DiscoverCommand($discoverer, $synchronizer, $materializer, $skillDiscovery, $skillInstaller);
             $tester = new CommandTester($command);
 
             $tester->execute([]);
@@ -109,12 +110,10 @@ PHP
             $synchronizer = new ExtensionConfigSynchronizer($rootDir);
             $aggregator = new AgentInstructionsAggregator($rootDir, [], $logger);
             $materializer = new AgentInstructionsMaterializer($rootDir, $aggregator, $logger);
-            $command = new DiscoverCommand(
-                $discoverer,
-                $synchronizer,
-                $materializer,
-                new SkillsInstaller($rootDir, $logger, new Filesystem(), '.agents/skills', ['claude' => '.claude/skills']),
-            );
+            $frontmatter = new SkillFrontmatter();
+            $skillDiscovery = new SkillDiscovery($rootDir, $frontmatter, $logger);
+            $skillInstaller = new SkillInstaller($rootDir, $frontmatter, new SkillLock($rootDir), new SkillContentHasher(), $logger);
+            $command = new DiscoverCommand($discoverer, $synchronizer, $materializer, $skillDiscovery, $skillInstaller);
             $tester = new CommandTester($command);
 
             $tester->execute([]);
@@ -151,12 +150,10 @@ PHP
             $synchronizer = new ExtensionConfigSynchronizer($rootDir);
             $aggregator = new AgentInstructionsAggregator($rootDir, [], $logger);
             $materializer = new AgentInstructionsMaterializer($rootDir, $aggregator, $logger);
-            $command = new DiscoverCommand(
-                $discoverer,
-                $synchronizer,
-                $materializer,
-                new SkillsInstaller($rootDir, $logger, new Filesystem(), '.agents/skills', ['claude' => '.claude/skills']),
-            );
+            $frontmatter = new SkillFrontmatter();
+            $skillDiscovery = new SkillDiscovery($rootDir, $frontmatter, $logger);
+            $skillInstaller = new SkillInstaller($rootDir, $frontmatter, new SkillLock($rootDir), new SkillContentHasher(), $logger);
+            $command = new DiscoverCommand($discoverer, $synchronizer, $materializer, $skillDiscovery, $skillInstaller);
             $tester = new CommandTester($command);
 
             $tester->execute([]);
@@ -184,12 +181,10 @@ PHP
             $synchronizer = new ExtensionConfigSynchronizer($rootDir);
             $aggregator = new AgentInstructionsAggregator($rootDir, [], $logger);
             $materializer = new AgentInstructionsMaterializer($rootDir, $aggregator, $logger);
-            $command = new DiscoverCommand(
-                $discoverer,
-                $synchronizer,
-                $materializer,
-                new SkillsInstaller($rootDir, $logger, new Filesystem(), '.agents/skills', ['claude' => '.claude/skills']),
-            );
+            $frontmatter = new SkillFrontmatter();
+            $skillDiscovery = new SkillDiscovery($rootDir, $frontmatter, $logger);
+            $skillInstaller = new SkillInstaller($rootDir, $frontmatter, new SkillLock($rootDir), new SkillContentHasher(), $logger);
+            $command = new DiscoverCommand($discoverer, $synchronizer, $materializer, $skillDiscovery, $skillInstaller);
             $tester = new CommandTester($command);
 
             $tester->execute(['--ignore-missing-file' => true]);
@@ -221,12 +216,10 @@ PHP
             $synchronizer = new ExtensionConfigSynchronizer($rootDir);
             $aggregator = new AgentInstructionsAggregator($rootDir, [], $logger);
             $materializer = new AgentInstructionsMaterializer($rootDir, $aggregator, $logger);
-            $command = new DiscoverCommand(
-                $discoverer,
-                $synchronizer,
-                $materializer,
-                new SkillsInstaller($rootDir, $logger, new Filesystem(), '.agents/skills', ['claude' => '.claude/skills']),
-            );
+            $frontmatter = new SkillFrontmatter();
+            $skillDiscovery = new SkillDiscovery($rootDir, $frontmatter, $logger);
+            $skillInstaller = new SkillInstaller($rootDir, $frontmatter, new SkillLock($rootDir), new SkillContentHasher(), $logger);
+            $command = new DiscoverCommand($discoverer, $synchronizer, $materializer, $skillDiscovery, $skillInstaller);
             $tester = new CommandTester($command);
 
             $tester->execute(['--ignore-missing-file' => true]);
@@ -254,12 +247,10 @@ PHP
             $synchronizer = new ExtensionConfigSynchronizer($rootDir);
             $aggregator = new AgentInstructionsAggregator($rootDir, [], $logger);
             $materializer = new AgentInstructionsMaterializer($rootDir, $aggregator, $logger);
-            $command = new DiscoverCommand(
-                $discoverer,
-                $synchronizer,
-                $materializer,
-                new SkillsInstaller($rootDir, $logger, new Filesystem(), '.agents/skills', ['claude' => '.claude/skills']),
-            );
+            $frontmatter = new SkillFrontmatter();
+            $skillDiscovery = new SkillDiscovery($rootDir, $frontmatter, $logger);
+            $skillInstaller = new SkillInstaller($rootDir, $frontmatter, new SkillLock($rootDir), new SkillContentHasher(), $logger);
+            $command = new DiscoverCommand($discoverer, $synchronizer, $materializer, $skillDiscovery, $skillInstaller);
             $tester = new CommandTester($command);
 
             $tester->execute([]);
@@ -275,7 +266,7 @@ PHP
         }
     }
 
-    public function testInstallsSkillsFromEnabledExtensions()
+    public function testInstallsSkillsAndRecordsIntent()
     {
         $tempDir = sys_get_temp_dir().'/mate-discover-test-'.uniqid();
         mkdir($tempDir, 0755, true);
@@ -287,61 +278,32 @@ PHP
             $synchronizer = new ExtensionConfigSynchronizer($rootDir);
             $aggregator = new AgentInstructionsAggregator($rootDir, [], $logger);
             $materializer = new AgentInstructionsMaterializer($rootDir, $aggregator, $logger);
-            $command = new DiscoverCommand(
-                $discoverer,
-                $synchronizer,
-                $materializer,
-                new SkillsInstaller($rootDir, $logger, new Filesystem(), '.agents/skills', ['claude' => '.claude/skills']),
-            );
+            $frontmatter = new SkillFrontmatter();
+            $skillDiscovery = new SkillDiscovery($rootDir, $frontmatter, $logger);
+            $skillInstaller = new SkillInstaller($rootDir, $frontmatter, new SkillLock($rootDir), new SkillContentHasher(), $logger);
+            $command = new DiscoverCommand($discoverer, $synchronizer, $materializer, $skillDiscovery, $skillInstaller);
             $tester = new CommandTester($command);
 
             $tester->execute([]);
 
             $this->assertSame(Command::SUCCESS, $tester->getStatusCode());
-            $this->assertFileExists($tempDir.'/.agents/skills/mate-demo-skill/SKILL.md');
-            $this->assertTrue(is_link($tempDir.'/.claude/skills/mate-demo-skill'));
-            $this->assertStringContainsString('Installed 1 skill', $tester->getDisplay());
 
-            // Re-run must not overwrite (no force in discover): still a single install, nothing reported.
-            $rerun = new CommandTester($command);
-            $rerun->execute([]);
-            $this->assertStringNotContainsString('Installed 1 skill', $rerun->getDisplay());
-        } finally {
-            $this->removeDirectory($tempDir);
-        }
-    }
-
-    public function testInstallsRootProjectSkillsWhenNoExtensions()
-    {
-        $tempDir = sys_get_temp_dir().'/mate-discover-test-'.uniqid();
-        mkdir($tempDir.'/skills/root-skill', 0755, true);
-        file_put_contents($tempDir.'/skills/root-skill/SKILL.md', "---\nname: root-skill\ndescription: x\n---\n");
-        file_put_contents($tempDir.'/composer.json', json_encode([
-            'name' => 'test/project',
-            'extra' => ['ai-mate' => ['skills' => ['skills']]],
-        ]));
-
-        try {
-            $logger = new NullLogger();
-            $discoverer = new ComposerExtensionDiscovery($tempDir, $logger);
-            $synchronizer = new ExtensionConfigSynchronizer($tempDir);
-            $aggregator = new AgentInstructionsAggregator($tempDir, [], $logger);
-            $materializer = new AgentInstructionsMaterializer($tempDir, $aggregator, $logger);
-            $command = new DiscoverCommand(
-                $discoverer,
-                $synchronizer,
-                $materializer,
-                new SkillsInstaller($tempDir, $logger, new Filesystem(), '.agents/skills', ['claude' => '.claude/skills']),
+            $extensions = include $tempDir.'/mate/extensions.php';
+            $this->assertIsArray($extensions);
+            $this->assertArrayHasKey('vendor/package-with-skills', $extensions);
+            $this->assertSame(
+                ['demo-skill' => ['enabled' => true, 'override' => false]],
+                $extensions['vendor/package-with-skills']['skills'],
             );
-            $tester = new CommandTester($command);
 
-            $tester->execute([]);
+            $this->assertDirectoryExists($tempDir.'/.agents/skills/mate-demo-skill');
+            $this->assertFileExists($tempDir.'/mate/skills.lock.php');
 
-            $this->assertSame(Command::SUCCESS, $tester->getStatusCode());
-            $this->assertStringContainsString('No MCP extensions found', $tester->getDisplay());
-            // Root-project skills are installed even though zero Composer extensions exist.
-            $this->assertFileExists($tempDir.'/.agents/skills/mate-root-skill/SKILL.md');
-            $this->assertTrue(is_link($tempDir.'/.claude/skills/mate-root-skill'));
+            $generated = file_get_contents($tempDir.'/.agents/skills/mate-demo-skill/SKILL.md');
+            $this->assertIsString($generated);
+            $this->assertStringContainsString('name: mate-demo-skill', $generated);
+
+            $this->assertStringContainsString('mate-demo-skill', $tester->getDisplay());
         } finally {
             $this->removeDirectory($tempDir);
         }
@@ -390,10 +352,6 @@ PHP
         $files = array_diff(scandir($dir) ?: [], ['.', '..']);
         foreach ($files as $file) {
             $path = $dir.'/'.$file;
-            if (is_link($path)) {
-                unlink($path);
-                continue;
-            }
             is_dir($path) ? $this->removeDirectory($path) : unlink($path);
         }
         rmdir($dir);

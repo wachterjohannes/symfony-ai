@@ -1,3 +1,16 @@
+UPGRADE FROM 0.12 to 0.13
+=========================
+
+Mate
+----
+
+ * Skills are now copied into `.agents/skills/` instead of being symlinked into `vendor/`, and
+   `.claude/skills/` mirrors them with relative symlinks. Both folders are disposable generated
+   output: `mate skills:install` rebuilds them from scratch on every run and adds them to a managed
+   block in your `.gitignore`. Remove them from version control and stop editing them by hand — to
+   own a skill's content, set `override` for it in `mate/extensions.php` and edit your copy under
+   `mate/skills/<name>/` instead.
+
 UPGRADE FROM 0.11 to 0.12
 =========================
 

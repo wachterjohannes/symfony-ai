@@ -435,11 +435,22 @@ Each skill is installed under a ``mate-`` prefixed directory name (e.g. ``mate-d
 avoid clashing with skills you maintain from other sources, in two locations:
 
 * ``.agents/skills/`` is the source of truth, read directly by Codex, OpenCode and GitHub Copilot.
-* ``.claude/skills/`` is symlinked to ``.agents/skills/`` for Claude Code, which only reads its own
-  directory.
+* ``.claude/skills/`` mirrors ``.agents/skills/`` via relative symlinks for Claude Code, which only
+  reads its own directory.
 
-Skills are symlinked into ``.agents/skills/`` so they auto-update on ``composer update`` (the link
-points into the gitignored ``vendor/`` directory, so this requires symlink privileges on Windows).
+Both folders are generated output: ``skills:install`` is an idempotent reconciler that rebuilds them
+from scratch on every run, prunes skills that are gone or disabled, and adds them to a managed block
+in your ``.gitignore``. Never edit them by hand — your changes are overwritten on the next run.
+
+Two orthogonal settings per skill live in ``mate/extensions.php``:
+
+* ``enabled`` controls whether the skill is installed at all.
+* ``override`` hands ownership to you: Mate then builds the skill from your own
+  ``mate/skills/<name>/`` copy instead of the package's, and never writes into ``mate/skills/``.
+
+What was actually installed — source, strategy, content hash and targets — is recorded in the
+machine-managed ``mate/skills.lock.php``. Use ``mate skills:list`` to see declared and installed
+skills side by side, including stale (source changed since install) and broken entries.
 
 The core package itself ships a ``system-information`` skill describing how to inspect the PHP
 runtime and installed package versions via the ``server-info`` tool.
@@ -463,6 +474,10 @@ Commands
     Install the Agent Skills shipped by your enabled extensions so your coding agent can use
     them. This runs automatically as part of ``mate discover``; use it for an explicit re-sync.
     See `Skills`_.
+
+``mate skills:list``
+    List declared and installed skills with their enabled, overridden and status information.
+    Read-only diagnostic. See `Skills`_.
 
 ``mate serve``
     Start the MCP server with stdio transport.

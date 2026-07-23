@@ -26,3 +26,9 @@ phpstan.neon
 ###< symfony/panther ###
 
 pgdata
+
+# BEGIN AI_MATE_SKILLS
+# Generated skill folders, rebuildable via `vendor/bin/mate skills:install`.
+/.agents/skills/
+/.claude/skills/
+# END AI_MATE_SKILLS

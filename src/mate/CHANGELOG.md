@@ -1,6 +1,14 @@
 CHANGELOG
 =========
 
+0.13
+----
+
+ * Change skill installation to copy skills into `.agents/skills/mate-<name>/` (rewriting the frontmatter name to the installed name) with relative `.claude/skills/` mirror symlinks, instead of symlinking into `vendor/`
+ * Change `skills:install` into an idempotent reconciler that rebuilds both generated folders from source or user override on every run, prunes skills of removed or disabled extensions, writes the lock and git-ignores the generated folders via a managed block; `discover` runs it automatically
+ * Add per-skill intent to `mate/extensions.php` (`enabled` and `override` booleans) and a machine-managed `mate/skills.lock.php` recording package, source, strategy, content hash and targets per installed skill
+ * Add `skills:list` command: a read-only diagnostic listing declared and installed skills with their enabled/overridden/strategy/status (including stale and broken detection)
+
 0.12
 ----
 
