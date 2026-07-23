@@ -60,6 +60,35 @@ final class ExtensionConfigSynchronizer
     }
 
     /**
+     * Flips the "enabled" intent of a single skill, adding the owner/skill entry when missing.
+     *
+     * Because override implies enabled, disabling an overridden skill has no effect: the value is
+     * normalized back to enabled so a disabled+overridden state is never written.
+     */
+    public function setSkillEnabled(string $owner, string $skillName, bool $enabled): void
+    {
+        $intent = $this->read();
+
+        if (!isset($intent[$owner])) {
+            $intent[$owner] = ['enabled' => true];
+        }
+
+        $skills = $intent[$owner]['skills'] ?? [];
+        $skill = $skills[$skillName] ?? ['enabled' => true, 'override' => false];
+
+        $skill['enabled'] = $enabled;
+        if ($skill['override']) {
+            $skill['enabled'] = true;
+        }
+
+        $skills[$skillName] = $skill;
+        ksort($skills);
+        $intent[$owner]['skills'] = $skills;
+
+        $this->writeExtensionsFile($this->rootDir.'/mate/extensions.php', $intent);
+    }
+
+    /**
      * @param array<string, ExtensionData> $discoveredExtensions
      * @param list<DiscoveredSkill>        $discoveredSkills
      *
