@@ -126,6 +126,19 @@ final class ComposerExtensionDiscoveryTest extends TestCase
         $this->assertStringContainsString('config/config.php', $includes[0]);
     }
 
+    public function testExtractsSkillsDirectory()
+    {
+        $discovery = new ComposerExtensionDiscovery(
+            $this->fixturesDir.'/with-skills',
+            new NullLogger()
+        );
+
+        $extensions = $discovery->discover();
+
+        $this->assertArrayHasKey('vendor/package-skills', $extensions);
+        $this->assertSame('skills', $extensions['vendor/package-skills']['skills']);
+    }
+
     public function testHandlesMissingInstalledJson()
     {
         $discovery = new ComposerExtensionDiscovery(

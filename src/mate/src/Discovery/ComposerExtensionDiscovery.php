@@ -31,6 +31,7 @@ use Psr\Log\LoggerInterface;
  *     dirs: string[],
  *     includes: string[],
  *     instructions?: string,
+ *     skills?: string,
  * }
  *
  * @author Johannes Wachter <johannes@sulu.io>
@@ -82,8 +83,9 @@ final class ComposerExtensionDiscovery
             $scanDirs = $this->extractScanDirs($package, $packageName);
             $includeFiles = $this->extractIncludeFiles($package, $packageName);
             $agentInstructions = $this->extractInstructions($package, $packageName);
+            $skillsDir = $this->extractSkills($package, $packageName);
 
-            if ([] !== $scanDirs || [] !== $includeFiles || null !== $agentInstructions) {
+            if ([] !== $scanDirs || [] !== $includeFiles || null !== $agentInstructions || null !== $skillsDir) {
                 $extensionData = [
                     'dirs' => $scanDirs,
                     'includes' => $includeFiles,
@@ -91,6 +93,10 @@ final class ComposerExtensionDiscovery
 
                 if (null !== $agentInstructions) {
                     $extensionData['instructions'] = $agentInstructions;
+                }
+
+                if (null !== $skillsDir) {
+                    $extensionData['skills'] = $skillsDir;
                 }
 
                 $extensions[$packageName] = $extensionData;
@@ -142,6 +148,11 @@ final class ComposerExtensionDiscovery
         $agentInstructions = $this->extractAiMateConfigString($rootComposer, 'instructions');
         if (null !== $agentInstructions) {
             $result['instructions'] = $agentInstructions;
+        }
+
+        $skillsDir = $this->extractRootSkills($rootComposer);
+        if (null !== $skillsDir) {
+            $result['skills'] = $skillsDir;
         }
 
         return $result;
@@ -398,6 +409,82 @@ final class ComposerExtensionDiscovery
         }
 
         return $agentInstructions;
+    }
+
+    /**
+     * Extract the skills directory from package extra config.
+     *
+     * Uses "skills" from extra.ai-mate config, e.g.:
+     * "extra": { "ai-mate": { "skills": "skills" } }
+     *
+     * @param array{
+     *     name: string,
+     *     extra: array<string, mixed>,
+     * } $package
+     */
+    private function extractSkills(array $package, string $packageName): ?string
+    {
+        $aiMateConfig = $package['extra']['ai-mate'] ?? null;
+        if (null === $aiMateConfig || !\is_array($aiMateConfig)) {
+            return null;
+        }
+
+        $skillsDir = $aiMateConfig['skills'] ?? null;
+        if (!\is_string($skillsDir) || '' === trim($skillsDir)) {
+            return null;
+        }
+
+        if (PathGuard::hasTraversal($skillsDir)) {
+            $this->logger->warning('Invalid skills path (contains path traversal)', [
+                'package' => $packageName,
+                'path' => $skillsDir,
+            ]);
+
+            return null;
+        }
+
+        $fullPath = $this->rootDir.'/vendor/'.$packageName.'/'.ltrim($skillsDir, '/');
+        if (!is_dir($fullPath)) {
+            $this->logger->warning('Skills directory does not exist', [
+                'package' => $packageName,
+                'directory' => $fullPath,
+            ]);
+
+            return null;
+        }
+
+        return $skillsDir;
+    }
+
+    /**
+     * @param array<string, mixed> $composer
+     */
+    private function extractRootSkills(array $composer): ?string
+    {
+        $skillsDir = $this->extractAiMateConfigString($composer, 'skills');
+        if (null === $skillsDir) {
+            return null;
+        }
+
+        if (PathGuard::hasTraversal($skillsDir)) {
+            $this->logger->warning('Invalid skills path (contains path traversal)', [
+                'source' => 'root project',
+                'path' => $skillsDir,
+            ]);
+
+            return null;
+        }
+
+        if (!is_dir($this->rootDir.'/'.ltrim($skillsDir, '/'))) {
+            $this->logger->warning('Skills directory does not exist', [
+                'source' => 'root project',
+                'directory' => $this->rootDir.'/'.ltrim($skillsDir, '/'),
+            ]);
+
+            return null;
+        }
+
+        return $skillsDir;
     }
 
     /**

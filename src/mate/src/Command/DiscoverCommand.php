@@ -14,6 +14,9 @@ namespace Symfony\AI\Mate\Command;
 use Symfony\AI\Mate\Agent\AgentInstructionsMaterializer;
 use Symfony\AI\Mate\Discovery\ComposerExtensionDiscovery;
 use Symfony\AI\Mate\Service\ExtensionConfigSynchronizer;
+use Symfony\AI\Mate\Skill\Model\SkillInstallResult;
+use Symfony\AI\Mate\Skill\SkillDiscovery;
+use Symfony\AI\Mate\Skill\SkillInstaller;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -38,6 +41,8 @@ class DiscoverCommand extends Command
         private ComposerExtensionDiscovery $extensionDiscovery,
         private ExtensionConfigSynchronizer $extensionConfigSynchronizer,
         private AgentInstructionsMaterializer $instructionsMaterializer,
+        private SkillDiscovery $skillDiscovery,
+        private SkillInstaller $skillInstaller,
     ) {
         parent::__construct(self::getDefaultName());
     }
@@ -70,6 +75,10 @@ class DiscoverCommand extends Command
         $extensions = $this->extensionDiscovery->discover();
         $rootProjectExtension = $this->extensionDiscovery->discoverRootProject();
 
+        $combinedForSkills = $extensions;
+        $combinedForSkills['_custom'] = $rootProjectExtension;
+        $discoveredSkills = $this->skillDiscovery->discover($combinedForSkills);
+
         if (!$composerMode) {
             $io->title('Extension Discovery');
             $io->text('Scanning for packages with <info>extra.ai-mate</info> configuration...');
@@ -77,7 +86,7 @@ class DiscoverCommand extends Command
         }
 
         $count = \count($extensions);
-        if (0 === $count) {
+        if (0 === $count && [] === $discoveredSkills) {
             $materializationResult = $this->instructionsMaterializer->materializeForExtensions([
                 '_custom' => $rootProjectExtension,
             ]);
@@ -96,9 +105,11 @@ class DiscoverCommand extends Command
             return Command::SUCCESS;
         }
 
-        $synchronizationResult = $this->extensionConfigSynchronizer->synchronize($extensions);
+        $synchronizationResult = $this->extensionConfigSynchronizer->synchronize($extensions, $discoveredSkills);
         $newPackages = $synchronizationResult['new_packages'];
         $removedPackages = $synchronizationResult['removed_packages'];
+
+        $skillInstallResult = $this->skillInstaller->install($discoveredSkills, $synchronizationResult['extensions']);
 
         $enabledExtensionsForInstructions = [
             '_custom' => $rootProjectExtension,
@@ -120,6 +131,7 @@ class DiscoverCommand extends Command
 
         if ($composerMode) {
             $this->displayComposerSummary($io, $count, $newPackages, $removedPackages);
+            $this->displayComposerSkillSummary($io, $skillInstallResult);
 
             return Command::SUCCESS;
         }
@@ -153,12 +165,59 @@ class DiscoverCommand extends Command
 
         $this->displayInstructionsStatus($io, $materializationResult);
 
+        $this->displaySkillSummary($io, $skillInstallResult);
+
         $io->comment([
             'Next steps:',
             '  • Edit mate/extensions.php to enable/disable specific extensions',
         ]);
 
         return Command::SUCCESS;
+    }
+
+    private function displaySkillSummary(SymfonyStyle $io, SkillInstallResult $result): void
+    {
+        if ([] === $result->active && [] === $result->installed && [] === $result->removed && [] === $result->skipped) {
+            return;
+        }
+
+        $io->section('Skills');
+
+        if ([] !== $result->installed) {
+            $io->text(\sprintf('Installed %d new skill%s: <info>%s</info>', \count($result->installed), 1 === \count($result->installed) ? '' : 's', implode(', ', $result->installed)));
+        }
+
+        if ([] !== $result->removed) {
+            $io->text(\sprintf('Removed %d skill%s: %s', \count($result->removed), 1 === \count($result->removed) ? '' : 's', implode(', ', $result->removed)));
+        }
+
+        foreach ($result->skipped as $name => $reason) {
+            $io->warning(\sprintf('Skipped %s: %s', $name, $reason));
+        }
+
+        foreach ($result->notices as $notice) {
+            $io->note($notice);
+        }
+
+        $io->text(\sprintf('Total: <info>%d</info> skill(s) installed.', \count($result->active)));
+    }
+
+    private function displayComposerSkillSummary(SymfonyStyle $io, SkillInstallResult $result): void
+    {
+        if ([] === $result->installed && [] === $result->removed) {
+            return;
+        }
+
+        $io->write(\sprintf('<bg=green;fg=white> AI Mate </> %d skill%s installed.', \count($result->active), 1 === \count($result->active) ? '' : 's'));
+
+        foreach ($result->installed as $skill) {
+            $io->write(\sprintf('  <fg=green>+</> %s', $skill));
+        }
+        foreach ($result->removed as $skill) {
+            $io->write(\sprintf('  <fg=red>-</> %s', $skill));
+        }
+
+        $io->write('');
     }
 
     /**
