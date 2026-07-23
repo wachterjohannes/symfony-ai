@@ -21,6 +21,8 @@ use Symfony\AI\Mate\Command\InitCommand;
 use Symfony\AI\Mate\Command\ResourcesReadCommand;
 use Symfony\AI\Mate\Command\SkillsInstallCommand;
 use Symfony\AI\Mate\Command\SkillsListCommand;
+use Symfony\AI\Mate\Command\SkillsOverrideCommand;
+use Symfony\AI\Mate\Command\SkillsResetCommand;
 use Symfony\AI\Mate\Command\ToolsCallCommand;
 use Symfony\AI\Mate\Command\ToolsInspectCommand;
 use Symfony\AI\Mate\Command\ToolsListCommand;
@@ -40,6 +42,7 @@ use Symfony\AI\Mate\Skill\SkillDiscovery;
 use Symfony\AI\Mate\Skill\SkillFrontmatter;
 use Symfony\AI\Mate\Skill\SkillInstaller;
 use Symfony\AI\Mate\Skill\SkillLock;
+use Symfony\AI\Mate\Skill\SkillOverrideManager;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
 
@@ -113,6 +116,7 @@ return static function (ContainerConfigurator $container): void {
         ->set(SkillDiscovery::class)
         ->set(SkillLock::class)
         ->set(SkillInstaller::class)
+        ->set(SkillOverrideManager::class)
 
         // Register all commands
         ->set(InitCommand::class)
@@ -146,6 +150,12 @@ return static function (ContainerConfigurator $container): void {
             ->public()
 
         ->set(SkillsListCommand::class)
+            ->public()
+
+        ->set(SkillsOverrideCommand::class)
+            ->public()
+
+        ->set(SkillsResetCommand::class)
             ->public()
     ;
 };
