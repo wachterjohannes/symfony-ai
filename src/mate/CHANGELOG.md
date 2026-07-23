@@ -9,6 +9,10 @@ CHANGELOG
  * Change `tools:call` to accept tool parameters as long options (e.g. `tools:call symfony-profiler-list --limit=1`) with a `--json` escape hatch for complex/array inputs, replacing the positional JSON argument
  * Remove the `serve` and `stop` commands and the MCP server runtime (`App` MCP wiring, `ServeCommand`, `StopCommand`, `CliSession`, `RegistryProvider`)
  * Change `mate init` to write CLI-oriented agent instructions instead of generating `mcp.json`/`.mcp.json` and the Codex MCP wrappers (`bin/codex`, `bin/codex.bat`)
+ * Add skill discovery via the `extra.ai-mate.skills` key: extensions (and the root project) may point at a directory whose immediate subdirectories each contain a `SKILL.md`, installed as `mate-<name>`
+ * Add per-skill intent to `mate/extensions.php` (`enabled` and `override` booleans) and a machine-managed `mate/skills.lock.php` recording how each skill was installed
+ * Add `skills:install` command: the idempotent reconciler that (re)builds the generated `.agents/skills/` copies and `.claude/skills/` mirror symlinks from source or user overrides, prunes removed skills and writes the lock; `discover` runs it automatically
+ * Add `skills:list` command: a read-only diagnostic listing declared and installed skills with their enabled/overridden/strategy/status (including stale and broken detection)
 
 0.9
 ---

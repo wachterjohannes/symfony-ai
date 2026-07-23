@@ -19,6 +19,8 @@ use Symfony\AI\Mate\Command\DebugExtensionsCommand;
 use Symfony\AI\Mate\Command\DiscoverCommand;
 use Symfony\AI\Mate\Command\InitCommand;
 use Symfony\AI\Mate\Command\ResourcesReadCommand;
+use Symfony\AI\Mate\Command\SkillsInstallCommand;
+use Symfony\AI\Mate\Command\SkillsListCommand;
 use Symfony\AI\Mate\Command\ToolsCallCommand;
 use Symfony\AI\Mate\Command\ToolsInspectCommand;
 use Symfony\AI\Mate\Command\ToolsListCommand;
@@ -33,6 +35,11 @@ use Symfony\AI\Mate\Invocation\ResourceReader;
 use Symfony\AI\Mate\Invocation\ToolInvoker;
 use Symfony\AI\Mate\Service\ExtensionConfigSynchronizer;
 use Symfony\AI\Mate\Service\Logger;
+use Symfony\AI\Mate\Skill\SkillContentHasher;
+use Symfony\AI\Mate\Skill\SkillDiscovery;
+use Symfony\AI\Mate\Skill\SkillFrontmatter;
+use Symfony\AI\Mate\Skill\SkillInstaller;
+use Symfony\AI\Mate\Skill\SkillLock;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
 
@@ -100,6 +107,13 @@ return static function (ContainerConfigurator $container): void {
         ->set(AgentInstructionsMaterializer::class)
         ->set(ExtensionConfigSynchronizer::class)
 
+        // Skill lifecycle management
+        ->set(SkillFrontmatter::class)
+        ->set(SkillContentHasher::class)
+        ->set(SkillDiscovery::class)
+        ->set(SkillLock::class)
+        ->set(SkillInstaller::class)
+
         // Register all commands
         ->set(InitCommand::class)
             ->public()
@@ -126,6 +140,12 @@ return static function (ContainerConfigurator $container): void {
             ->public()
 
         ->set(ResourcesReadCommand::class)
+            ->public()
+
+        ->set(SkillsInstallCommand::class)
+            ->public()
+
+        ->set(SkillsListCommand::class)
             ->public()
     ;
 };

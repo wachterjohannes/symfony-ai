@@ -1,0 +1,13 @@
+{
+    "packages": [
+        {
+            "name": "vendor/package-skills",
+            "type": "library",
+            "extra": {
+                "ai-mate": {
+                    "skills": "skills"
+                }
+            }
+        }
+    ]
+}

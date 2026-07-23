@@ -17,6 +17,8 @@ use Symfony\AI\Mate\Command\DebugExtensionsCommand;
 use Symfony\AI\Mate\Command\DiscoverCommand;
 use Symfony\AI\Mate\Command\InitCommand;
 use Symfony\AI\Mate\Command\ResourcesReadCommand;
+use Symfony\AI\Mate\Command\SkillsInstallCommand;
+use Symfony\AI\Mate\Command\SkillsListCommand;
 use Symfony\AI\Mate\Command\ToolsCallCommand;
 use Symfony\AI\Mate\Command\ToolsInspectCommand;
 use Symfony\AI\Mate\Command\ToolsListCommand;
@@ -48,6 +50,8 @@ final class App
             ToolsInspectCommand::class,
             ToolsCallCommand::class,
             ResourcesReadCommand::class,
+            SkillsInstallCommand::class,
+            SkillsListCommand::class,
         ];
 
         foreach ($commands as $commandClass) {
