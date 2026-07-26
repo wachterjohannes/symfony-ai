@@ -10,6 +10,8 @@ CHANGELOG
  * Add `skills:list` command: a read-only diagnostic listing declared and installed skills with their enabled/mode/state/status (including stale and broken detection)
  * Add `skills:validate` command: checks the generated folders against the recorded state and fails on hand-edited content, missing folders or a mispointed mirror (`--strict` also fails on warnings)
  * Add `skills:prune` command: removes generated `mate-*` folders that no longer belong to any skill (`--dry-run` to preview)
+ * Add `skills:override` command: copies a package's skill into `mate/skills/<name>/` and switches it to `'mode' => 'override'` (`--force` to replace an existing copy)
+ * Add `skills:reset` command: switches a skill back to `'mode' => 'managed'`, keeping your copy under `mate/skills/` unless `--delete-copy` is passed
 
 0.12
 ----
