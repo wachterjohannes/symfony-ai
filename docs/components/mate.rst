@@ -453,7 +453,8 @@ skill change into a reviewable diff instead of something that lands silently.
 
 All skill state lives in ``mate/extensions.php``. Two keys per skill carry your intent:
 
-* ``enabled`` controls whether the skill is installed at all.
+* ``enabled`` controls whether the skill is installed at all. Use ``mate skills:disable <name>`` and
+  ``mate skills:enable <name>`` to flip it.
 * ``mode`` is either ``managed``, where Mate builds the skill from the package, or ``override``,
   which hands ownership to you: Mate then builds from your own ``mate/skills/<name>/`` copy and
   never writes into ``mate/skills/``. Use ``mate skills:override <name>`` to switch, and
@@ -536,6 +537,14 @@ Commands
 ``mate skills:reset <name>``
     Hand an overridden skill back to Mate, so it is built from the package again. Your copy under
     ``mate/skills/<name>/`` is kept unless you pass ``--delete-copy``. See `Skills`_.
+
+``mate skills:disable <name>``
+    Hide a skill from coding agents: remove its generated folders and record it as disabled. The
+    entry stays in ``mate/extensions.php``, and a copy of your own under ``mate/skills/`` is left
+    untouched. See `Skills`_.
+
+``mate skills:enable <name>``
+    Make a disabled skill visible again and rebuild its generated folders. See `Skills`_.
 
 ``mate serve``
     Start the MCP server with stdio transport.
