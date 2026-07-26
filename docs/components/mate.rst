@@ -466,7 +466,8 @@ All skill state lives in ``mate/extensions.php``. Two keys per skill carry your 
 * ``enabled`` controls whether the skill is installed at all.
 * ``mode`` is either ``managed``, where Mate builds the skill from the package, or ``override``,
   which hands ownership to you: Mate then builds from your own ``mate/skills/<name>/`` copy and
-  never writes into ``mate/skills/``.
+  never writes into ``mate/skills/``. Use ``mate skills:override <name>`` to switch, and
+  ``mate skills:reset <name>`` to hand the skill back.
 
 The ``skills:*`` commands set both for you, which is the recommended way to change them — they also
 reinstall, so the recorded state below never falls out of step with your intent. Editing the two keys
@@ -536,6 +537,15 @@ Commands
 ``mate skills:prune``
     Remove generated ``mate-*`` folders that no longer belong to any skill. Pass ``--dry-run`` to
     see what would be removed. See `Skills`_.
+
+``mate skills:override <name>``
+    Take ownership of a skill: copy the package's version into ``mate/skills/<name>/`` and switch it
+    to ``'mode' => 'override'``. Accepts the installed (``mate-…``) or the original name. Pass
+    ``--force`` to replace an existing copy. See `Skills`_.
+
+``mate skills:reset <name>``
+    Hand an overridden skill back to Mate, so it is built from the package again. Your copy under
+    ``mate/skills/<name>/`` is kept unless you pass ``--delete-copy``. See `Skills`_.
 
 ``mate serve``
     Start the MCP server with stdio transport.

@@ -12,9 +12,14 @@
 namespace Symfony\AI\Mate\Skill;
 
 use Symfony\AI\Mate\Discovery\ComposerExtensionDiscovery;
+use Symfony\AI\Mate\Discovery\PathGuard;
+use Symfony\AI\Mate\Exception\AmbiguousSkillException;
+use Symfony\AI\Mate\Exception\RuntimeException;
+use Symfony\AI\Mate\Exception\SkillNotFoundException;
 use Symfony\AI\Mate\Skill\Model\DiscoveredSkill;
 use Symfony\AI\Mate\Skill\Model\SkillInstallResult;
 use Symfony\AI\Mate\Skill\Model\SkillStatus;
+use Symfony\Component\Filesystem\Filesystem;
 
 /**
  * Entry point the skills:* commands work against.
@@ -65,6 +70,109 @@ final class SkillManager
     }
 
     /**
+     * Resolves an installed ("mate-foo") or original ("foo") name to the skill that owns it.
+     *
+     * Resolution runs against the recorded state, not discovery, so a skill stays addressable while
+     * its package is temporarily absent.
+     *
+     * @return array{package: string, name: string}
+     *
+     * @throws SkillNotFoundException  when no recorded skill matches
+     * @throws AmbiguousSkillException when more than one package owns the name
+     */
+    public function resolve(string $input): array
+    {
+        $matches = $this->repository->findAll($input);
+
+        if ([] === $matches) {
+            throw new SkillNotFoundException(\sprintf('Unknown skill "%s". Run "mate skills:list" to see what is available.', $input));
+        }
+
+        if (\count($matches) > 1) {
+            $packages = array_map(static fn (array $match): string => $match['package'], $matches);
+
+            throw new AmbiguousSkillException(\sprintf('Skill "%s" is provided by more than one package (%s).', $input, implode(', ', $packages)));
+        }
+
+        $name = $matches[0]['name'];
+        if (PathGuard::hasTraversal($name)) {
+            throw new SkillNotFoundException(\sprintf('Skill name "%s" is not a valid directory name.', $name));
+        }
+
+        return ['package' => $matches[0]['package'], 'name' => $name];
+    }
+
+    /**
+     * @param 'managed'|'override' $mode
+     */
+    public function setMode(string $package, string $name, string $mode): void
+    {
+        $this->repository->setMode($package, $name, $mode);
+    }
+
+    public function overrideCopyPath(string $name): string
+    {
+        return 'mate/skills/'.$name;
+    }
+
+    /**
+     * Copies the package's version of a skill into mate/skills/<name>/ for the user to own.
+     *
+     * The copy is taken from the declared source rather than the generated folder, so it keeps the
+     * original frontmatter name; the installed name is applied at build time as for any other skill.
+     *
+     * @return string the created path, relative to the project root
+     */
+    public function createOverrideCopy(string $package, string $name, bool $force): string
+    {
+        $target = $this->rootDir.'/'.$this->overrideCopyPath($name);
+
+        if (is_dir($target) && !$force) {
+            throw new RuntimeException(\sprintf('"%s" already exists. Pass --force to replace it.', $this->overrideCopyPath($name)));
+        }
+
+        $skill = $this->findDiscovered($package, $name);
+        if (null === $skill) {
+            throw new RuntimeException(\sprintf('Skill "%s" is not currently provided by "%s", so there is nothing to copy.', $name, $package));
+        }
+
+        $filesystem = new Filesystem();
+        $filesystem->remove($target);
+        $filesystem->mirror($skill->absolutePath, $target);
+
+        return $this->overrideCopyPath($name);
+    }
+
+    public function removeOverrideCopy(string $name): bool
+    {
+        $target = $this->rootDir.'/'.$this->overrideCopyPath($name);
+        if (!is_dir($target)) {
+            return false;
+        }
+
+        (new Filesystem())->remove($target);
+
+        return true;
+    }
+
+    public function hasOverrideCopy(string $name): bool
+    {
+        return is_dir($this->rootDir.'/'.$this->overrideCopyPath($name));
+    }
+
+    /**
+     * @return list<SkillStatus>
+     */
+    public function statusFor(string $installedOrOriginalName): array
+    {
+        return array_values(array_filter(
+            $this->status(),
+            static fn (SkillStatus $status): bool => $status->installedName === $installedOrOriginalName
+                || $status->originalName === $installedOrOriginalName,
+        ));
+    }
+
+    /**
      * @return list<SkillStatus>
      */
     public function status(): array
@@ -98,6 +206,17 @@ final class SkillManager
         usort($statuses, static fn (SkillStatus $a, SkillStatus $b): int => $a->installedName <=> $b->installedName);
 
         return $statuses;
+    }
+
+    private function findDiscovered(string $package, string $name): ?DiscoveredSkill
+    {
+        foreach ($this->discover() as $skill) {
+            if ($skill->package === $package && $skill->originalName === $name) {
+                return $skill;
+            }
+        }
+
+        return null;
     }
 
     /**
