@@ -12,6 +12,7 @@ CHANGELOG
  * Add `skills:prune` command: removes generated `mate-*` folders that no longer belong to any skill (`--dry-run` to preview)
  * Add `skills:override` command: copies a package's skill into `mate/skills/<name>/` and switches it to `'mode' => 'override'` (`--force` to replace an existing copy)
  * Add `skills:reset` command: switches a skill back to `'mode' => 'managed'`, keeping your copy under `mate/skills/` unless `--delete-copy` is passed
+ * Add `skills:disable` and `skills:enable` commands: flip `enabled` for a single skill and rebuild or remove its generated folders
 
 0.12
 ----

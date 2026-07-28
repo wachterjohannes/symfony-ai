@@ -110,6 +110,11 @@ final class SkillManager
         $this->repository->setMode($package, $name, $mode);
     }
 
+    public function setEnabled(string $package, string $name, bool $enabled): void
+    {
+        $this->repository->setEnabled($package, $name, $enabled);
+    }
+
     public function overrideCopyPath(string $name): string
     {
         return 'mate/skills/'.$name;
