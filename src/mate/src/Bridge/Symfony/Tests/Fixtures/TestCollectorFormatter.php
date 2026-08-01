@@ -50,6 +50,6 @@ class TestCollectorFormatter implements CollectorFormatterInterface
     {
         \assert($collector instanceof TestCollector);
 
-        return $collector->getData();
+        return $collector->getSummaryData();
     }
 }

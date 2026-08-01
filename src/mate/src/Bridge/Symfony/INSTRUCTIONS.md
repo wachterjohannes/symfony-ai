@@ -19,6 +19,7 @@ When `symfony/http-kernel` is installed, profiler tools become available:
 | `symfony-profiler-list`     | List and filter profiles by method, URL, IP, status, date range |
 | `symfony-profiler-get`      | Get profile by token                                    |
 | `symfony-profiler-compare`  | Compare the collector summary of two profiles (before/after a change) |
+| `symfony-profiler-assert`   | Check a profile against a target (max queries/duration/duplicates, no exception) and return passed |
 
 **Resources:**
 - `symfony-profiler://profile/{token}` - Full profile with collector list

@@ -10,6 +10,7 @@ Reads the profiler through Mate's CLI. Two tools, two resources:
 - `symfony-profiler-list` filters profiles (`method`, `url`, `ip`, `statusCode`, `context`, `from`, `to`, `limit`). Newest first, so `--limit=1` is the latest. Returns summaries with a `resource_uri` per profile.
 - `symfony-profiler-get --token=<t>` returns one profile's metadata. It does NOT list collectors.
 - `symfony-profiler-compare --baseline=<t1> --current=<t2> [--collector=db]` diffs the `summary` of one collector across two profiles.
+- `symfony-profiler-assert [--url=/checkout|--token=<t>] [--maxQueries=N] [--maxDurationMs=N] [--maxDuplicates=N] [--expectNoException]` checks a profile against a target instead of reporting numbers. Returns `passed` plus each expectation as actual against limit.
 - `symfony-profiler://profile/{token}` lists the collectors this profile actually has, each with its URI.
 - `symfony-profiler://profile/{token}/{collector}` returns that collector, as `{name, data, summary}`. `summary` is the triage view, `data` the full detail.
 
@@ -56,6 +57,19 @@ It returns both summaries, a `delta` per numeric metric, and a `verdict` (`impro
 `unchanged`, `regressed`). Report the delta, not the impression. `--collector=time` or
 `memory` works the same way for whatever metric the symptom was about. `unchanged` after a
 fix means the fix did not hit the hot path — go back to the reading order.
+
+A delta only says the number moved. It does not say the number is good enough. Take the
+acceptance criterion of the task — "under 20 queries", "under 300 ms", "no exception" — and put
+it to the tool as a target:
+
+```
+mate tools:call symfony-profiler-assert --url=/checkout --maxQueries=20 --maxDurationMs=300
+```
+
+The work is done when `passed` is true. Not when the page renders, not when the number improved:
+54 queries down from 120 is progress and still a miss. A miss is a result, not an error — on a
+missed query budget the answer carries `remaining_query_sources`, the statement groups with the
+most repetitions, which is the next thing to fix. Assert again after fixing it.
 
 ## Failure paths
 
