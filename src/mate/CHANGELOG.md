@@ -4,6 +4,7 @@ CHANGELOG
 0.13
 ----
 
+ * Add cross-references between the `symfony-profiler-debugging` and `symfony-log-investigation` skills as steps in each workflow, so the Monolog tools are reached from the profiler flow when a profile does not explain the symptom, and the profiler from the log flow once an incident narrows to one request
  * Add a managed `CLAUDE.md` in the project root to `mate init`/`mate discover` that imports `AGENTS.md` via `@AGENTS.md`, so Claude Code discovers the Mate CLI instructions it would otherwise never read
  * Add `symfony-profiler-compare` tool that diffs the collector summary of two profiler profiles and returns a per-metric delta plus an `improved`/`unchanged`/`regressed` verdict
  * Replace the MCP server with a native CLI: Mate no longer depends on `mcp/sdk` and no longer runs an MCP server. Tools/resources are discovered by reflection from the native `#[AsTool]`, `#[AsResource]` and `#[AsResourceTemplate]` attributes (in `Symfony\AI\Mate\Attribute`), and agents call them through the `mate` CLI directly
