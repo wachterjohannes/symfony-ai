@@ -5,8 +5,9 @@ description: Diagnose a Symfony request that failed, errored (5xx), or was slow,
 
 # Profiler debugging
 
-Reads the profiler through Mate's CLI. Two tools, two resources:
+Reads the profiler through Mate's CLI. Start with `symfony-profiler-triage`: it answers the first question in one call, where listing, getting and reading a collector separately takes three rounds before the first number is on the table.
 
+- `symfony-profiler-triage [--url=/checkout] [--token=<t>]` triages one request: query count, duplicate queries, the most expensive statements, total duration, whether an exception occurred, logger error/warning counts. Without arguments it takes the latest profile. Collectors the profile does not have are omitted.
 - `symfony-profiler-list` filters profiles (`method`, `url`, `ip`, `statusCode`, `context`, `from`, `to`, `limit`). Newest first, so `--limit=1` is the latest. Returns summaries with a `resource_uri` per profile.
 - `symfony-profiler-get --token=<t>` returns one profile's metadata. It does NOT list collectors.
 - `symfony-profiler-compare --baseline=<t1> --current=<t2> [--collector=db]` diffs the `summary` of one collector across two profiles.
