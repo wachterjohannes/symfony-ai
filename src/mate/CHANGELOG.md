@@ -1,6 +1,11 @@
 CHANGELOG
 =========
 
+0.16
+----
+
+ * Add cross-references between the `symfony-profiler-debugging` and `symfony-log-investigation` skills as steps in each workflow, so the Monolog tools are reached from the profiler flow when a profile does not explain the symptom, and the profiler from the log flow once an incident narrows to one request
+
 0.14
 ----
 
