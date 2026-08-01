@@ -4,6 +4,7 @@ CHANGELOG
 0.13
 ----
 
+ * Add `symfony-profiler-assert` tool that checks a profile against expectations (`maxQueries`, `maxDurationMs`, `maxDuplicates`, `expectNoException`) and returns `passed` with every expectation as actual against limit, plus the most repeated statement groups when a query budget is missed
  * Add a managed `CLAUDE.md` in the project root to `mate init`/`mate discover` that imports `AGENTS.md` via `@AGENTS.md`, so Claude Code discovers the Mate CLI instructions it would otherwise never read
  * Add `symfony-profiler-compare` tool that diffs the collector summary of two profiler profiles and returns a per-metric delta plus an `improved`/`unchanged`/`regressed` verdict
  * Replace the MCP server with a native CLI: Mate no longer depends on `mcp/sdk` and no longer runs an MCP server. Tools/resources are discovered by reflection from the native `#[AsTool]`, `#[AsResource]` and `#[AsResourceTemplate]` attributes (in `Symfony\AI\Mate\Attribute`), and agents call them through the `mate` CLI directly

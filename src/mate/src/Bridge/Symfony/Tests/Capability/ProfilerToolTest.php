@@ -20,6 +20,7 @@ use Symfony\AI\Mate\Bridge\Symfony\Profiler\Service\CollectorRegistry;
 use Symfony\AI\Mate\Bridge\Symfony\Profiler\Service\ProfilerDataProvider;
 use Symfony\AI\Mate\Bridge\Symfony\Tests\Fixtures\TestCollector;
 use Symfony\AI\Mate\Bridge\Symfony\Tests\Fixtures\TestCollectorFormatter;
+use Symfony\AI\Mate\Exception\InvalidArgumentException;
 use Symfony\AI\Mate\Exception\RuntimeException;
 use Symfony\Component\HttpKernel\Profiler\FileProfilerStorage;
 use Symfony\Component\HttpKernel\Profiler\Profile;
@@ -266,6 +267,129 @@ final class ProfilerToolTest extends TestCase
         $tool->compare('baseline', 'current', 'unformatted');
     }
 
+    public function testAssertPassesWhenEveryExpectationIsMet()
+    {
+        $tool = $this->createAssertTool();
+
+        $result = Toon::decode($tool->assertProfile(token: 'fast', maxQueries: 10, maxDurationMs: 200.0, maxDuplicates: 0, expectNoException: true));
+
+        $this->assertTrue($result['passed']);
+        $this->assertSame('fast', $result['token']);
+        $this->assertCount(4, $result['checks']);
+        foreach ($result['checks'] as $check) {
+            $this->assertTrue($check['passed'], $check['metric'].' should pass');
+        }
+        $this->assertArrayNotHasKey('remaining_query_sources', $result);
+    }
+
+    public function testAssertReportsEachExpectationAsActualAgainstLimit()
+    {
+        $tool = $this->createAssertTool();
+
+        $result = Toon::decode($tool->assertProfile(token: 'slow', maxQueries: 20));
+
+        $this->assertFalse($result['passed']);
+        $this->assertSame('query_count', $result['checks'][0]['metric']);
+        $this->assertSame(54, $result['checks'][0]['actual']);
+        $this->assertSame(20, $result['checks'][0]['limit']);
+        $this->assertFalse($result['checks'][0]['passed']);
+    }
+
+    public function testAssertNamesWhatIsLeftWhenAQueryBudgetIsMissed()
+    {
+        $tool = $this->createAssertTool();
+
+        $result = Toon::decode($tool->assertProfile(token: 'slow', maxQueries: 20));
+
+        $remaining = $result['remaining_query_sources'];
+        $this->assertCount(5, $remaining);
+        $this->assertTrue($result['remaining_query_sources_truncated']);
+        // Ordered by repetitions, not by total time: an N+1 is the most repeated group.
+        $this->assertSame([40, 9, 8, 7, 6], array_column($remaining, 'count'));
+        $this->assertSame('SELECT * FROM n_plus_one', $remaining[0]['sql']);
+    }
+
+    public function testAssertNamesWhatIsLeftWhenTheDuplicateBudgetIsMissed()
+    {
+        $tool = $this->createAssertTool();
+
+        $result = Toon::decode($tool->assertProfile(token: 'slow', maxDuplicates: 2));
+
+        $this->assertFalse($result['passed']);
+        $this->assertSame('duplicate_query_count', $result['checks'][0]['metric']);
+        $this->assertArrayHasKey('remaining_query_sources', $result);
+    }
+
+    public function testAssertDoesNotListRemainingSourcesWhenOnlyANonQueryBudgetIsMissed()
+    {
+        $tool = $this->createAssertTool();
+
+        $result = Toon::decode($tool->assertProfile(token: 'slow', maxQueries: 100, maxDurationMs: 100.0));
+
+        $this->assertFalse($result['passed']);
+        $this->assertArrayNotHasKey('remaining_query_sources', $result);
+    }
+
+    public function testAssertTreatsAMissAsAResultNotAnError()
+    {
+        $tool = $this->createAssertTool();
+
+        // No exception is thrown even though every expectation is missed.
+        $result = Toon::decode($tool->assertProfile(token: 'slow', maxQueries: 1, maxDurationMs: 1.0, maxDuplicates: 0, expectNoException: true));
+
+        $this->assertFalse($result['passed']);
+        $this->assertCount(4, $result['checks']);
+        $this->assertTrue($result['checks'][3]['actual']);
+        $this->assertFalse($result['checks'][3]['passed']);
+    }
+
+    public function testAssertPassesOnTheBoundary()
+    {
+        $tool = $this->createAssertTool();
+
+        $result = Toon::decode($tool->assertProfile(token: 'slow', maxQueries: 54));
+
+        $this->assertTrue($result['passed']);
+    }
+
+    public function testAssertResolvesTheProfileByUrl()
+    {
+        $tool = $this->createAssertTool();
+
+        $result = Toon::decode($tool->assertProfile(url: '/checkout', maxQueries: 1000));
+
+        $this->assertSame('slow', $result['token']);
+        $this->assertSame('/checkout', $result['url']);
+    }
+
+    public function testAssertRequiresAtLeastOneExpectation()
+    {
+        $tool = $this->createAssertTool();
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('symfony-profiler-assert needs at least one expectation');
+
+        $tool->assertProfile(token: 'fast');
+    }
+
+    public function testAssertThrowsExceptionForUnknownToken()
+    {
+        $tool = $this->createAssertTool();
+
+        $this->expectException(ProfileNotFoundException::class);
+
+        $tool->assertProfile(token: 'nonexistent', maxQueries: 10);
+    }
+
+    public function testAssertThrowsExceptionWhenTheAssertedCollectorIsMissing()
+    {
+        $tool = $this->createAssertTool();
+
+        $this->expectException(InvalidCollectorException::class);
+
+        $tool->assertProfile(token: 'bare', maxQueries: 10);
+    }
+
     public function testProfilerToolsFailClearlyWhenProfilerSupportIsUnavailable()
     {
         $tool = new ProfilerTool();
@@ -274,6 +398,85 @@ final class ProfilerToolTest extends TestCase
         $this->expectExceptionMessage('Symfony profiler tools are not available in this Mate workspace.');
 
         $tool->listProfiles();
+    }
+
+    /**
+     * Builds a tool over three profiles: "slow" (/checkout, misses every budget), "fast"
+     * (/health, meets every budget) and "bare" (no collectors at all).
+     */
+    private function createAssertTool(): ProfilerTool
+    {
+        $dir = sys_get_temp_dir().'/mate-profiler-assert-'.bin2hex(random_bytes(8));
+        mkdir($dir, 0755, true);
+        $this->temporaryDirs[] = $dir;
+
+        $now = time();
+        $storage = new FileProfilerStorage('file:'.$dir);
+
+        // Sorted by total time, as the Doctrine formatter emits it — the N+1 sits in the middle
+        // by time but is by far the most repeated group.
+        $queries = [
+            ['sql' => 'SELECT * FROM report', 'count' => 1, 'total_time_ms' => 900.0],
+            ['sql' => 'SELECT * FROM n_plus_one', 'count' => 40, 'total_time_ms' => 800.0],
+            ['sql' => 'SELECT * FROM other_3', 'count' => 6, 'total_time_ms' => 700.0],
+            ['sql' => 'SELECT * FROM other_2', 'count' => 7, 'total_time_ms' => 600.0],
+            ['sql' => 'SELECT * FROM other_1', 'count' => 8, 'total_time_ms' => 500.0],
+            ['sql' => 'SELECT * FROM other_0', 'count' => 9, 'total_time_ms' => 400.0],
+        ];
+
+        $slow = $this->createAssertProfile('slow', '/checkout', $now, [
+            new TestCollector('db', ['query_count' => 54, 'queries' => $queries], [
+                'query_count' => 54,
+                'total_time_ms' => 3900.0,
+                'duplicate_query_count' => 31,
+            ]),
+            new TestCollector('time', ['events' => []], ['duration_ms' => 820.5, 'init_time_ms' => 12.25]),
+            new TestCollector('exception', [], [
+                'has_exception' => true,
+                'class' => 'RuntimeException',
+                'message' => 'Boom',
+            ]),
+        ]);
+
+        $fast = $this->createAssertProfile('fast', '/health', $now - 60, [
+            new TestCollector('db', ['query_count' => 3, 'queries' => [
+                ['sql' => 'SELECT 1', 'count' => 1, 'total_time_ms' => 1.0],
+            ]], ['query_count' => 3, 'total_time_ms' => 4.0, 'duplicate_query_count' => 0]),
+            new TestCollector('time', ['events' => []], ['duration_ms' => 40.0, 'init_time_ms' => 5.0]),
+            new TestCollector('exception', [], ['has_exception' => false]),
+        ]);
+
+        $bare = $this->createAssertProfile('bare', '/static', $now - 120, []);
+
+        foreach ([$slow, $fast, $bare] as $profile) {
+            $this->assertTrue($storage->write($profile));
+        }
+
+        clearstatcache();
+
+        $registry = new CollectorRegistry([
+            new TestCollectorFormatter('db'),
+            new TestCollectorFormatter('time'),
+            new TestCollectorFormatter('exception'),
+        ]);
+
+        return new ProfilerTool(new ProfilerDataProvider($dir, $registry));
+    }
+
+    /**
+     * @param list<TestCollector> $collectors
+     */
+    private function createAssertProfile(string $token, string $url, int $time, array $collectors): Profile
+    {
+        $profile = new Profile($token);
+        $profile->setIp('127.0.0.1');
+        $profile->setMethod('GET');
+        $profile->setUrl($url);
+        $profile->setStatusCode(200);
+        $profile->setTime($time);
+        $profile->setCollectors($collectors);
+
+        return $profile;
     }
 
     /**
