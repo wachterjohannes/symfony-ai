@@ -1,6 +1,11 @@
 CHANGELOG
 =========
 
+0.16
+----
+
+ * Add an investigation loop with an explicit stop condition to the `symfony-profiler-debugging` skill, replacing the reading order that read as a menu of single lookups
+
 0.14
 ----
 
