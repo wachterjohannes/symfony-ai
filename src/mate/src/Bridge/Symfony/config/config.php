@@ -14,6 +14,7 @@ use Symfony\AI\Mate\Bridge\Symfony\Capability\ProfilerTool;
 use Symfony\AI\Mate\Bridge\Symfony\Capability\ServiceTool;
 use Symfony\AI\Mate\Bridge\Symfony\Profiler\Service\CollectorRegistry;
 use Symfony\AI\Mate\Bridge\Symfony\Profiler\Service\Formatter\DoctrineCollectorFormatter;
+use Symfony\AI\Mate\Bridge\Symfony\Profiler\Service\Formatter\EventCollectorFormatter;
 use Symfony\AI\Mate\Bridge\Symfony\Profiler\Service\Formatter\ExceptionCollectorFormatter;
 use Symfony\AI\Mate\Bridge\Symfony\Profiler\Service\Formatter\LoggerCollectorFormatter;
 use Symfony\AI\Mate\Bridge\Symfony\Profiler\Service\Formatter\MailerCollectorFormatter;
@@ -82,6 +83,10 @@ return static function (ContainerConfigurator $configurator) {
             ->tag('ai_mate.profiler_collector_formatter');
 
         $services->set(MemoryCollectorFormatter::class)
+            ->tag('ai_mate.profiler_collector_formatter');
+
+        $services->set(EventCollectorFormatter::class)
+            ->lazy()
             ->tag('ai_mate.profiler_collector_formatter');
 
         // MCP Capabilities
