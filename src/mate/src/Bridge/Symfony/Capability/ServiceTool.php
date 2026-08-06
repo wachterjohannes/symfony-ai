@@ -15,6 +15,7 @@ use Symfony\AI\Mate\Attribute\AsTool;
 use Symfony\AI\Mate\Bridge\Symfony\Exception\ServiceNotFoundException;
 use Symfony\AI\Mate\Bridge\Symfony\Model\Container;
 use Symfony\AI\Mate\Bridge\Symfony\Service\ContainerProvider;
+use Symfony\AI\Mate\Bridge\Symfony\Service\ServiceArgumentResolver;
 use Symfony\AI\Mate\Encoding\ResponseEncoder;
 
 /**
@@ -22,10 +23,14 @@ use Symfony\AI\Mate\Encoding\ResponseEncoder;
  */
 class ServiceTool
 {
+    private readonly ServiceArgumentResolver $argumentResolver;
+
     public function __construct(
         private string $cacheDir,
         private ContainerProvider $provider,
+        ?ServiceArgumentResolver $argumentResolver = null,
     ) {
+        $this->argumentResolver = $argumentResolver ?? new ServiceArgumentResolver();
     }
 
     /**
@@ -72,7 +77,7 @@ class ServiceTool
     /**
      * @param string $id The exact service ID to retrieve details for
      */
-    #[AsTool(name: 'symfony-service-detail', title: 'Symfony Service Detail', description: 'Get full details of a single Symfony DI container service by its exact ID, including class, tags, method calls, and constructor/factory information.')]
+    #[AsTool(name: 'symfony-service-detail', title: 'Symfony Service Detail', description: 'Get full details of a single Symfony DI container service by its exact ID, including class, tags, method calls, constructor arguments and factory information. Constructor arguments show which services are wired in — including the entries of a collection, such as the middleware list of a messenger bus. Scalar values are redacted when their parameter name looks like a secret, or when the parameter cannot be identified.')]
     public function getServiceDetail(string $id): string
     {
         $container = $this->readContainer();
@@ -107,6 +112,7 @@ class ServiceTool
             'class' => $service->getClass(),
             'tags' => $tags,
             'calls' => $service->getCalls(),
+            'arguments' => $this->argumentResolver->resolve($service->getConstructor(), $service->getArguments()),
         ];
 
         if (null !== $constructor) {
