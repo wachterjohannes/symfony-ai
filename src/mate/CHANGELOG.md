@@ -4,6 +4,7 @@ CHANGELOG
 0.13
 ----
 
+ * Add an experimental `sandbox-execute` tool that runs a short PHP snippet against a `$mate` interface, guarded by an AST allowlist (`nikic/php-parser`) and an isolated, capability-stripped subprocess, so an agent can compose several steps (repeat N times and average, compare, aggregate) into one call
  * Add a managed `CLAUDE.md` in the project root to `mate init`/`mate discover` that imports `AGENTS.md` via `@AGENTS.md`, so Claude Code discovers the Mate CLI instructions it would otherwise never read
  * Replace the MCP server with a native CLI: Mate no longer depends on `mcp/sdk` and no longer runs an MCP server. Tools/resources are discovered by reflection from the native `#[AsTool]`, `#[AsResource]` and `#[AsResourceTemplate]` attributes (in `Symfony\AI\Mate\Attribute`), and agents call them through the `mate` CLI directly
  * Rename the tool/resource commands from `mcp:tools:*`/`mcp:resources:read` to `tools:list`, `tools:inspect`, `tools:call` and `resources:read`
