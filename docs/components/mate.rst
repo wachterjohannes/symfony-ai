@@ -291,6 +291,7 @@ become available for accessing Symfony profiler data.
 **MCP Tools:**
 
 * ``symfony-profiler-list`` - List available profiler profiles with summary data, supports filtering by date range (``from``/``to`` parameters) and limiting results (use ``limit: 1`` for the latest profile)
+* ``symfony-profiler-triage`` - Triage one request in a single call: query count, duplicate queries, the most expensive statements, total duration, exception state and logger error/warning counts (without ``url``/``token`` the most recent profile is used)
 * ``symfony-profiler-get`` - Get a specific profile by token
 
 All tools return profiles with a ``resource_uri`` field that points to the full profile resource.
