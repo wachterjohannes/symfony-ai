@@ -45,7 +45,7 @@ final class SandboxTool
     /**
      * @param string $code PHP statements without the opening tag, e.g. `$r = $mate->runCommand('...'); return $r['duration_ms'];`
      */
-    #[AsTool(name: 'sandbox-execute', title: 'Sandbox Execute', description: 'Run a short PHP snippet against the $mate interface and return what it returns. Use it to compose several steps into one call — repeat a command N times and average, compare two measurements, aggregate — instead of orchestrating one tool call per step. The snippet is checked against a strict allowlist (no new, no closures, no static access, no superglobals, only a fixed list of pure functions) and then runs in a locked-down subprocess. $mate exposes runCommand(string $command) for commands on the project allowlist. Read the symfony-sandbox-execute skill for the exact grammar before writing code.')]
+    #[AsTool(name: 'sandbox-execute', title: 'Sandbox Execute', description: 'Run a short PHP snippet against the $mate interface and return what it returns. Use it to compose several steps into one call — repeat a command N times and average, compare two measurements, aggregate — instead of orchestrating one tool call per step. The snippet is checked against a strict allowlist (no new, no closures, no static access, no superglobals, only a fixed list of pure functions) and then runs in a locked-down subprocess. $mate exposes runCommand(string $command) for commands on the project allowlist. Read the sandbox-execute skill for the exact grammar before writing code.')]
     public function execute(string $code): string
     {
         $this->validator->validate($code);

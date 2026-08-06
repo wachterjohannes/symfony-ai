@@ -192,7 +192,7 @@ final class CodeValidatorTest extends TestCase
      */
     public function testAcceptsEverySnippetInTheSkill()
     {
-        $skill = (string) file_get_contents(__DIR__.'/../../skills/symfony-sandbox-execute/SKILL.md');
+        $skill = (string) file_get_contents(__DIR__.'/../../skills/sandbox-execute/SKILL.md');
 
         preg_match_all('/```php\n(.*?)```/s', $skill, $matches);
 

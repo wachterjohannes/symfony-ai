@@ -21,4 +21,4 @@
 - `$mate->runCommand(string $command)` runs commands listed verbatim in
   `mate.sandbox.allowed_commands`; that list is empty by default, so nothing runs until a
   project opts in
-- Read the `symfony-sandbox-execute` skill for the grammar before writing a snippet
+- Read the `sandbox-execute` skill for the grammar before writing a snippet

@@ -1,5 +1,5 @@
 ---
-name: symfony-sandbox-execute
+name: sandbox-execute
 description: Reference for writing PHP snippets for the sandbox-execute tool — the $mate methods, the allowed grammar, and what is rejected. Use when a question needs several steps composed (repeat N times and average, compare two runs, aggregate) rather than one tool call, and read it before writing the snippet so the allowlist does not reject it.
 ---
 
