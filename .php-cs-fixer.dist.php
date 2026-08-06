@@ -91,6 +91,9 @@ return (new PhpCsFixer\Config())
                 'demo/config/reference.php',
                 'src/mate/resources/mate/config.php',
                 'src/mate/resources/mate/extensions.php',
+                // Standalone sandbox entry point: psr_autoloading would rename its class
+                // after the file name, and the file has to stay named runner.php.
+                'src/mate/resources/sandbox/runner.php',
             ])
     )
 ;

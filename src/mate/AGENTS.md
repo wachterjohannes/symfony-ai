@@ -35,6 +35,7 @@ Note: this `#[AsTool]` is standalone and unrelated to the Agent component's
 - `src/Discovery/`: Reflection-based discovery + schema generation
 - `src/Invocation/`: Tool/resource invocation and argument casting
 - `src/Capability/`: Built-in tools
+- `src/Sandbox/`: Experimental `sandbox-execute` — AST allowlist + isolated subprocess + the `$mate` interface
 - `src/Bridge/`: Embedded bridge packages (Symfony, Monolog)
 
 ### Bridges

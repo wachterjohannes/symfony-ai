@@ -32,6 +32,9 @@ use Symfony\AI\Mate\Discovery\SchemaGenerator;
 use Symfony\AI\Mate\Invocation\ArgumentCaster;
 use Symfony\AI\Mate\Invocation\ResourceReader;
 use Symfony\AI\Mate\Invocation\ToolInvoker;
+use Symfony\AI\Mate\Sandbox\CodeValidator;
+use Symfony\AI\Mate\Sandbox\MateApi;
+use Symfony\AI\Mate\Sandbox\SandboxRunner;
 use Symfony\AI\Mate\Service\ExtensionConfigSynchronizer;
 use Symfony\AI\Mate\Service\Logger;
 use Symfony\AI\Mate\Service\SkillsInstaller;
@@ -57,6 +60,11 @@ return static function (ContainerConfigurator $container): void {
         ->set('mate.debug_log_file', $debugLogFile)
         ->set('mate.debug_file_enabled', $debugFileEnabled)
         ->set('mate.debug_enabled', $debugEnabled)
+        // Sandbox: nothing is runnable until a project opts in by listing commands verbatim.
+        ->set('mate.sandbox.allowed_commands', [])
+        ->set('mate.sandbox.timeout', 10)
+        ->set('mate.sandbox.memory_limit_mb', 32)
+        ->set('mate.sandbox.command_timeout', 30)
     ;
 
     $container->services()
@@ -109,6 +117,18 @@ return static function (ContainerConfigurator $container): void {
 
         ->set(Filesystem::class)
         ->set(SkillsInstaller::class)
+
+        // Sandbox execution
+        ->set(MateApi::class)
+            ->arg('$allowedCommands', '%mate.sandbox.allowed_commands%')
+            ->arg('$workingDirectory', '%mate.root_dir%')
+            ->arg('$commandTimeout', '%mate.sandbox.command_timeout%')
+
+        ->set(CodeValidator::class)
+
+        ->set(SandboxRunner::class)
+            ->arg('$timeout', '%mate.sandbox.timeout%')
+            ->arg('$memoryLimitMb', '%mate.sandbox.memory_limit_mb%')
 
         // Register all commands
         ->set(InitCommand::class)
