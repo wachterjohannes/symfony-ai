@@ -74,6 +74,15 @@
         ]
     },
     {
+        "slug": "background-jobs-with-messenger",
+        "title": "Background Jobs with Messenger",
+        "description": "Start a long-running provider job in a request and finish it in a Messenger worker.",
+        "icon": "clock",
+        "components": [
+            "Platform"
+        ]
+    },
+    {
         "slug": "rag-implementation",
         "title": "Build a RAG Pipeline",
         "description": "Index documents into a vector store and query them with an AI agent.",

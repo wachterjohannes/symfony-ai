@@ -18,6 +18,7 @@ Getting Started Guides
     runtime-driven-tool-parameters
     chatbot-with-memory
     context-compression
+    background-jobs-with-messenger
     rag-implementation
     build-an-mcp-server
 
@@ -43,6 +44,8 @@ Memory & Context Management
 
 Platform Features
 -----------------
+
+* :doc:`background-jobs-with-messenger` - Start a long-running provider job in a request and finish it in a worker
 
 Streaming, multi-modal input, structured output, and model catalogs are documented in the
 :doc:`Platform component </components/platform>` reference.

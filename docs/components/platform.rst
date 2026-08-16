@@ -971,8 +971,15 @@ again — so it can be stored and picked up somewhere else entirely::
     }
 
 :method:`Symfony\\AI\\Platform\\Job\\JobClientInterface::getStatus` performs exactly one request and
-never sleeps. To simply block until the job is done, hand it to a
-:class:`Symfony\\AI\\Platform\\Job\\JobRunner`, which owns the polling loop::
+never sleeps, so a job can be looked at from wherever suits the application — a message handler, a
+scheduled task, a webhook — with nothing held open in between. That is how a long-running job is
+usually finished in a Symfony application, and the
+:doc:`Background Jobs with Messenger </cookbook/background-jobs-with-messenger>` recipe walks
+through it end to end.
+
+Where blocking is acceptable — a console command, a fixture script, one of the ``examples/`` — a
+:class:`Symfony\\AI\\Platform\\Job\\JobRunner` owns the polling loop, and is the only place in the
+component that sleeps::
 
     use Symfony\AI\Platform\Job\JobRunner;
 
@@ -989,10 +996,11 @@ first is the provider's: a bridge that knows its timings — MiniMax video gener
 where speech synthesis takes seconds — states it on the handle, and the runner honours it, so a
 caller who knows nothing about the provider still waits the right amount.
 
-The second is yours, and it usually belongs to the call rather than to the runner: the same job may
-be given ten minutes in a worker and five seconds inside a web request. Say so per call, in seconds::
+The second is yours, and it usually belongs to the call rather than to the runner: a command running
+unattended can wait as long as the job needs, while one somebody is watching should rather give up
+and say so. Say it per call, in seconds::
 
-    $result = $runner->wait($platform->getJobClient($handle), $handle, maxDuration: 5);
+    $result = $runner->wait($platform->getJobClient($handle), $handle, maxDuration: 30);
 
 A budget passed to the runner's constructor applies to every job it waits for and sits between the
 two: it overrules what a job asks for, and a single call overrules it in turn.
@@ -1000,20 +1008,14 @@ two: it overrules what a job asks for, and a single call overrules it in turn.
 In a Symfony application a runner using the application clock is available as
 ``ai.platform.job_runner`` and autowired through :class:`Symfony\\AI\\Platform\\Job\\JobRunner`. It
 carries no budget of its own, so the same shared service serves a job finishing in seconds and one
-running for minutes::
+running for minutes.
 
-    public function __construct(private JobRunner $jobRunner)
-    {
-    }
+.. caution::
 
-    public function __invoke(JobHandle $handle): void
-    {
-        // trust the job
-        $this->jobRunner->wait($this->platform->getJobClient($handle), $handle);
-
-        // or bound it to what a request can afford
-        $this->jobRunner->wait($this->platform->getJobClient($handle), $handle, maxDuration: 5);
-    }
+    Waiting blocks the process until the job finishes or the budget runs out, which for video
+    generation means minutes. Do not wait inside a web request: start the job there, hand the
+    handle to a worker, and let the request return. See
+    :doc:`Background Jobs with Messenger </cookbook/background-jobs-with-messenger>`.
 
 The runner throws a :class:`Symfony\\AI\\Platform\\Exception\\JobFailedException` when the provider
 ends the job without a result, and a :class:`Symfony\\AI\\Platform\\Exception\\JobTimeoutException`
