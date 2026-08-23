@@ -11,7 +11,7 @@
 
 namespace Symfony\AI\Mate\Bridge\Symfony\Capability;
 
-use Symfony\AI\Mate\Attribute\AsResourceTemplate;
+use Symfony\AI\Mate\Attribute\MateResourceTemplate;
 use Symfony\AI\Mate\Bridge\Symfony\Profiler\Service\ProfilerDataProvider;
 use Symfony\AI\Mate\Encoding\ResponseEncoder;
 use Symfony\AI\Mate\Exception\RuntimeException;
@@ -37,7 +37,7 @@ final class ProfilerResourceTemplate
     /**
      * @return ProfileResourceData
      */
-    #[AsResourceTemplate(
+    #[MateResourceTemplate(
         uriTemplate: 'symfony-profiler://profile/{token}',
         name: 'symfony-profile-data',
         description: 'Full profile details including metadata (method, url, status, time, ip) and complete list of available collectors with URIs for accessing collector-specific data'
@@ -90,7 +90,7 @@ final class ProfilerResourceTemplate
     /**
      * @return ProfileResourceData
      */
-    #[AsResourceTemplate(
+    #[MateResourceTemplate(
         uriTemplate: 'symfony-profiler://profile/{token}/{collector}',
         name: 'symfony-collector-data',
         description: 'Detailed collector-specific data (e.g., request parameters, response content, database queries, events, exceptions). Use symfony-profiler://profile/{token} resource to discover available collectors'

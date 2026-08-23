@@ -42,9 +42,9 @@ final class SkillReferenceIntegrityTest extends TestCase
 
     public function testSourceScanFindsCapabilities()
     {
-        $this->assertNotSame([], $this->toolNames(), 'No #[AsTool] names found; the source scan is broken.');
+        $this->assertNotSame([], $this->toolNames(), 'No #[MateTool] names found; the source scan is broken.');
         $this->assertNotSame([], $this->collectorNames(), 'No collector names found; the formatter scan is broken.');
-        $this->assertNotSame([], $this->resourceTemplates(), 'No #[AsResourceTemplate] uriTemplates found; the template scan is broken.');
+        $this->assertNotSame([], $this->resourceTemplates(), 'No #[MateResourceTemplate] uriTemplates found; the template scan is broken.');
         $this->assertNotSame([], iterator_to_array($this->skillFileProvider()), 'No SKILL.md files found.');
     }
 
@@ -186,7 +186,7 @@ final class SkillReferenceIntegrityTest extends TestCase
     {
         $names = [];
         foreach ($this->sourceFiles() as $content) {
-            preg_match_all("/#\\[AsTool\\(name:\\s*'([^']+)'/", $content, $m);
+            preg_match_all("/#\\[MateTool\\(name:\\s*'([^']+)'/", $content, $m);
             foreach ($m[1] as $name) {
                 $names[] = $name;
             }
@@ -219,7 +219,7 @@ final class SkillReferenceIntegrityTest extends TestCase
     {
         $templates = [];
         foreach ($this->sourceFiles() as $content) {
-            preg_match_all("/#\\[AsResourceTemplate\\(\\s*uriTemplate:\\s*'([^']+)'/s", $content, $m);
+            preg_match_all("/#\\[MateResourceTemplate\\(\\s*uriTemplate:\\s*'([^']+)'/s", $content, $m);
             foreach ($m[1] as $template) {
                 $templates[] = $template;
             }

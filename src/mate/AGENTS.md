@@ -6,8 +6,8 @@ AI agent guidance for the Mate component.
 
 Standalone command-line assistant (`vendor/bin/mate`) that exposes project-aware development
 tools to coding agents and developers. Tools are plain PHP methods annotated with the native
-`#[AsTool]` attribute (resources/resource templates use `#[AsResource]` /
-`#[AsResourceTemplate]`); Mate discovers them by reflection and runs them from the CLI. Does
+`#[MateTool]` attribute (resources/resource templates use `#[MateResource]` /
+`#[MateResourceTemplate]`); Mate discovers them by reflection and runs them from the CLI. Does
 not use MCP and does not integrate with the AI Bundle.
 
 ## Architecture
@@ -16,18 +16,15 @@ not use MCP and does not integrate with the AI Bundle.
 - **App**: Console application builder
 - **ContainerFactory**: DI container management with extension discovery
 - **ComposerExtensionDiscovery**: Discovers extensions via `extra.ai-mate` in composer.json
-- **ReflectionDiscoverer**: Scans directories for `#[AsTool]`/`#[AsResource]`/`#[AsResourceTemplate]` methods
+- **ReflectionDiscoverer**: Scans directories for `#[MateTool]`/`#[MateResource]`/`#[MateResourceTemplate]` methods
 - **SchemaGenerator** / **DocBlockParser**: Build a JSON input schema from a method signature + `@param` PHPDoc
 - **CapabilityRegistry**: Feature-filtered lookup of discovered tools/resources
 - **ToolInvoker** / **ResourceReader**: Resolve the handler from the DI container and invoke it
 
 ### Attributes
-- `Symfony\AI\Mate\Attribute\AsTool` — marks a method as a CLI tool (params `name`, `title`, `description`)
-- `Symfony\AI\Mate\Attribute\AsResource` — marks a method as a static resource
-- `Symfony\AI\Mate\Attribute\AsResourceTemplate` — marks a method as a templated resource
-
-Note: this `#[AsTool]` is standalone and unrelated to the Agent component's
-`Symfony\AI\Agent\Toolbox\Attribute\AsTool`.
+- `Symfony\AI\Mate\Attribute\MateTool` — marks a method as a CLI tool (params `name`, `title`, `description`)
+- `Symfony\AI\Mate\Attribute\MateResource` — marks a method as a static resource
+- `Symfony\AI\Mate\Attribute\MateResourceTemplate` — marks a method as a templated resource
 
 ### Key Directories
 - `src/Command/`: CLI commands (init, discover, clear-cache, debug:*, tools:*, resources:read)
@@ -87,7 +84,7 @@ Running `bin/mate discover` generates `mate/AGENT_INSTRUCTIONS.md` with extensio
 - `mate/extensions.php`: Enable/disable extensions
 - `mate/config.php`: Custom service configuration
 - `mate/.env`: Environment variables for mate configuration
-- `mate/src/`: Directory for user-defined tools (public methods with `#[AsTool]`)
+- `mate/src/`: Directory for user-defined tools (public methods with `#[MateTool]`)
 
 ## Skills
 

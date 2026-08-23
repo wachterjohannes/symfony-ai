@@ -11,7 +11,7 @@
 
 namespace Symfony\AI\Mate\Bridge\Monolog\Capability;
 
-use Symfony\AI\Mate\Attribute\AsTool;
+use Symfony\AI\Mate\Attribute\MateTool;
 use Symfony\AI\Mate\Bridge\Monolog\Model\SearchCriteria;
 use Symfony\AI\Mate\Bridge\Monolog\Service\LogReader;
 use Symfony\AI\Mate\Encoding\ResponseEncoder;
@@ -38,7 +38,7 @@ final class LogSearchTool
      * @param string|null $to          End date filter, any PHP-parseable date string
      * @param int         $limit       Maximum number of entries to return
      */
-    #[AsTool(name: 'monolog-search', title: 'Log Search', description: 'Search log entries by text or regex pattern. Supports filtering by log level, channel, environment, and date range. Use empty string for term to match all entries when using filters only.')]
+    #[MateTool(name: 'monolog-search', title: 'Log Search', description: 'Search log entries by text or regex pattern. Supports filtering by log level, channel, environment, and date range. Use empty string for term to match all entries when using filters only.')]
     public function search(
         string $term,
         bool $regex = false,
@@ -84,7 +84,7 @@ final class LogSearchTool
      * @param string|null $environment Filter by Symfony environment (e.g. dev, prod, test)
      * @param int         $limit       Maximum number of entries to return
      */
-    #[AsTool(name: 'monolog-context-search', title: 'Log Context Search', description: 'Search log entries by structured context data. Finds entries where a specific context key contains the given value.')]
+    #[MateTool(name: 'monolog-context-search', title: 'Log Context Search', description: 'Search log entries by structured context data. Finds entries where a specific context key contains the given value.')]
     public function searchContext(
         string $key,
         string $value,
@@ -108,7 +108,7 @@ final class LogSearchTool
      * @param string|null $environment Filter by Symfony environment (e.g. dev, prod, test)
      * @param string|null $channel     Filter by Monolog channel name (e.g. app, security, doctrine)
      */
-    #[AsTool(name: 'monolog-tail', title: 'Log Tail', description: 'Get the most recent log entries. Reads from the end of log files, optionally filtered by level, environment, and channel.')]
+    #[MateTool(name: 'monolog-tail', title: 'Log Tail', description: 'Get the most recent log entries. Reads from the end of log files, optionally filtered by level, environment, and channel.')]
     public function tail(int $lines = 50, ?string $level = null, ?string $environment = null, ?string $channel = null): string
     {
         $entries = $this->reader->tail($lines, $level, $environment, $channel);
@@ -119,7 +119,7 @@ final class LogSearchTool
     /**
      * @param string|null $environment Filter log files by Symfony environment (e.g. dev, prod, test)
      */
-    #[AsTool(name: 'monolog-list-files', title: 'List Log Files', description: 'List available log files with metadata (name, path, size, last modified). Use to discover which logs exist before searching.')]
+    #[MateTool(name: 'monolog-list-files', title: 'List Log Files', description: 'List available log files with metadata (name, path, size, last modified). Use to discover which logs exist before searching.')]
     public function listFiles(?string $environment = null): string
     {
         $files = null !== $environment
@@ -139,7 +139,7 @@ final class LogSearchTool
         return ResponseEncoder::encode(['files' => $result]);
     }
 
-    #[AsTool(name: 'monolog-list-channels', title: 'List Log Channels', description: 'List all unique Monolog channel names found across log files (e.g. app, security, doctrine).')]
+    #[MateTool(name: 'monolog-list-channels', title: 'List Log Channels', description: 'List all unique Monolog channel names found across log files (e.g. app, security, doctrine).')]
     public function listChannels(): string
     {
         return ResponseEncoder::encode(['channels' => $this->reader->getUniqueChannels()]);

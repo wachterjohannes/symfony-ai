@@ -187,12 +187,12 @@ Mate
    -use Mcp\Capability\Attribute\McpTool;
    -use Mcp\Capability\Attribute\McpResource;
    -use Mcp\Capability\Attribute\McpResourceTemplate;
-   +use Symfony\AI\Mate\Attribute\AsTool;
-   +use Symfony\AI\Mate\Attribute\AsResource;
-   +use Symfony\AI\Mate\Attribute\AsResourceTemplate;
+   +use Symfony\AI\Mate\Attribute\MateTool;
+   +use Symfony\AI\Mate\Attribute\MateResource;
+   +use Symfony\AI\Mate\Attribute\MateResourceTemplate;
 
    -#[McpTool(name: 'my-tool', description: '...')]
-   +#[AsTool(name: 'my-tool', description: '...')]
+   +#[MateTool(name: 'my-tool', description: '...')]
     public function myTool(int $limit = 10): string { /* ... */ }
    ```
 
@@ -552,7 +552,7 @@ AI Bundle
 ---------
 
  * Agent tools are now opt-in. Previously, when an agent did not configure the `tools` option, all
-   services tagged with `ai.tool` (e.g. classes using the `#[AsTool]` attribute) were injected into
+   services tagged with `ai.tool` (e.g. classes using the `#[MateTool]` attribute) were injected into
    the agent's toolbox. Now an agent without the `tools` option (or with `tools` set to `null` or an
    empty list) gets no toolbox at all. To keep the previous behavior, enable tools explicitly:
 

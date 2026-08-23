@@ -12,23 +12,23 @@
 namespace Symfony\AI\Mate\Attribute;
 
 /**
- * Marks a public method as a Mate CLI tool.
+ * Marks a public method as a Mate resource template.
  *
- * The method's parameters (plus their `@param` PHPDoc) are reflected into a JSON
- * input schema, and the method is invoked by the `tools:call` command.
- *
- * This attribute is intentionally standalone: it is not related to the Agent
- * component's `Symfony\AI\Agent\Toolbox\Attribute\AsTool`.
+ * The `uriTemplate` uses RFC 6570-style `{variable}` placeholders. When a URI passed
+ * to the `resources:read` command matches the template, the placeholder values are
+ * extracted and passed to the method as arguments (matched by parameter name).
  *
  * @author Johannes Wachter <johannes@sulu.io>
  */
 #[\Attribute(\Attribute::TARGET_METHOD)]
-final class AsTool
+final class MateResourceTemplate
 {
     public function __construct(
-        public string $name,
+        public string $uriTemplate,
+        public ?string $name = null,
         public ?string $title = null,
         public ?string $description = null,
+        public ?string $mimeType = null,
     ) {
     }
 }
