@@ -37,7 +37,20 @@ final class AgentInstructionsAggregator
         private string $rootDir,
         private array $extensions,
         private LoggerInterface $logger,
+        private string $invocation = 'vendor/bin/mate',
     ) {
+    }
+
+    /**
+     * `mate init` writes the invocation into `mate/config.php` after the container was built,
+     * so the value it just collected has to be handed in for that first run.
+     */
+    public function withInvocation(string $invocation): self
+    {
+        $clone = clone $this;
+        $clone->invocation = $invocation;
+
+        return $clone;
     }
 
     /**
@@ -168,13 +181,18 @@ final class AgentInstructionsAggregator
 
     private function getGlobalHeader(): string
     {
-        return <<<'MD'
+        $mate = $this->invocation;
+
+        return <<<MD
             ## AI Mate Agent Instructions
 
-            AI Mate provides specialized tools for PHP development through the `vendor/bin/mate` CLI.
-            Discover them with `vendor/bin/mate tools:list`, inspect a tool's parameters with
-            `vendor/bin/mate tools:inspect <tool>`, and run one with
-            `vendor/bin/mate tools:call <tool> --<param>=<value>` (add `--format=json` for
+            AI Mate provides specialized tools for PHP development. Always invoke it as
+            `{$mate}`; another interpreter reports on a runtime that is not this
+            application's, and Mate refuses to run under one.
+
+            Discover the tools with `{$mate} tools:list`, inspect a tool's parameters with
+            `{$mate} tools:inspect <tool>`, and run one with
+            `{$mate} tools:call <tool> --<param>=<value>` (add `--format=json` for
             machine-readable output). The following extensions are installed and provide tools you
             should prefer over the equivalent raw shell commands.
             MD;

@@ -227,6 +227,23 @@ Mate
    longer accepts `--type=prompt` and no longer reports a prompt count. Move the content of a
    prompt method into a skill (`mate skills:install`) or into your project's `AGENTS.md`.
 
+ * `mate/config.php` gained two parameters, and `mate init` fills them in. `mate.invocation` is
+   the command your coding agent must use (for example `ddev exec vendor/bin/mate`); it is written
+   into `mate/AGENT_INSTRUCTIONS.md` and the managed `AGENTS.md` block. `mate.php_version` records
+   the runtime, and Mate now refuses to start under a different major.minor, because it would
+   otherwise report on a runtime that is not your application's. Projects that were initialized
+   with an earlier `0.13` build have neither parameter; the defaults (`vendor/bin/mate` and no
+   version check) preserve the previous behavior. Re-run `vendor/bin/mate init` to be asked, or add
+   them by hand:
+
+   ```diff
+    // mate/config.php
+    $container->parameters()
+   +    ->set('mate.invocation', 'ddev exec vendor/bin/mate')
+   +    ->set('mate.php_version', '8.3')
+    ;
+   ```
+
 Platform
 --------
 
@@ -580,7 +597,7 @@ AI Bundle
 ---------
 
  * Agent tools are now opt-in. Previously, when an agent did not configure the `tools` option, all
-   services tagged with `ai.tool` (e.g. classes using the `#[MateTool]` attribute) were injected into
+   services tagged with `ai.tool` (e.g. classes using the `#[AsTool]` attribute) were injected into
    the agent's toolbox. Now an agent without the `tools` option (or with `tools` set to `null` or an
    empty list) gets no toolbox at all. To keep the previous behavior, enable tools explicitly:
 

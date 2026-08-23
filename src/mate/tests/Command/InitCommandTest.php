@@ -101,7 +101,8 @@ final class InitCommandTest extends TestCase
         file_put_contents($this->tempDir.'/mate/extensions.php', '<?php return ["test" => "value"];');
 
         // Decline overwriting the existing extensions.php.
-        $tester->setInputs(['no']);
+        // The first prompt is the agent invocation; the second is the overwrite confirmation.
+        $tester->setInputs(['vendor/bin/mate', 'no']);
         $tester->execute([]);
 
         // File should still contain original content
@@ -121,7 +122,8 @@ final class InitCommandTest extends TestCase
         file_put_contents($this->tempDir.'/mate/extensions.php', '<?php return ["test" => "value"];');
 
         // Confirm overwriting the existing extensions.php.
-        $tester->setInputs(['yes']);
+        // The first prompt is the agent invocation; the second is the overwrite confirmation.
+        $tester->setInputs(['vendor/bin/mate', 'yes']);
         $tester->execute([]);
 
         // File should be overwritten with template content
@@ -130,6 +132,37 @@ final class InitCommandTest extends TestCase
         $this->assertStringNotContainsString('test', $content);
         $this->assertStringContainsString('mate discover', $content);
         $this->assertStringContainsString('enabled', $content);
+    }
+
+    public function testRecordsTheAgentInvocationAndRuntimeInConfig()
+    {
+        $command = $this->createCommand();
+        $tester = new CommandTester($command);
+
+        $tester->setInputs(['ddev exec vendor/bin/mate']);
+        $tester->execute([]);
+
+        $config = file_get_contents($this->tempDir.'/mate/config.php');
+        $this->assertIsString($config);
+        $this->assertStringNotContainsString('##MATE_INVOCATION##', $config);
+        $this->assertStringNotContainsString('##MATE_PHP_VERSION##', $config);
+        $this->assertStringContainsString("'ddev exec vendor/bin/mate'", $config);
+        $this->assertStringContainsString(
+            "'".\PHP_MAJOR_VERSION.'.'.\PHP_MINOR_VERSION."'",
+            $config,
+        );
+    }
+
+    public function testDefaultsTheInvocationToThePlainBinary()
+    {
+        $command = $this->createCommand();
+        $tester = new CommandTester($command);
+
+        $tester->execute([]);
+
+        $config = file_get_contents($this->tempDir.'/mate/config.php');
+        $this->assertIsString($config);
+        $this->assertStringContainsString("'vendor/bin/mate'", $config);
     }
 
     public function testCreatesDirectoryIfNotExists()

@@ -29,6 +29,7 @@ use Symfony\AI\Mate\Command\ToolsCallCommand;
 use Symfony\AI\Mate\Command\ToolsInspectCommand;
 use Symfony\AI\Mate\Command\ToolsListCommand;
 use Symfony\AI\Mate\Exception\UnsupportedVersionException;
+use Symfony\AI\Mate\Runtime\PhpVersionGuard;
 use Symfony\Component\Console\Application;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -42,8 +43,12 @@ final class App
     public const NAME = 'Symfony AI Mate';
     public const VERSION = '0.12.0';
 
-    public static function build(ContainerInterface $container): Application
+    public static function build(ContainerInterface $container, ?string $commandName = null): Application
     {
+        $guard = $container->get(PhpVersionGuard::class);
+        \assert($guard instanceof PhpVersionGuard);
+        $guard->assertMatches($commandName);
+
         $application = new Application(self::NAME, self::VERSION);
 
         $commands = [

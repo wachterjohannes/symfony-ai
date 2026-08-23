@@ -13,6 +13,7 @@ namespace Symfony\AI\Mate\Command;
 
 use HelgeSverre\Toon\Toon;
 use Symfony\AI\Mate\Agent\AgentInstructionsMaterializer;
+use Symfony\AI\Mate\Exception\FileWriteException;
 use Symfony\AI\Mate\Service\FilePermissions;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -41,6 +42,9 @@ class InitCommand extends Command
         'mate/config.php',
     ];
 
+    private string $invocation = 'vendor/bin/mate';
+    private string $phpVersion = '';
+
     public function __construct(
         private string $rootDir,
         private AgentInstructionsMaterializer $instructionsMaterializer,
@@ -67,6 +71,9 @@ class InitCommand extends Command
         $io->newLine();
 
         $actions = [];
+
+        $this->invocation = $this->askInvocation($io);
+        $this->phpVersion = \PHP_MAJOR_VERSION.'.'.\PHP_MINOR_VERSION;
 
         $mateDir = $this->rootDir.'/mate';
         if (!is_dir($mateDir)) {
@@ -109,7 +116,10 @@ class InitCommand extends Command
         $composerActions = $this->updateComposerJson();
         $actions = array_merge($actions, $composerActions);
 
-        $materializationResult = $this->instructionsMaterializer->synchronizeFromCurrentInstructionsFile();
+        // The container was built before mate/config.php existed, so hand the answer in directly.
+        $materializationResult = $this->instructionsMaterializer
+            ->withInvocation($this->invocation)
+            ->synchronizeFromCurrentInstructionsFile();
         if ($materializationResult['agents_file_updated']) {
             $actions[] = ['✓', 'Updated', 'AGENTS.md (AI Mate managed instructions block)'];
         } else {
@@ -154,10 +164,50 @@ class InitCommand extends Command
 
     private function postCopyTemplateAction(string $template, string $destination): void
     {
+        if ('mate/config.php' === $template) {
+            $this->fillConfigPlaceholders($destination);
+        }
+
         // Restrict files that may contain secrets or local configuration so they are not
         // readable by other users on shared hosts.
         if (\in_array($template, self::SENSITIVE_FILES, true)) {
             @chmod($destination, FilePermissions::FILE);
+        }
+    }
+
+    /**
+     * Asks how the coding agent should invoke Mate, defaulting to a container prefix when the
+     * project looks containerized. Running Mate on the host of a containerized application
+     * reports on the wrong runtime, and extensions may then behave differently too.
+     */
+    private function askInvocation(SymfonyStyle $io): string
+    {
+        $default = is_dir($this->rootDir.'/.ddev') ? 'ddev exec vendor/bin/mate' : 'vendor/bin/mate';
+
+        $answer = $io->ask('Which command should your coding agent use to run Mate?', $default);
+
+        if (!\is_string($answer) || '' === trim($answer)) {
+            return $default;
+        }
+
+        return trim($answer);
+    }
+
+    private function fillConfigPlaceholders(string $destination): void
+    {
+        $contents = @file_get_contents($destination);
+        if (false === $contents) {
+            return;
+        }
+
+        $contents = str_replace(
+            ['##MATE_INVOCATION##', "'##MATE_PHP_VERSION##'"],
+            [$this->invocation, "'".$this->phpVersion."'"],
+            $contents,
+        );
+
+        if (false === @file_put_contents($destination, $contents)) {
+            throw new FileWriteException(\sprintf('Failed to write "%s".', $destination));
         }
     }
 
