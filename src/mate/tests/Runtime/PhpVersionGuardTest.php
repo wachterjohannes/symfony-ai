@@ -44,7 +44,7 @@ final class PhpVersionGuardTest extends TestCase
         $guard = new PhpVersionGuard('5.6', 'ddev exec vendor/bin/mate');
 
         $this->expectException(PhpVersionMismatchException::class);
-        $this->expectExceptionMessage('this project expects PHP 5.6');
+        $this->expectExceptionMessage('this project expects PHP "5.6"');
 
         $guard->assertMatches('tools:list');
     }
@@ -64,13 +64,51 @@ final class PhpVersionGuardTest extends TestCase
      */
     public function testExemptCommandsStayCallableUnderAnyVersion()
     {
-        $guard = new PhpVersionGuard('5.6', 'vendor/bin/mate');
+        $guard = new PhpVersionGuard('5.6', 'vendor/bin/mate', static function (string $message): void {});
 
         foreach (['init', 'list', 'help', 'completion', '_complete', null] as $command) {
             $guard->assertMatches($command);
         }
 
         $this->expectNotToPerformAssertions();
+    }
+
+    public function testExemptCommandsWarnAboutTheWrongInterpreter()
+    {
+        $warnings = [];
+        $guard = new PhpVersionGuard('5.6', 'ddev exec vendor/bin/mate', static function (string $message) use (&$warnings): void {
+            $warnings[] = $message;
+        });
+
+        $guard->assertMatches('init');
+
+        $this->assertCount(1, $warnings);
+        $this->assertStringContainsString('this project expects PHP "5.6"', $warnings[0]);
+        $this->assertStringContainsString('ddev exec vendor/bin/mate', $warnings[0]);
+    }
+
+    public function testExemptCommandsDoNotWarnWithoutAConfiguredVersion()
+    {
+        $warnings = [];
+        $guard = new PhpVersionGuard(null, 'vendor/bin/mate', static function (string $message) use (&$warnings): void {
+            $warnings[] = $message;
+        });
+
+        $guard->assertMatches('init');
+
+        $this->assertSame([], $warnings);
+    }
+
+    public function testExemptCommandsDoNotWarnWhenTheVersionMatches()
+    {
+        $warnings = [];
+        $guard = new PhpVersionGuard(\PHP_VERSION, 'vendor/bin/mate', static function (string $message) use (&$warnings): void {
+            $warnings[] = $message;
+        });
+
+        $guard->assertMatches('init');
+
+        $this->assertSame([], $warnings);
     }
 
     #[DataProvider('provideVersionsThatDisableTheCheck')]
