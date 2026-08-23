@@ -17,6 +17,7 @@ use Symfony\AI\Mate\Discovery\Model\DiscoveredCapabilities;
 use Symfony\AI\Mate\Discovery\ReflectionDiscoverer;
 use Symfony\AI\Mate\Tests\Command\Fixtures\SampleResources;
 use Symfony\AI\Mate\Tests\Command\Fixtures\SampleTool;
+use Symfony\AI\Mate\Tests\Discovery\Fixtures\AttributedTool;
 
 /**
  * @author Johannes Wachter <johannes@sulu.io>
@@ -39,6 +40,15 @@ final class ReflectionDiscovererTest extends TestCase
 
         $templates = $capabilities->getResourceTemplates();
         $this->assertArrayHasKey('sample://echo/{message}', $templates);
+    }
+
+    public function testDiscoversToolOnClassCarryingClassConstantAttributes()
+    {
+        $capabilities = $this->discover(['tests/Discovery/Fixtures']);
+
+        $tools = $capabilities->getTools();
+        $this->assertArrayHasKey('attributed-sample', $tools);
+        $this->assertSame(AttributedTool::class, $tools['attributed-sample']->handlerClass);
     }
 
     public function testEmptyDirectoriesYieldNothing()

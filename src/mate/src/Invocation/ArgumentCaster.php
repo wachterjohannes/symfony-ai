@@ -34,6 +34,14 @@ final class ArgumentCaster
             $name = $parameter->getName();
 
             if (\array_key_exists($name, $arguments)) {
+                if ($parameter->isVariadic()) {
+                    foreach ($this->normalizeVariadic($arguments[$name]) as $value) {
+                        $finalArgs[] = $this->cast($value, $parameter);
+                    }
+
+                    continue;
+                }
+
                 $finalArgs[] = $this->cast($arguments[$name], $parameter);
 
                 continue;
@@ -41,12 +49,6 @@ final class ArgumentCaster
 
             if ($parameter->isDefaultValueAvailable()) {
                 $finalArgs[] = $parameter->getDefaultValue();
-
-                continue;
-            }
-
-            if ($parameter->allowsNull()) {
-                $finalArgs[] = null;
 
                 continue;
             }
@@ -59,6 +61,18 @@ final class ArgumentCaster
         }
 
         return $finalArgs;
+    }
+
+    /**
+     * @return list<mixed>
+     */
+    private function normalizeVariadic(mixed $argument): array
+    {
+        if (\is_array($argument)) {
+            return array_values($argument);
+        }
+
+        return [$argument];
     }
 
     private function cast(mixed $argument, \ReflectionParameter $parameter): mixed

@@ -57,6 +57,32 @@ final class ArgumentCasterTest extends TestCase
         $this->caster->build($method, []);
     }
 
+    public function testSpreadsVariadicArguments()
+    {
+        $method = new \ReflectionMethod(SchemaFixture::class, 'variadic');
+
+        $args = $this->caster->build($method, ['ids' => ['1', 2, '3']]);
+
+        $this->assertSame([1, 2, 3], $args);
+    }
+
+    public function testOmittedVariadicArgumentYieldsNoArguments()
+    {
+        $method = new \ReflectionMethod(SchemaFixture::class, 'variadic');
+
+        $this->assertSame([], $this->caster->build($method, []));
+    }
+
+    public function testMissingRequiredNullableArgumentThrows()
+    {
+        $method = new \ReflectionMethod(SchemaFixture::class, 'requiredNullable');
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Missing required argument "needle"');
+
+        $this->caster->build($method, ['haystack' => 'x']);
+    }
+
     public function testInvalidIntegerThrows()
     {
         $method = new \ReflectionMethod(SchemaFixture::class, 'scalars');
