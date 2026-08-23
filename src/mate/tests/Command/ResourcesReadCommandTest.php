@@ -17,6 +17,7 @@ use Psr\Log\NullLogger;
 use Symfony\AI\Mate\Command\ResourcesReadCommand;
 use Symfony\AI\Mate\Discovery\CapabilityRegistry;
 use Symfony\AI\Mate\Discovery\ReflectionDiscoverer;
+use Symfony\AI\Mate\Invocation\HandlerInvoker;
 use Symfony\AI\Mate\Invocation\ResourceReader;
 use Symfony\AI\Mate\Tests\Command\Fixtures\SampleResources;
 use Symfony\Component\Console\Command\Command;
@@ -123,7 +124,7 @@ final class ResourcesReadCommandTest extends TestCase
         $container = new ContainerBuilder();
         $container->set(SampleResources::class, new SampleResources());
 
-        $reader = new ResourceReader($registry, $container);
+        $reader = new ResourceReader($registry, new HandlerInvoker($container));
 
         return new class($reader) extends ResourcesReadCommand {
             protected function isToonFormatAvailable(): bool

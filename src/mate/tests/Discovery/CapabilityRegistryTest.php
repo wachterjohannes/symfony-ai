@@ -17,6 +17,7 @@ use Symfony\AI\Mate\Discovery\CapabilityRegistry;
 use Symfony\AI\Mate\Discovery\ReflectionDiscoverer;
 use Symfony\AI\Mate\Tests\Command\Fixtures\SampleResources;
 use Symfony\AI\Mate\Tests\Command\Fixtures\SampleTool;
+use Symfony\AI\Mate\Tests\Discovery\Fixtures\Shadow\ShadowingTool;
 
 /**
  * @author Johannes Wachter <johannes@sulu.io>
@@ -68,6 +69,43 @@ final class CapabilityRegistryTest extends TestCase
     public function testMatchResourceTemplateReturnsNullWhenNoTemplateMatches()
     {
         $this->assertNull($this->createRegistry()->matchResourceTemplate('unknown://x'));
+    }
+
+    public function testDisabledResourceIsFilteredOut()
+    {
+        $registry = $this->createRegistry([
+            '_custom' => ['sample://greeting' => ['enabled' => false]],
+        ]);
+
+        $this->assertNull($registry->findResource('sample://greeting'));
+    }
+
+    public function testDisabledResourceTemplateIsFilteredOut()
+    {
+        $registry = $this->createRegistry([
+            '_custom' => ['sample://echo/{message}' => ['enabled' => false]],
+        ]);
+
+        $this->assertNull($registry->matchResourceTemplate('sample://echo/hello'));
+    }
+
+    /**
+     * `tools:list` and `tools:inspect` build their maps last-wins, so the lookup used by
+     * `tools:call` has to resolve a shadowed name to the same handler they describe.
+     */
+    public function testACollidingNameResolvesToTheLastExtension()
+    {
+        $logger = new NullLogger();
+        $extensions = [
+            'vendor/first' => ['dirs' => ['tests/Command/Fixtures'], 'includes' => []],
+            '_custom' => ['dirs' => ['tests/Discovery/Fixtures/Shadow'], 'includes' => []],
+        ];
+
+        $registry = new CapabilityRegistry(__DIR__.'/../..', $extensions, [], new ReflectionDiscoverer($logger), $logger);
+
+        $tool = $registry->findTool('sample-add');
+        $this->assertNotNull($tool);
+        $this->assertSame(ShadowingTool::class, $tool->handlerClass);
     }
 
     /**

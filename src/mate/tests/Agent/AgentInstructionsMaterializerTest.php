@@ -187,6 +187,55 @@ MD
         $this->assertSame("# CLAUDE.md\n", file_get_contents($path));
     }
 
+    public function testOrphanStartMarkerDoesNotDestroyUserContent()
+    {
+        $path = $this->tempDir.'/CLAUDE.md';
+        $original = "# CLAUDE.md\n\nUser intro.\n\n"
+            .AgentInstructionsMaterializer::CLAUDE_START_MARKER
+            ."\n\n## Important project rules\n\nRule one.\n";
+        file_put_contents($path, $original);
+
+        $materializer = $this->createMaterializer();
+        for ($run = 0; $run < 3; ++$run) {
+            $result = $materializer->synchronizeFromCurrentInstructionsFile();
+            $this->assertFalse($result['claude_file_updated']);
+        }
+
+        $this->assertSame($original, file_get_contents($path));
+    }
+
+    public function testEndMarkerBeforeStartMarkerDoesNotGrowTheFile()
+    {
+        $path = $this->tempDir.'/CLAUDE.md';
+        $original = "# CLAUDE.md\n\n"
+            .AgentInstructionsMaterializer::CLAUDE_END_MARKER
+            ."\n\ntext\n\n"
+            .AgentInstructionsMaterializer::CLAUDE_START_MARKER
+            ."\n";
+        file_put_contents($path, $original);
+
+        $materializer = $this->createMaterializer();
+        for ($run = 0; $run < 3; ++$run) {
+            $materializer->synchronizeFromCurrentInstructionsFile();
+        }
+
+        $this->assertSame($original, file_get_contents($path));
+    }
+
+    public function testUnbalancedMarkersInAgentsFileAreLeftAlone()
+    {
+        $path = $this->tempDir.'/AGENTS.md';
+        $original = "# AGENTS.md\n\n"
+            .AgentInstructionsMaterializer::AGENTS_START_MARKER
+            ."\n\n## My own rules\n";
+        file_put_contents($path, $original);
+
+        $result = $this->createMaterializer()->synchronizeFromCurrentInstructionsFile();
+
+        $this->assertFalse($result['agents_file_updated']);
+        $this->assertSame($original, file_get_contents($path));
+    }
+
     private function createMaterializer(): AgentInstructionsMaterializer
     {
         $logger = new NullLogger();

@@ -11,4 +11,5 @@ tools over raw shell commands when they cover what you need:
 - `vendor/bin/mate tools:call <tool> --<param>=<value>` — run a tool
 - `vendor/bin/mate resources:read <uri>` — read a resource by URI
 
-Add `--format=json` to any command for machine-readable output.
+Add `--format=json` to the `tools:*`, `resources:read`, `debug:*`, `skills:list` and
+`skills:validate` commands for machine-readable output.

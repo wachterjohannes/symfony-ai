@@ -66,9 +66,9 @@ final class SchemaGenerator
     /**
      * @param ParamTag|null $paramTag
      *
-     * @return array<string, mixed>
+     * @return array<string, mixed>|\stdClass an empty object when the parameter constrains nothing
      */
-    private function buildParameterSchema(\ReflectionParameter $parameter, ?array $paramTag): array
+    private function buildParameterSchema(\ReflectionParameter $parameter, ?array $paramTag): array|\stdClass
     {
         $reflectionType = $parameter->getType();
         $hasDefault = $parameter->isDefaultValueAvailable();
@@ -112,6 +112,12 @@ final class SchemaGenerator
 
         $schema = $this->applyEnumConstraints($schema, $reflectionType);
         $schema = $this->applyArrayConstraints($schema, $typeString, $allowsNull);
+
+        if ([] === $schema) {
+            // `mixed`, untyped and intersection types constrain nothing. An empty PHP array would
+            // encode as `[]`, which is not a valid JSON Schema property object.
+            return new \stdClass();
+        }
 
         return $this->ensureArrayItems($schema);
     }
@@ -326,12 +332,18 @@ final class SchemaGenerator
             $schema['items'] = ['type' => $itemType];
         }
 
+        // Merge rather than replace: `string|array` must keep advertising `string`, which the
+        // runtime accepts. Overwriting the union would make the schema narrower than the code.
+        $types = \is_array($schema['type']) ? $schema['type'] : [$schema['type']];
+        $types[] = 'array';
         if ($allowsNull) {
-            $schema['type'] = ['array', 'null'];
-            sort($schema['type']);
-        } else {
-            $schema['type'] = 'array';
+            $types[] = 'null';
         }
+
+        $types = array_values(array_unique($types));
+        sort($types);
+
+        $schema['type'] = 1 === \count($types) ? $types[0] : $types;
 
         return $schema;
     }

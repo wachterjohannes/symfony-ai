@@ -15,6 +15,7 @@ use PHPUnit\Framework\TestCase;
 use Symfony\AI\Mate\Exception\InvalidArgumentException;
 use Symfony\AI\Mate\Invocation\ArgumentCaster;
 use Symfony\AI\Mate\Tests\Discovery\Fixtures\SampleColor;
+use Symfony\AI\Mate\Tests\Discovery\Fixtures\SampleLevel;
 use Symfony\AI\Mate\Tests\Discovery\Fixtures\SchemaFixture;
 
 /**
@@ -91,6 +92,60 @@ final class ArgumentCasterTest extends TestCase
         $this->expectExceptionMessage('Cannot cast value to integer.');
 
         $this->caster->build($method, ['limit' => 'not-a-number']);
+    }
+
+    public function testRejectsIntegerWithRepeatedSign()
+    {
+        $method = new \ReflectionMethod(SchemaFixture::class, 'scalars');
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Cannot cast value to integer.');
+
+        $this->caster->build($method, ['limit' => '--5']);
+    }
+
+    public function testRejectsNonFiniteNumericString()
+    {
+        $method = new \ReflectionMethod(SchemaFixture::class, 'scalars');
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Cannot cast value to integer.');
+
+        $this->caster->build($method, ['limit' => '1e400']);
+    }
+
+    public function testAcceptsNegativeInteger()
+    {
+        $method = new \ReflectionMethod(SchemaFixture::class, 'scalars');
+
+        $this->assertSame([-5, null, false], $this->caster->build($method, ['limit' => '-5']));
+    }
+
+    public function testCoercesStringToAnIntBackedEnum()
+    {
+        $method = new \ReflectionMethod(SchemaFixture::class, 'withIntEnum');
+
+        $this->assertSame([SampleLevel::High], $this->caster->build($method, ['level' => '2']));
+    }
+
+    public function testRejectsNonNumericValueForAnIntBackedEnum()
+    {
+        $method = new \ReflectionMethod(SchemaFixture::class, 'withIntEnum');
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Invalid value "high"');
+
+        $this->caster->build($method, ['level' => 'high']);
+    }
+
+    public function testRejectsArrayForABooleanWithoutWarnings()
+    {
+        $method = new \ReflectionMethod(SchemaFixture::class, 'withBool');
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Cannot cast value to boolean.');
+
+        $this->caster->build($method, ['flag' => ['a' => 1]]);
     }
 
     public function testCastsBackedEnumFromValue()

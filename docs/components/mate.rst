@@ -139,7 +139,7 @@ for parameter names that collide with a console option, pass a JSON object inste
     $ vendor/bin/mate tools:call monolog-search --term="^GET" --regex
     $ vendor/bin/mate tools:call some-tool --json='{"tags": ["a", "b"]}'
 
-Every command accepts ``--format``. Use ``--format=json`` when the result is parsed, and
+All four accept ``--format``. Use ``--format=json`` when the result is parsed, and
 ``--format=toon`` (requires ``helgesverre/toon``) for the smallest context footprint.
 
 .. note::

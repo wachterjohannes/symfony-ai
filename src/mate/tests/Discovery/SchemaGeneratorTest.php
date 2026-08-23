@@ -78,6 +78,30 @@ final class SchemaGeneratorTest extends TestCase
         $this->assertArrayNotHasKey('required', $schema);
     }
 
+    public function testUnionWithArrayKeepsItsOtherMembers()
+    {
+        $schema = $this->generate('withUnionOfStringAndArray');
+
+        $this->assertSame(['array', 'string'], $schema['properties']['input']['type']);
+    }
+
+    public function testUnconstrainedParameterEncodesAsAnObject()
+    {
+        $schema = $this->generate('withUnconstrainedParameter');
+
+        $encoded = json_encode($schema['properties']['payload']);
+        $this->assertSame('{}', $encoded);
+    }
+
+    public function testVariadicKeepsItsDescription()
+    {
+        $schema = $this->generate('variadic');
+
+        $this->assertSame('array', $schema['properties']['ids']['type']);
+        $this->assertSame(['type' => 'integer'], $schema['properties']['ids']['items']);
+        $this->assertSame('Identifiers to load', $schema['properties']['ids']['description']);
+    }
+
     /**
      * @return array<string, mixed>
      */

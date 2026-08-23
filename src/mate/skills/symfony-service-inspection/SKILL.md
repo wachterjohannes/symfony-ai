@@ -10,7 +10,7 @@ Reads the compiled DI container through Mate's CLI, from the dumped `*DebugConta
 - `symfony-services` (opt `query`, `tag`): `query` is a case-insensitive partial match on service id OR class; `tag` is an exact tag name. Returns a map of `id => class`.
 - `symfony-service-detail --id=<exact id>`: full detail for one service, `{id, class, tags, calls, factory?}`. The id must be exact.
 
-Every command accepts `--format`: `json` to parse the result, `toon` (when `helgesverre/toon` is installed) for the smallest context footprint. The service map can be large, so filter it rather than dumping it wide.
+Both commands accept `--format`: `json` to parse the result, `toon` (when `helgesverre/toon` is installed) for the smallest context footprint. The service map can be large, so filter it rather than dumping it wide.
 
 ## Workflow
 

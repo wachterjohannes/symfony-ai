@@ -59,4 +59,27 @@ final class SchemaFixture
     {
         return '';
     }
+
+    public function withIntEnum(SampleLevel $level): string
+    {
+        return '';
+    }
+
+    public function withBool(bool $flag): string
+    {
+        return '';
+    }
+
+    /**
+     * @param string|list<string> $input Either a single value or a list of them
+     */
+    public function withUnionOfStringAndArray(string|array $input): string
+    {
+        return '';
+    }
+
+    public function withUnconstrainedParameter(mixed $payload): string
+    {
+        return '';
+    }
 }

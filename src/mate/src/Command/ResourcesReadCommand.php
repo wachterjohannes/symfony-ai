@@ -115,7 +115,7 @@ HELP
         $contents = $result['contents'];
 
         if ('json' === $format) {
-            $output->writeln(json_encode($contents, \JSON_PRETTY_PRINT | \JSON_UNESCAPED_SLASHES));
+            $output->writeln(json_encode($contents, \JSON_THROW_ON_ERROR | \JSON_PRETTY_PRINT | \JSON_UNESCAPED_SLASHES));
 
             return Command::SUCCESS;
         }

@@ -11,6 +11,7 @@
 
 namespace Symfony\AI\Mate\Tests;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Finder\Finder;
 
@@ -48,9 +49,7 @@ final class SkillReferenceIntegrityTest extends TestCase
         $this->assertNotSame([], iterator_to_array($this->skillFileProvider()), 'No SKILL.md files found.');
     }
 
-    /**
-     * @dataProvider skillFileProvider
-     */
+    #[DataProvider('skillFileProvider')]
     public function testFrontmatterNameMatchesDirectory(string $dir, string $file)
     {
         $name = $this->frontmatterName((string) file_get_contents($file));
@@ -58,9 +57,7 @@ final class SkillReferenceIntegrityTest extends TestCase
         $this->assertSame(basename($dir), $name, \sprintf('Skill "%s" frontmatter name must equal its directory name.', basename($dir)));
     }
 
-    /**
-     * @dataProvider skillFileProvider
-     */
+    #[DataProvider('skillFileProvider')]
     public function testReferencedToolsExist(string $dir, string $file)
     {
         $content = (string) file_get_contents($file);
@@ -90,9 +87,7 @@ final class SkillReferenceIntegrityTest extends TestCase
         $this->assertSame([], array_values(array_unique($violations)), \sprintf('Skill "%s" references tools that no longer exist.', basename($dir)));
     }
 
-    /**
-     * @dataProvider skillFileProvider
-     */
+    #[DataProvider('skillFileProvider')]
     public function testReferencedResourceUrisAndCollectorsExist(string $dir, string $file)
     {
         $content = (string) file_get_contents($file);
@@ -102,6 +97,11 @@ final class SkillReferenceIntegrityTest extends TestCase
 
         preg_match_all('#[a-z][a-z0-9+.\-]*://[^\s`)]+#', $content, $uris);
         foreach (array_unique($uris[0]) as $uri) {
+            // Documentation links are not resource URIs; the guard is for mistyped Mate schemes.
+            if (str_starts_with($uri, 'http://') || str_starts_with($uri, 'https://')) {
+                continue;
+            }
+
             $normalized = preg_replace('/\{[^}]+\}|<[^>]+>/', 'PH', $uri);
 
             $matched = false;
