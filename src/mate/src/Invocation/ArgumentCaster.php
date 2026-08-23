@@ -66,7 +66,11 @@ final class ArgumentCaster
         // returns a plausible-looking answer computed from different inputs than were asked for.
         $unknown = array_keys(array_diff_key($arguments, $known));
         if ([] !== $unknown) {
-            throw new InvalidArgumentException(\sprintf('Unknown argument%s %s for "%s::%s()". %s', 1 === \count($unknown) ? '' : 's', '"'.implode('", "', $unknown).'"', $method->class, $method->name, [] === $known ? 'It takes no arguments.' : 'Known: "'.implode('", "', array_keys($known)).'".'));
+            $hint = [] === $known
+                ? ' It takes no arguments.'
+                : ' Known: "'.implode('", "', array_keys($known)).'".';
+
+            throw new InvalidArgumentException(\sprintf('Unknown argument "%s" for "%s::%s()".', implode('", "', $unknown), $method->class, $method->name).$hint);
         }
 
         return $finalArgs;

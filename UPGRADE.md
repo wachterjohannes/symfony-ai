@@ -239,7 +239,8 @@ Mate
    the command your coding agent must use (for example `ddev exec vendor/bin/mate`); it is written
    into `mate/AGENT_INSTRUCTIONS.md` and the managed `AGENTS.md` block. `mate.php_version` records
    the runtime, and Mate now refuses to start under a different major.minor, because it would
-   otherwise report on a runtime that is not your application's. Projects that were initialized
+   otherwise report on a runtime that is not your application's. `init`, `list`, `help` and
+   `completion` print a warning instead of refusing. Projects that were initialized
    with an earlier `0.13` build have neither parameter; the defaults (`vendor/bin/mate` and no
    version check) preserve the previous behavior. Re-run `vendor/bin/mate init` to be asked, or add
    them by hand:

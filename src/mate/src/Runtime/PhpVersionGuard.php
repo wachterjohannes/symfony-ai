@@ -27,22 +27,31 @@ final class PhpVersionGuard
 {
     /**
      * Commands that must stay callable under any interpreter: `init` writes the very
-     * configuration this guard reads, and the rest never touch the application.
+     * configuration this guard reads, and the rest never touch the application. They still warn,
+     * so a wrong interpreter is visible before it reaches a command that does refuse.
      */
     private const EXEMPT_COMMANDS = ['init', 'list', 'help', 'completion', '_complete'];
 
+    /**
+     * @var \Closure(string): void
+     */
+    private \Closure $warningWriter;
+
+    /**
+     * @param (\Closure(string): void)|null $warningWriter
+     */
     public function __construct(
         private ?string $expectedVersion,
         private string $invocation,
+        ?\Closure $warningWriter = null,
     ) {
+        $this->warningWriter = $warningWriter ?? static function (string $message): void {
+            fwrite(\STDERR, \PHP_EOL.' [WARNING] '.$message.\PHP_EOL.\PHP_EOL);
+        };
     }
 
     public function assertMatches(?string $commandName): void
     {
-        if (null === $commandName || \in_array($commandName, self::EXEMPT_COMMANDS, true)) {
-            return;
-        }
-
         $expected = $this->normalize($this->expectedVersion);
         if (null === $expected) {
             return;
@@ -53,7 +62,15 @@ final class PhpVersionGuard
             return;
         }
 
-        throw new PhpVersionMismatchException(\sprintf('Mate is running under PHP %s but this project expects PHP %s. Run it as "%s". The expected version is the "mate.php_version" parameter in mate/config.php; remove it to disable this check.', \PHP_VERSION, $expected, $this->invocation));
+        $mismatch = \sprintf('Mate is running under PHP "%s" but this project expects PHP "%s". Run it as "%s".', \PHP_VERSION, $expected, $this->invocation);
+
+        if (null === $commandName || \in_array($commandName, self::EXEMPT_COMMANDS, true)) {
+            ($this->warningWriter)($mismatch.' This command does not read the application, so it runs anyway, but the ones that do will refuse.');
+
+            return;
+        }
+
+        throw new PhpVersionMismatchException($mismatch.' The expected version is the "mate.php_version" parameter in mate/config.php; remove it to disable this check.');
     }
 
     /**

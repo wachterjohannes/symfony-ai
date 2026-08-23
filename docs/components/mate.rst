@@ -241,8 +241,12 @@ does not just fail, it reports on something that is not the application under te
          [ERROR] Mate is running under PHP 8.4.15 but this project expects PHP 8.3.
                  Run it as "ddev exec vendor/bin/mate". ...
 
-    Set the parameter to ``null`` to disable the check. ``mate init`` stays callable under any
-    interpreter, because it is the command that writes this configuration in the first place.
+    Set the parameter to ``null`` to disable the check.
+
+    ``init``, ``list``, ``help`` and ``completion`` stay callable under any interpreter, because
+    ``init`` is the command that writes this configuration in the first place and the others never
+    read the application. They print a warning instead, so a wrong interpreter is visible before it
+    reaches a command that does refuse.
 
 Configuration
 -------------
