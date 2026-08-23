@@ -46,4 +46,17 @@ final class SchemaFixture
     {
         return '';
     }
+
+    /**
+     * @param int ...$ids Identifiers to load
+     */
+    public function variadic(int ...$ids): string
+    {
+        return '';
+    }
+
+    public function requiredNullable(?string $needle, string $haystack): string
+    {
+        return '';
+    }
 }

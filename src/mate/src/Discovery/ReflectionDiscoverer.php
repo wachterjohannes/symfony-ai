@@ -35,6 +35,11 @@ final class ReflectionDiscoverer
     private SchemaGenerator $schemaGenerator;
     private DocBlockParser $docBlockParser;
 
+    /**
+     * @var array<string, DiscoveredCapabilities>
+     */
+    private array $cache = [];
+
     public function __construct(
         ?LoggerInterface $logger = null,
         ?DocBlockParser $docBlockParser = null,
@@ -49,6 +54,19 @@ final class ReflectionDiscoverer
      * @param string[] $directories directories relative to the base path to scan
      */
     public function discover(string $basePath, array $directories): DiscoveredCapabilities
+    {
+        $cacheKey = $basePath.'|'.implode('|', $directories);
+        if (isset($this->cache[$cacheKey])) {
+            return $this->cache[$cacheKey];
+        }
+
+        return $this->cache[$cacheKey] = $this->doDiscover($basePath, $directories);
+    }
+
+    /**
+     * @param string[] $directories
+     */
+    private function doDiscover(string $basePath, array $directories): DiscoveredCapabilities
     {
         $absolutePaths = [];
         foreach ($directories as $dir) {
@@ -69,12 +87,22 @@ final class ReflectionDiscoverer
         try {
             $finder = new Finder();
             $finder->files()->in($absolutePaths)->name('*.php');
-
-            foreach ($finder as $file) {
-                $this->processFile($file, $tools, $resources, $resourceTemplates);
-            }
         } catch (\Throwable $e) {
             $this->logger->error('Error during Mate capability discovery', ['exception' => $e]);
+
+            return new DiscoveredCapabilities();
+        }
+
+        foreach ($finder as $file) {
+            try {
+                $this->processFile($file, $tools, $resources, $resourceTemplates);
+            } catch (\Throwable $e) {
+                // A single unloadable class must not truncate discovery for the whole tree.
+                $this->logger->error('Error while discovering Mate capabilities in file', [
+                    'file' => $file->getPathname(),
+                    'exception' => $e,
+                ]);
+            }
         }
 
         return new DiscoveredCapabilities($tools, $resources, $resourceTemplates);
@@ -211,21 +239,55 @@ final class ReflectionDiscoverer
         $namespace = trim($namespace, '\\');
 
         for ($i = 0; $i < $tokenCount; ++$i) {
-            if (\is_array($tokens[$i]) && \T_CLASS === $tokens[$i][0]) {
-                for ($j = $i + 1; $j < $tokenCount; ++$j) {
-                    if (\is_array($tokens[$j]) && \T_STRING === $tokens[$j][0]) {
-                        $className = '' !== $namespace ? $namespace.'\\'.$tokens[$j][1] : $tokens[$j][1];
+            if (!\is_array($tokens[$i]) || \T_CLASS !== $tokens[$i][0]) {
+                continue;
+            }
 
-                        /* @var class-string $className */
-                        return class_exists($className) ? $className : null;
+            // `Foo::class` also yields a T_CLASS token; only a declaration starts a class name.
+            if (!$this->isClassDeclaration($tokens, $i)) {
+                continue;
+            }
+
+            for ($j = $i + 1; $j < $tokenCount; ++$j) {
+                if (\is_array($tokens[$j]) && \T_STRING === $tokens[$j][0]) {
+                    $className = '' !== $namespace ? $namespace.'\\'.$tokens[$j][1] : $tokens[$j][1];
+
+                    if (!class_exists($className)) {
+                        $this->logger->debug('Discovered class could not be autoloaded', [
+                            'file' => $file->getPathname(),
+                            'class' => $className,
+                        ]);
+
+                        return null;
                     }
-                    if ('{' === $tokens[$j] || '(' === $tokens[$j]) {
-                        break;
-                    }
+
+                    /* @var class-string $className */
+                    return $className;
+                }
+                if ('{' === $tokens[$j] || '(' === $tokens[$j]) {
+                    break;
                 }
             }
         }
 
         return null;
+    }
+
+    /**
+     * @param list<array{int, string, int}|string> $tokens
+     */
+    private function isClassDeclaration(array $tokens, int $index): bool
+    {
+        for ($i = $index - 1; $i >= 0; --$i) {
+            $token = $tokens[$i];
+
+            if (\is_array($token) && \in_array($token[0], [\T_WHITESPACE, \T_COMMENT, \T_DOC_COMMENT], true)) {
+                continue;
+            }
+
+            return !\is_array($token) || \T_DOUBLE_COLON !== $token[0];
+        }
+
+        return true;
     }
 }
