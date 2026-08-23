@@ -42,7 +42,6 @@ final class CapabilityCollectorTest extends TestCase
 
         $this->assertArrayHasKey('tools', $capabilities);
         $this->assertArrayHasKey('resources', $capabilities);
-        $this->assertArrayHasKey('prompts', $capabilities);
         $this->assertArrayHasKey('resource_templates', $capabilities);
     }
 
@@ -60,7 +59,6 @@ final class CapabilityCollectorTest extends TestCase
         // Empty directories should result in empty capability arrays
         $this->assertIsArray($capabilities['tools']);
         $this->assertIsArray($capabilities['resources']);
-        $this->assertIsArray($capabilities['prompts']);
         $this->assertIsArray($capabilities['resource_templates']);
     }
 
@@ -77,7 +75,6 @@ final class CapabilityCollectorTest extends TestCase
 
         $this->assertIsArray($capabilities['tools']);
         $this->assertIsArray($capabilities['resources']);
-        $this->assertIsArray($capabilities['prompts']);
         $this->assertIsArray($capabilities['resource_templates']);
     }
 
@@ -121,27 +118,6 @@ final class CapabilityCollectorTest extends TestCase
             $this->assertArrayHasKey('description', $resource);
             $this->assertArrayHasKey('handler', $resource);
             $this->assertArrayHasKey('mime_type', $resource);
-        }
-    }
-
-    public function testCollectCapabilitiesFormatsPrompts()
-    {
-        $collector = $this->createCollector($this->fixturesDir.'/with-ai-mate-config');
-
-        $extension = [
-            'dirs' => ['mate/src'],
-            'includes' => [],
-        ];
-
-        $capabilities = $collector->collectCapabilities('test/extension', $extension);
-
-        $this->assertIsArray($capabilities['prompts']);
-        foreach ($capabilities['prompts'] as $name => $prompt) {
-            $this->assertIsString($name);
-            $this->assertArrayHasKey('name', $prompt);
-            $this->assertArrayHasKey('description', $prompt);
-            $this->assertArrayHasKey('handler', $prompt);
-            $this->assertArrayHasKey('arguments', $prompt);
         }
     }
 

@@ -200,6 +200,10 @@ Mate
    `uri`/`uriTemplate`, `name`, `title`, `description`, `mimeType` for resources), and input
    schemas are still derived from the method signature plus `@param` PHPDoc.
 
+ * Prompts are gone. There is no Mate equivalent of `#[McpPrompt]`, `debug:capabilities` no
+   longer accepts `--type=prompt` and no longer reports a prompt count. Move the content of a
+   prompt method into a skill (`mate skills:install`) or into your project's `AGENTS.md`.
+
 Platform
 --------
 
@@ -243,6 +247,7 @@ Platform
    +    }
     }
    ```
+
 UPGRADE FROM 0.11 to 0.12
 =========================
 

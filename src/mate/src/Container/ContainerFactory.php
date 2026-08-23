@@ -29,6 +29,8 @@ use Symfony\Component\Dotenv\Dotenv;
  */
 final class ContainerFactory
 {
+    private ?ReflectionDiscoverer $discoverer = null;
+
     public function __construct(
         private string $rootDir,
     ) {
@@ -52,6 +54,11 @@ final class ContainerFactory
         // Remove the logger definition, it's not needed anymore'
         $container->removeDefinition('_build.logger');
         $container->compile(true);
+
+        // Hand the build-time instance to the runtime so discovery is not repeated per invocation.
+        if (null !== $this->discoverer) {
+            $container->set(ReflectionDiscoverer::class, $this->discoverer);
+        }
 
         return $container;
     }
@@ -99,7 +106,11 @@ final class ContainerFactory
      */
     private function registerServices(ContainerBuilder $container, array $extensions, LoggerInterface $logger): void
     {
-        $discoverer = new ReflectionDiscoverer($logger);
+        $discoverer = $this->discoverer = new ReflectionDiscoverer($logger);
+        $container->register(ReflectionDiscoverer::class)
+            ->setSynthetic(true)
+            ->setPublic(true);
+
         foreach ($extensions as $data) {
             $capabilities = $discoverer->discover($this->rootDir, $data['dirs']);
 

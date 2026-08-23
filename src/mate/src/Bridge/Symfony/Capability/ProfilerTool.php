@@ -19,7 +19,7 @@ use Symfony\AI\Mate\Exception\InvalidArgumentException;
 use Symfony\AI\Mate\Exception\RuntimeException;
 
 /**
- * tools for accessing Symfony profiler data.
+ * Tools for accessing Symfony profiler data.
  *
  * @author Johannes Wachter <johannes@sulu.io>
  */

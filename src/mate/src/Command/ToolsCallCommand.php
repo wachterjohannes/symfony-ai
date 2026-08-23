@@ -98,6 +98,11 @@ The <info>%command.name%</info> command executes a tool, passing each of its par
   <comment># Pass complex/array parameters as a JSON object</comment>
   %command.full_name% some-tool --json='{"tags": ["a", "b"]}'
 
+  <comment># --json is also the only way to pass a parameter whose name is taken by this
+  # command or by a global console flag: format, json, help, quiet, verbose, version,
+  # ansi, no-ansi, no-interaction</comment>
+  %command.full_name% some-tool --json='{"format": "csv"}'
+
   <comment># JSON output format for scripting</comment>
   %command.full_name% server-info --format=json
 
@@ -116,12 +121,6 @@ HELP
         $verbose = $output->isVerbose();
 
         [$toolName, $format, $jsonOption, $dynamicParams] = $this->resolveInput($input);
-
-        if (null === $toolName || '' === $toolName) {
-            $io->error('Not enough arguments (missing: "tool-name").');
-
-            return Command::INVALID;
-        }
 
         if (!$this->ensureToonFormatAvailable($io, $format)) {
             return Command::FAILURE;

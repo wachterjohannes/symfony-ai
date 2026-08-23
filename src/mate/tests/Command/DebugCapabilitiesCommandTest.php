@@ -94,7 +94,6 @@ final class DebugCapabilitiesCommandTest extends TestCase
         $this->assertArrayHasKey('extensions', $json['summary']);
         $this->assertArrayHasKey('tools', $json['summary']);
         $this->assertArrayHasKey('resources', $json['summary']);
-        $this->assertArrayHasKey('prompts', $json['summary']);
         $this->assertArrayHasKey('resource_templates', $json['summary']);
     }
 
@@ -121,7 +120,6 @@ final class DebugCapabilitiesCommandTest extends TestCase
         $this->assertArrayHasKey('extensions', $toon['summary']);
         $this->assertArrayHasKey('tools', $toon['summary']);
         $this->assertArrayHasKey('resources', $toon['summary']);
-        $this->assertArrayHasKey('prompts', $toon['summary']);
         $this->assertArrayHasKey('resource_templates', $toon['summary']);
     }
 

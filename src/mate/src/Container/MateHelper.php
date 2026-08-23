@@ -24,8 +24,8 @@ class MateHelper
     /**
      * Disable specific Mate features from one or more extensions.
      *
-     * This function allows you to disable specific tools, resources, prompts, or
-     * resource templates from Mate extensions at a granular level. It is useful for
+     * This function allows you to disable specific tools, resources or resource
+     * templates from Mate extensions at a granular level. It is useful for
      * disabling features that are known to cause issues or are not needed in your
      * project.
      *

@@ -17,7 +17,7 @@ use Symfony\AI\Mate\Bridge\Monolog\Service\LogReader;
 use Symfony\AI\Mate\Encoding\ResponseEncoder;
 
 /**
- * tools for searching and analyzing Monolog log files.
+ * Tools for searching and analyzing Monolog log files.
  *
  * @author Johannes Wachter <johannes@sulu.io>
  */

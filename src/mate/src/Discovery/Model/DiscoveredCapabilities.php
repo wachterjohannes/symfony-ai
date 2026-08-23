@@ -53,13 +53,4 @@ final class DiscoveredCapabilities
     {
         return $this->resourceTemplates;
     }
-
-    public function merge(self $other): self
-    {
-        return new self(
-            array_merge($this->tools, $other->tools),
-            array_merge($this->resources, $other->resources),
-            array_merge($this->resourceTemplates, $other->resourceTemplates),
-        );
-    }
 }

@@ -29,12 +29,6 @@ namespace Symfony\AI\Mate\Discovery;
  *         handler: string,
  *         mime_type: string|null
  *     }>,
- *     prompts: array<string, array{
- *         name: string,
- *         description: string|null,
- *         handler: string,
- *         arguments: array<mixed>|null
- *     }>,
  *     resource_templates: array<string, array{
  *         uri_template: string,
  *         name: string|null,
@@ -95,7 +89,6 @@ final class CapabilityCollector
         return [
             'tools' => $tools,
             'resources' => $resources,
-            'prompts' => [],
             'resource_templates' => $resourceTemplates,
         ];
     }

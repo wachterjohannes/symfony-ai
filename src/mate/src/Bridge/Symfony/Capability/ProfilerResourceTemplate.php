@@ -17,7 +17,7 @@ use Symfony\AI\Mate\Encoding\ResponseEncoder;
 use Symfony\AI\Mate\Exception\RuntimeException;
 
 /**
- * resource templates for accessing Symfony profiler data.
+ * Resource templates for accessing Symfony profiler data.
  *
  * @phpstan-type ProfileResourceData array{
  *     uri: string,
