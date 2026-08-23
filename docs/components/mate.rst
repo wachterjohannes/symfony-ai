@@ -144,11 +144,9 @@ Every command accepts ``--format``. Use ``--format=json`` when the result is par
 
 .. note::
 
-    Mate runs under whichever ``php`` the agent's shell resolves. If your application lives in a
-    container (ddev, Docker, Lando) or the project targets a PHP version that is not the shell
-    default, prefix the invocation accordingly (for example ``ddev exec vendor/bin/mate …``) and
-    record that prefix in your project's ``AGENTS.md``, so the agent uses the same interpreter as
-    the application.
+    ``mate init`` asks which command your agent should use and records it as ``mate.invocation``
+    in ``mate/config.php``, together with the PHP version it was initialized under. See
+    `Choosing the interpreter`_.
 
 Add Custom Tools
 ----------------
@@ -210,6 +208,41 @@ until they are actually needed.
 
 After adding a class under ``mate/src/``, run ``composer dump-autoload`` if the autoloader does not
 know it yet. Verify with ``vendor/bin/mate tools:list``.
+
+Choosing the interpreter
+------------------------
+
+Mate reads the compiled container, the profiler cache and the logs of *this* project, and
+extensions may behave differently per runtime. Running it under the wrong interpreter therefore
+does not just fail, it reports on something that is not the application under test.
+
+``mate init`` asks which command your coding agent should use and writes two parameters into
+``mate/config.php``::
+
+    $container->parameters()
+        ->set('mate.invocation', 'ddev exec vendor/bin/mate')
+        ->set('mate.php_version', '8.3')
+    ;
+
+``mate.invocation``
+    The command the agent must use. It is materialized into ``mate/AGENT_INSTRUCTIONS.md`` and the
+    managed ``AGENTS.md`` block, so the prefix ends up where the agent actually reads it. When a
+    ``.ddev/`` directory is present, ``mate init`` proposes ``ddev exec vendor/bin/mate`` as the
+    default.
+
+``mate.php_version``
+    The PHP version the project runs on, recorded as ``major.minor``. Mate refuses to start under a
+    different one and points at ``mate.invocation`` in the error:
+
+    .. code-block:: terminal
+
+        $ vendor/bin/mate tools:list
+
+         [ERROR] Mate is running under PHP 8.4.15 but this project expects PHP 8.3.
+                 Run it as "ddev exec vendor/bin/mate". ...
+
+    Set the parameter to ``null`` to disable the check. ``mate init`` stays callable under any
+    interpreter, because it is the command that writes this configuration in the first place.
 
 Configuration
 -------------

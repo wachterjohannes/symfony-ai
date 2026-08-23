@@ -38,7 +38,20 @@ final class AgentInstructionsMaterializer
         private string $rootDir,
         private AgentInstructionsAggregator $aggregator,
         private LoggerInterface $logger,
+        private string $invocation = 'vendor/bin/mate',
     ) {
+    }
+
+    /**
+     * @see AgentInstructionsAggregator::withInvocation()
+     */
+    public function withInvocation(string $invocation): self
+    {
+        $clone = clone $this;
+        $clone->invocation = $invocation;
+        $clone->aggregator = $this->aggregator->withInvocation($invocation);
+
+        return $clone;
     }
 
     /**
@@ -281,8 +294,9 @@ final class AgentInstructionsMaterializer
         return implode("\n", [
             self::AGENTS_START_MARKER,
             'AI Mate Summary:',
-            '- Role: project-aware coding tools exposed through the `vendor/bin/mate` CLI.',
-            '- Required action: Read and follow `mate/AGENT_INSTRUCTIONS.md` before taking any action in this project, and prefer `vendor/bin/mate` tools (`tools:list`, `tools:inspect`, `tools:call`) over the equivalent raw shell commands whenever possible.',
+            \sprintf('- Role: project-aware coding tools exposed through the `%s` CLI.', $this->invocation),
+            \sprintf('- Required invocation: always run Mate as `%s`. Another interpreter reports on a runtime that is not this application\'s, and Mate refuses to start under one.', $this->invocation),
+            \sprintf('- Required action: Read and follow `mate/AGENT_INSTRUCTIONS.md` before taking any action in this project, and prefer `%s` tools (`tools:list`, `tools:inspect`, `tools:call`) over the equivalent raw shell commands whenever possible.', $this->invocation),
             '- Installed extensions: '.$this->buildInstalledExtensionsText($extensions),
             self::AGENTS_END_MARKER,
         ]);
@@ -322,12 +336,15 @@ final class AgentInstructionsMaterializer
 
     private function getFallbackInstructions(): string
     {
-        return <<<'TEXT'
+        $mate = $this->invocation;
+
+        return <<<TEXT
 # AI Mate Agent Instructions
 
 No extension-specific instructions are currently available.
-Run `vendor/bin/mate discover` to refresh discovered extensions and instructions.
-Prefer `vendor/bin/mate` tools (`tools:list`, `tools:inspect`, `tools:call`) over equivalent shell commands when possible.
+Always invoke Mate as `{$mate}`; it refuses to start under a different interpreter.
+Run `{$mate} discover` to refresh discovered extensions and instructions.
+Prefer `{$mate}` tools (`tools:list`, `tools:inspect`, `tools:call`) over equivalent shell commands when possible.
 TEXT;
     }
 }

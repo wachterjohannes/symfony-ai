@@ -35,6 +35,7 @@ use Symfony\AI\Mate\Discovery\SchemaGenerator;
 use Symfony\AI\Mate\Invocation\ArgumentCaster;
 use Symfony\AI\Mate\Invocation\ResourceReader;
 use Symfony\AI\Mate\Invocation\ToolInvoker;
+use Symfony\AI\Mate\Runtime\PhpVersionGuard;
 use Symfony\AI\Mate\Service\ExtensionConfigSynchronizer;
 use Symfony\AI\Mate\Service\Logger;
 use Symfony\AI\Mate\Skill\Linker;
@@ -65,6 +66,8 @@ return static function (ContainerConfigurator $container): void {
         ->set('mate.debug_log_file', $debugLogFile)
         ->set('mate.debug_file_enabled', $debugFileEnabled)
         ->set('mate.debug_enabled', $debugEnabled)
+        ->set('mate.php_version', null)
+        ->set('mate.invocation', 'vendor/bin/mate')
     ;
 
     $container->services()
@@ -77,6 +80,7 @@ return static function (ContainerConfigurator $container): void {
             ->bind('$extensions', '%mate.extensions%')
             ->bind('$disabledFeatures', '%mate.disabled_features%')
             ->bind('$enabledExtensions', '%mate.enabled_extensions%')
+            ->bind('$invocation', '%mate.invocation%')
 
         ->set('_build.logger', Logger::class)
             ->private() // To be removed when we compile
@@ -96,6 +100,10 @@ return static function (ContainerConfigurator $container): void {
         ->alias(PsrContainerInterface::class, 'service_container')
 
         ->set(ComposerExtensionDiscovery::class)
+
+        ->set(PhpVersionGuard::class)
+            ->public()
+            ->arg('$expectedVersion', '%mate.php_version%')
 
         // Native discovery pipeline (attribute + reflection based)
         ->set(DocBlockParser::class)

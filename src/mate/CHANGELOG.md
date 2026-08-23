@@ -17,6 +17,7 @@ CHANGELOG
  * Remove the `serve` and `stop` commands and the MCP server runtime (`App` MCP wiring, `ServeCommand`, `StopCommand`, `CliSession`, `RegistryProvider`)
  * Change `mate init` to write CLI-oriented agent instructions instead of generating `mcp.json`/`.mcp.json` and the Codex MCP wrappers (`bin/codex`, `bin/codex.bat`)
  * Remove prompts: there is no native equivalent of `#[McpPrompt]`, and `debug:capabilities` no longer accepts `--type=prompt`
+ * Add `mate.invocation` and `mate.php_version` to `mate/config.php`: `mate init` asks how the coding agent should invoke Mate (defaulting to `ddev exec vendor/bin/mate` when a `.ddev/` directory is present), materializes that command into the agent instructions, and Mate refuses to start under a different PHP major.minor
 
 0.12
 ----

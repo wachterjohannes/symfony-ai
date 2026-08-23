@@ -86,12 +86,22 @@ This matters more than for an ordinary console command, because Mate reads the p
 the compiled container of *this* project. Run under the wrong interpreter, it either fails to start
 or reports something that is not the application under test.
 
-Record the correct invocation in your project's ``AGENTS.md``, outside the managed block, for
-example::
+``mate init`` asks for this and records it, so in most cases you do not have to do anything: it
+proposes ``ddev exec vendor/bin/mate`` when a ``.ddev/`` directory is present, writes the answer to
+``mate.invocation`` in ``mate/config.php``, and materializes it into ``mate/AGENT_INSTRUCTIONS.md``
+and the managed ``AGENTS.md`` block. It also records the PHP version it ran under as
+``mate.php_version``, and Mate refuses to start under a different one rather than reporting on the
+wrong runtime.
 
-    Always run Mate inside the container:
+To change it later, edit the two parameters::
 
-        ddev exec vendor/bin/mate tools:list
+    // mate/config.php
+    $container->parameters()
+        ->set('mate.invocation', 'docker compose exec php vendor/bin/mate')
+        ->set('mate.php_version', '8.3')
+    ;
+
+Then run ``vendor/bin/mate discover`` so the instructions pick the new command up.
 
 Troubleshooting
 ---------------
@@ -147,5 +157,9 @@ Wrong PHP or wrong environment
 
 This reports the PHP version, OS and loaded extensions of the runtime Mate is using. If that is not
 the runtime serving your application, see `Choosing the PHP interpreter`_.
+
+If Mate refuses to start with a PHP version mismatch instead, that is the same problem caught
+earlier: run the command it names, or correct ``mate.php_version`` if the recorded value is the
+wrong one.
 
 For general debugging tips, see the :doc:`troubleshooting` guide.
