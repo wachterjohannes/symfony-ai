@@ -11,7 +11,7 @@
 
 namespace Symfony\AI\Mate\Tests\Command\Fixtures;
 
-use Symfony\AI\Mate\Attribute\AsTool;
+use Symfony\AI\Mate\Attribute\MateTool;
 use Symfony\AI\Mate\Encoding\ResponseEncoder;
 
 /**
@@ -24,7 +24,7 @@ final class SampleTool
      * @param int  $b      Second addend
      * @param bool $negate Negate the result
      */
-    #[AsTool(name: 'sample-add', title: 'Sample Add', description: 'Add two integers')]
+    #[MateTool(name: 'sample-add', title: 'Sample Add', description: 'Add two integers')]
     public function add(int $a, int $b = 0, bool $negate = false): string
     {
         $sum = $a + $b;

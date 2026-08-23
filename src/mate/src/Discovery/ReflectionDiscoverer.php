@@ -13,9 +13,9 @@ namespace Symfony\AI\Mate\Discovery;
 
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
-use Symfony\AI\Mate\Attribute\AsResource;
-use Symfony\AI\Mate\Attribute\AsResourceTemplate;
-use Symfony\AI\Mate\Attribute\AsTool;
+use Symfony\AI\Mate\Attribute\MateResource;
+use Symfony\AI\Mate\Attribute\MateResourceTemplate;
+use Symfony\AI\Mate\Attribute\MateTool;
 use Symfony\AI\Mate\Discovery\Model\DiscoveredCapabilities;
 use Symfony\AI\Mate\Discovery\Model\ResourceDefinition;
 use Symfony\AI\Mate\Discovery\Model\ResourceTemplateDefinition;
@@ -25,7 +25,7 @@ use Symfony\Component\Finder\SplFileInfo;
 
 /**
  * Discovers Mate capabilities by scanning directories for classes whose methods carry
- * `#[AsTool]`, `#[AsResource]`, or `#[AsResourceTemplate]` attributes.
+ * `#[MateTool]`, `#[MateResource]`, or `#[MateResourceTemplate]` attributes.
  *
  * @author Johannes Wachter <johannes@sulu.io>
  */
@@ -122,7 +122,7 @@ final class ReflectionDiscoverer
         $className = $method->getDeclaringClass()->getName();
         $methodName = $method->getName();
 
-        $toolAttribute = $method->getAttributes(AsTool::class)[0] ?? null;
+        $toolAttribute = $method->getAttributes(MateTool::class)[0] ?? null;
         if (null !== $toolAttribute) {
             $instance = $toolAttribute->newInstance();
             $description = $instance->description ?? $this->docBlockParser->getSummary($method->getDocComment());
@@ -138,7 +138,7 @@ final class ReflectionDiscoverer
             return;
         }
 
-        $resourceAttribute = $method->getAttributes(AsResource::class)[0] ?? null;
+        $resourceAttribute = $method->getAttributes(MateResource::class)[0] ?? null;
         if (null !== $resourceAttribute) {
             $instance = $resourceAttribute->newInstance();
             $description = $instance->description ?? $this->docBlockParser->getSummary($method->getDocComment());
@@ -155,7 +155,7 @@ final class ReflectionDiscoverer
             return;
         }
 
-        $templateAttribute = $method->getAttributes(AsResourceTemplate::class)[0] ?? null;
+        $templateAttribute = $method->getAttributes(MateResourceTemplate::class)[0] ?? null;
         if (null !== $templateAttribute) {
             $instance = $templateAttribute->newInstance();
             $description = $instance->description ?? $this->docBlockParser->getSummary($method->getDocComment());

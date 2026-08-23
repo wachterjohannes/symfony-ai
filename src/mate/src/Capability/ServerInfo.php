@@ -11,7 +11,7 @@
 
 namespace Symfony\AI\Mate\Capability;
 
-use Symfony\AI\Mate\Attribute\AsTool;
+use Symfony\AI\Mate\Attribute\MateTool;
 use Symfony\AI\Mate\Encoding\ResponseEncoder;
 
 /**
@@ -20,7 +20,7 @@ use Symfony\AI\Mate\Encoding\ResponseEncoder;
  */
 class ServerInfo
 {
-    #[AsTool(name: 'server-info', title: 'Server Info', description: 'Get PHP runtime environment details: version, OS, OS family, and loaded extensions')]
+    #[MateTool(name: 'server-info', title: 'Server Info', description: 'Get PHP runtime environment details: version, OS, OS family, and loaded extensions')]
     public function getInfo(): string
     {
         return ResponseEncoder::encode([

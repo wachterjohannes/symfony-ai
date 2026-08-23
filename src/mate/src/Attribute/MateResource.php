@@ -18,7 +18,7 @@ namespace Symfony\AI\Mate\Attribute;
  * @author Johannes Wachter <johannes@sulu.io>
  */
 #[\Attribute(\Attribute::TARGET_METHOD)]
-final class AsResource
+final class MateResource
 {
     public function __construct(
         public string $uri,

@@ -13,7 +13,7 @@ namespace Symfony\AI\Mate\Discovery\Model;
 
 /**
  * A discovered Mate resource template, produced from a method carrying the
- * `#[AsResourceTemplate]` attribute.
+ * `#[MateResourceTemplate]` attribute.
  *
  * @author Johannes Wachter <johannes@sulu.io>
  */

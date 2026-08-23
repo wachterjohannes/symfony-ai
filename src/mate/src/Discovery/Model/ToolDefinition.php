@@ -12,7 +12,7 @@
 namespace Symfony\AI\Mate\Discovery\Model;
 
 /**
- * A discovered Mate tool, produced from a method carrying the `#[AsTool]` attribute.
+ * A discovered Mate tool, produced from a method carrying the `#[MateTool]` attribute.
  *
  * @author Johannes Wachter <johannes@sulu.io>
  */

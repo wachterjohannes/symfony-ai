@@ -11,7 +11,7 @@
 
 namespace Symfony\AI\Mate\Bridge\Symfony\Capability;
 
-use Symfony\AI\Mate\Attribute\AsTool;
+use Symfony\AI\Mate\Attribute\MateTool;
 use Symfony\AI\Mate\Bridge\Symfony\Exception\ServiceNotFoundException;
 use Symfony\AI\Mate\Bridge\Symfony\Model\Container;
 use Symfony\AI\Mate\Bridge\Symfony\Service\ContainerProvider;
@@ -48,7 +48,7 @@ class ServiceTool
      * @param string|null $tag     Filter by DI tag name (e.g. kernel.event_listener, twig.extension)
      * @param string|null $context Filter by Symfony kernel context, only relevant when multiple cache directories are configured
      */
-    #[AsTool(name: 'symfony-services', title: 'Symfony Services', description: 'Search Symfony dependency injection container services. Optionally filter by service ID, class name, or tag name. Returns a map of service IDs to their class names. When multiple kernel contexts are configured, the map is nested per context and can be narrowed with the context parameter.')]
+    #[MateTool(name: 'symfony-services', title: 'Symfony Services', description: 'Search Symfony dependency injection container services. Optionally filter by service ID, class name, or tag name. Returns a map of service IDs to their class names. When multiple kernel contexts are configured, the map is nested per context and can be narrowed with the context parameter.')]
     public function getServices(?string $query = null, ?string $tag = null, ?string $context = null): string
     {
         $containers = $this->readContainers($context);
@@ -74,7 +74,7 @@ class ServiceTool
      * @param string      $id      The exact service ID to retrieve details for
      * @param string|null $context Filter by Symfony kernel context, only relevant when multiple cache directories are configured
      */
-    #[AsTool(name: 'symfony-service-detail', title: 'Symfony Service Detail', description: 'Get full details of a single Symfony DI container service by its exact ID, including class, tags, method calls, and constructor/factory information. When multiple kernel contexts are configured, the containers are searched in order and the result carries the context it was found in.')]
+    #[MateTool(name: 'symfony-service-detail', title: 'Symfony Service Detail', description: 'Get full details of a single Symfony DI container service by its exact ID, including class, tags, method calls, and constructor/factory information. When multiple kernel contexts are configured, the containers are searched in order and the result carries the context it was found in.')]
     public function getServiceDetail(string $id, ?string $context = null): string
     {
         $containers = $this->readContainers($context);

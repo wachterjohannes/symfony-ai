@@ -11,15 +11,15 @@
 
 namespace Symfony\AI\Mate\Tests\Command\Fixtures;
 
-use Symfony\AI\Mate\Attribute\AsResource;
-use Symfony\AI\Mate\Attribute\AsResourceTemplate;
+use Symfony\AI\Mate\Attribute\MateResource;
+use Symfony\AI\Mate\Attribute\MateResourceTemplate;
 
 /**
  * @author Johannes Wachter <johannes@sulu.io>
  */
 final class SampleResources
 {
-    #[AsResource(
+    #[MateResource(
         uri: 'sample://greeting',
         name: 'sample-greeting',
         description: 'A static greeting resource for tests',
@@ -33,7 +33,7 @@ final class SampleResources
     /**
      * @return array{uri: string, mimeType: string, text: string}
      */
-    #[AsResourceTemplate(
+    #[MateResourceTemplate(
         uriTemplate: 'sample://echo/{message}',
         name: 'sample-echo',
         description: 'Echoes the message back as a resource',
