@@ -173,6 +173,10 @@ MD
 
     public function testMaterializeReportsFailureWhenClaudeFileIsNotWritable()
     {
+        if (\function_exists('posix_geteuid') && 0 === posix_geteuid()) {
+            $this->markTestSkipped('Running as root ignores file permissions.');
+        }
+
         $path = $this->tempDir.'/CLAUDE.md';
         file_put_contents($path, "# CLAUDE.md\n");
         chmod($path, 0444);

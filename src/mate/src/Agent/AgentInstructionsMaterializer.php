@@ -187,14 +187,23 @@ final class AgentInstructionsMaterializer
             return false;
         }
 
-        if (str_contains($content, 'AGENTS.md')) {
+        $importBlock = $this->buildClaudeImportBlock();
+
+        // Without the markers, any existing `AGENTS.md` reference counts as the user's own
+        // import and is left alone.
+        if (!str_contains($content, self::CLAUDE_START_MARKER) && str_contains($content, 'AGENTS.md')) {
             return true;
         }
 
-        $trimmedContent = trim($content);
-        $updatedContent = $this->buildClaudeImportBlock();
-        if ('' !== $trimmedContent) {
-            $updatedContent = $trimmedContent."\n\n".$updatedContent;
+        $updatedContent = $this->replaceManagedBlock(
+            $content,
+            $importBlock,
+            self::CLAUDE_START_MARKER,
+            self::CLAUDE_END_MARKER,
+        );
+
+        if ($this->normalizeContent($updatedContent) === $content) {
+            return true;
         }
 
         $written = @file_put_contents($path, $this->normalizeContent($updatedContent));
@@ -229,10 +238,14 @@ final class AgentInstructionsMaterializer
         ]);
     }
 
-    private function replaceManagedBlock(string $content, string $managedBlock): string
-    {
-        $startPos = strpos($content, self::AGENTS_START_MARKER);
-        $endPos = strpos($content, self::AGENTS_END_MARKER);
+    private function replaceManagedBlock(
+        string $content,
+        string $managedBlock,
+        string $startMarker = self::AGENTS_START_MARKER,
+        string $endMarker = self::AGENTS_END_MARKER,
+    ): string {
+        $startPos = strpos($content, $startMarker);
+        $endPos = strpos($content, $endMarker);
 
         if (false === $startPos || false === $endPos || $endPos < $startPos) {
             $trimmedContent = trim($content);
@@ -243,7 +256,7 @@ final class AgentInstructionsMaterializer
             return $trimmedContent."\n\n".$managedBlock;
         }
 
-        $endPos += \strlen(self::AGENTS_END_MARKER);
+        $endPos += \strlen($endMarker);
 
         $prefix = rtrim(substr($content, 0, $startPos));
         $suffix = ltrim(substr($content, $endPos));

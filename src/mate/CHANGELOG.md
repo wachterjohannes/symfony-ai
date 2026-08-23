@@ -21,6 +21,7 @@ CHANGELOG
  * Change `tools:call` to accept tool parameters as long options (e.g. `tools:call symfony-profiler-list --limit=1`) with a `--json` escape hatch for complex/array inputs, replacing the positional JSON argument
  * Remove the `serve` and `stop` commands and the MCP server runtime (`App` MCP wiring, `ServeCommand`, `StopCommand`, `CliSession`, `RegistryProvider`)
  * Change `mate init` to write CLI-oriented agent instructions instead of generating `mcp.json`/`.mcp.json` and the Codex MCP wrappers (`bin/codex`, `bin/codex.bat`)
+ * Remove prompts: there is no native equivalent of `#[McpPrompt]`, and `debug:capabilities` no longer accepts `--type=prompt`
 
 0.12
 ----

@@ -35,7 +35,6 @@ use Symfony\Component\Console\Style\SymfonyStyle;
  *         extensions: int,
  *         tools: int,
  *         resources: int,
- *         prompts: int,
  *         resource_templates: int
  *     }
  * }
@@ -78,7 +77,7 @@ class DebugCapabilitiesCommand extends Command
         $this
             ->addOption('format', null, InputOption::VALUE_REQUIRED, 'Output format (text, json, toon)', 'text')
             ->addOption('extension', null, InputOption::VALUE_REQUIRED, 'Filter by extension package name')
-            ->addOption('type', null, InputOption::VALUE_REQUIRED, 'Filter by type (tool, resource, prompt, template)')
+            ->addOption('type', null, InputOption::VALUE_REQUIRED, 'Filter by type (tool, resource, template)')
             ->setHelp(
                 <<<'HELP'
 The <info>%command.name%</info> command displays all discovered capabilities
@@ -168,7 +167,7 @@ HELP
      */
     private function filterByType(array $capabilities, string $type): array
     {
-        $validTypes = ['tool', 'resource', 'prompt', 'template'];
+        $validTypes = ['tool', 'resource', 'template'];
         if (!\in_array($type, $validTypes, true)) {
             throw new InvalidArgumentException(\sprintf('Invalid type "%s". Valid types: "%s"', $type, implode(', ', $validTypes)));
         }
@@ -176,7 +175,6 @@ HELP
         $typeMap = [
             'tool' => 'tools',
             'resource' => 'resources',
-            'prompt' => 'prompts',
             'template' => 'resource_templates',
         ];
 
@@ -199,7 +197,6 @@ HELP
 
         $totalTools = 0;
         $totalResources = 0;
-        $totalPrompts = 0;
         $totalTemplates = 0;
 
         foreach ($capabilitiesByExtension as $extensionName => $capabilities) {
@@ -240,20 +237,6 @@ HELP
                 $totalResources += \count($resources);
             }
 
-            $prompts = $capabilities['prompts'] ?? [];
-            if (\count($prompts) > 0) {
-                $io->text(\sprintf('<info>Prompts (%d)</info>', \count($prompts)));
-                foreach ($prompts as $name => $prompt) {
-                    $io->text(\sprintf('  • %s', $name));
-                    $io->text(\sprintf('    Handler: %s', $prompt['handler']));
-                    if ('' !== ($prompt['description'] ?? '')) {
-                        $io->text(\sprintf('    Description: %s', $prompt['description']));
-                    }
-                }
-                $io->newLine();
-                $totalPrompts += \count($prompts);
-            }
-
             $templates = $capabilities['resource_templates'] ?? [];
             if (\count($templates) > 0) {
                 $io->text(\sprintf('<info>Resource Templates (%d)</info>', \count($templates)));
@@ -273,7 +256,6 @@ HELP
         $io->text(\sprintf('Extensions: %d', \count($capabilitiesByExtension)));
         $io->text(\sprintf('Tools: %d', $totalTools));
         $io->text(\sprintf('Resources: %d', $totalResources));
-        $io->text(\sprintf('Prompts: %d', $totalPrompts));
         $io->text(\sprintf('Templates: %d', $totalTemplates));
     }
 
@@ -286,13 +268,11 @@ HELP
     {
         $totalTools = 0;
         $totalResources = 0;
-        $totalPrompts = 0;
         $totalTemplates = 0;
 
         foreach ($capabilitiesByExtension as $caps) {
             $totalTools += \count($caps['tools'] ?? []);
             $totalResources += \count($caps['resources'] ?? []);
-            $totalPrompts += \count($caps['prompts'] ?? []);
             $totalTemplates += \count($caps['resource_templates'] ?? []);
         }
 
@@ -302,7 +282,6 @@ HELP
                 'extensions' => \count($capabilitiesByExtension),
                 'tools' => $totalTools,
                 'resources' => $totalResources,
-                'prompts' => $totalPrompts,
                 'resource_templates' => $totalTemplates,
             ],
         ];

@@ -15,10 +15,10 @@ Every command accepts `--format`: `json` to parse the result, `toon` (when `helg
 ## Workflow
 
 1. Locate candidates with `symfony-services`, filtered. Never dump the whole container.
-   - By class or interface: `mate tools:call symfony-services --query=MailerInterface`
+   - By class or interface: `vendor/bin/mate tools:call symfony-services --query=MailerInterface`
    - By id fragment: `--query=app.handler`
-   - By tag, to see who participates in a hook: `mate tools:call symfony-services --tag=kernel.event_listener`
-2. Take the exact id from that map and read it: `mate tools:call symfony-service-detail --id=App\\Mailer\\Mailer`.
+   - By tag, to see who participates in a hook: `vendor/bin/mate tools:call symfony-services --tag=kernel.event_listener`
+2. Take the exact id from that map and read it: `vendor/bin/mate tools:call symfony-service-detail --id=App\\Mailer\\Mailer`.
 3. Interpret against the symptom below.
 
 ## Reading
