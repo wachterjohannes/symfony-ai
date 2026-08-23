@@ -90,28 +90,39 @@ final class CapabilityRegistry
         return $this->cache[$cacheKey] = new DiscoveredCapabilities($tools, $resources, $resourceTemplates);
     }
 
+    /**
+     * Resolves to the last extension declaring the name, so that a project's own tool shadows a
+     * vendor one. `_custom` is registered last, and `tools:list`/`tools:inspect` build their maps
+     * the same way; resolving to the first match here would execute a different handler than the
+     * one those commands describe.
+     */
     public function findTool(string $name): ?ToolDefinition
     {
+        $found = null;
         foreach ($this->extensions as $extensionName => $extension) {
             $tools = $this->capabilitiesForExtension($extensionName, $extension)->getTools();
             if (isset($tools[$name])) {
-                return $tools[$name];
+                $found = $tools[$name];
             }
         }
 
-        return null;
+        return $found;
     }
 
+    /**
+     * @see findTool() for why the last match wins
+     */
     public function findResource(string $uri): ?ResourceDefinition
     {
+        $found = null;
         foreach ($this->extensions as $extensionName => $extension) {
             $resources = $this->capabilitiesForExtension($extensionName, $extension)->getResources();
             if (isset($resources[$uri])) {
-                return $resources[$uri];
+                $found = $resources[$uri];
             }
         }
 
-        return null;
+        return $found;
     }
 
     /**

@@ -18,6 +18,8 @@ use Symfony\AI\Mate\Capability\ServerInfo;
 use Symfony\AI\Mate\Command\ToolsCallCommand;
 use Symfony\AI\Mate\Discovery\CapabilityRegistry;
 use Symfony\AI\Mate\Discovery\ReflectionDiscoverer;
+use Symfony\AI\Mate\Exception\InvalidArgumentException;
+use Symfony\AI\Mate\Invocation\HandlerInvoker;
 use Symfony\AI\Mate\Invocation\ToolInvoker;
 use Symfony\AI\Mate\Tests\Command\Fixtures\SampleTool;
 use Symfony\Component\Console\Command\Command;
@@ -139,6 +141,55 @@ final class ToolsCallCommandTest extends TestCase
         $this->assertSame(10, $result['sum']);
     }
 
+    public function testNegativeSeparatedValueIsNotMistakenForAFlag()
+    {
+        $output = $this->runViaArgv(['sample-add', '--a', '-5', '--format=json']);
+
+        $result = json_decode($output, true);
+        $this->assertIsArray($result);
+        $this->assertSame(-5, $result['sum']);
+    }
+
+    public function testValueTakingOptionWithoutAValueIsReported()
+    {
+        $output = $this->runViaArgv(['sample-add', '--a=1', '--b', '--negate', '--format=json']);
+
+        $this->assertStringContainsString('"--b" option requires a value', $output);
+    }
+
+    public function testReservedOptionDoesNotSwallowTheNextOption()
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('The "--format" option requires a value.');
+
+        $this->runViaArgv(['sample-add', '--format', '--a=1']);
+    }
+
+    public function testEndOfOptionsSeparatorIsIgnored()
+    {
+        $output = $this->runViaArgv(['--', 'sample-add', '--a=4', '--format=json']);
+
+        $result = json_decode($output, true);
+        $this->assertIsArray($result);
+        $this->assertSame(4, $result['sum']);
+    }
+
+    public function testToolNameMayFollowAnOption()
+    {
+        $output = $this->runViaArgv(['--a=7', 'sample-add', '--format=json']);
+
+        $result = json_decode($output, true);
+        $this->assertIsArray($result);
+        $this->assertSame(7, $result['sum']);
+    }
+
+    public function testUnknownParameterIsReported()
+    {
+        $output = $this->runViaArgv(['sample-add', '--a=1', '--nope=2', '--format=json']);
+
+        $this->assertStringContainsString('Unknown argument "nope"', $output);
+    }
+
     /**
      * Runs the command with a real ArgvInput so the dynamic `--<param>` parsing is exercised.
      *
@@ -181,7 +232,7 @@ final class ToolsCallCommandTest extends TestCase
         $logger = new NullLogger();
         $discoverer = new ReflectionDiscoverer($logger);
         $registry = new CapabilityRegistry($rootDir, $extensions, [], $discoverer, $logger);
-        $invoker = new ToolInvoker($container);
+        $invoker = new ToolInvoker(new HandlerInvoker($container));
 
         return new class($registry, $invoker) extends ToolsCallCommand {
             protected function isToonFormatAvailable(): bool

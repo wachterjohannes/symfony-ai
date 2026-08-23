@@ -196,9 +196,17 @@ Mate
     public function myTool(int $limit = 10): string { /* ... */ }
    ```
 
-   The attribute shapes are otherwise the same (`name`, `title`, `description` for tools;
+   The parameters are otherwise the same (`name`, `title`, `description` for tools;
    `uri`/`uriTemplate`, `name`, `title`, `description`, `mimeType` for resources), and input
-   schemas are still derived from the method signature plus `@param` PHPDoc.
+   schemas are still derived from the method signature plus `@param` PHPDoc. Two differences to
+   watch for:
+
+   * `name` is **required** on `#[MateTool]`; it no longer defaults to the method name.
+   * The attributes may only be placed on a **method**, no longer on a class.
+
+   Getting either wrong makes the attribute fail to construct, and discovery then skips the whole
+   file with only a log line, so the tools simply stop appearing in `tools:list`. Run
+   `vendor/bin/mate tools:list` after migrating to confirm everything is still there.
 
  * Prompts are gone. There is no Mate equivalent of `#[McpPrompt]`, `debug:capabilities` no
    longer accepts `--type=prompt` and no longer reports a prompt count. Move the content of a

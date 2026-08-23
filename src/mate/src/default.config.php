@@ -33,6 +33,7 @@ use Symfony\AI\Mate\Discovery\DocBlockParser;
 use Symfony\AI\Mate\Discovery\ReflectionDiscoverer;
 use Symfony\AI\Mate\Discovery\SchemaGenerator;
 use Symfony\AI\Mate\Invocation\ArgumentCaster;
+use Symfony\AI\Mate\Invocation\HandlerInvoker;
 use Symfony\AI\Mate\Invocation\ResourceReader;
 use Symfony\AI\Mate\Invocation\ToolInvoker;
 use Symfony\AI\Mate\Runtime\PhpVersionGuard;
@@ -114,6 +115,7 @@ return static function (ContainerConfigurator $container): void {
 
         // Tool/resource invocation
         ->set(ArgumentCaster::class)
+        ->set(HandlerInvoker::class)
         ->set(ToolInvoker::class)
         ->set(ResourceReader::class)
 

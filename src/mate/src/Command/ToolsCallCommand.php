@@ -15,6 +15,7 @@ use HelgeSverre\Toon\Toon;
 use Symfony\AI\Mate\Command\Trait\EnsuresToonFormatAvailabilityTrait;
 use Symfony\AI\Mate\Discovery\CapabilityRegistry;
 use Symfony\AI\Mate\Encoding\ResponseEncoder;
+use Symfony\AI\Mate\Exception\InvalidArgumentException;
 use Symfony\AI\Mate\Invocation\ToolInvoker;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -76,7 +77,9 @@ class ToolsCallCommand extends Command
         $this->ignoreValidationErrors();
 
         $this
-            ->addArgument('tool-name', InputArgument::REQUIRED, 'Name of the tool to execute')
+            // Optional so console validation does not reject `tools:call --limit=1 <tool>`; the raw
+            // token parser resolves the name whatever its position, and execute() reports a miss.
+            ->addArgument('tool-name', InputArgument::OPTIONAL, 'Name of the tool to execute')
             ->addOption('json', null, InputOption::VALUE_REQUIRED, 'Tool parameters as a JSON object (merged under any --<param> options)')
             ->addOption('format', null, InputOption::VALUE_REQUIRED, 'Output format (json, pretty, toon)', 'pretty')
             ->setHelp(
@@ -121,6 +124,12 @@ HELP
         $verbose = $output->isVerbose();
 
         [$toolName, $format, $jsonOption, $dynamicParams] = $this->resolveInput($input);
+
+        if (null === $toolName || '' === $toolName) {
+            $io->error('Not enough arguments (missing: "tool-name").');
+
+            return Command::INVALID;
+        }
 
         if (!$this->ensureToonFormatAvailable($io, $format)) {
             return Command::FAILURE;
@@ -179,7 +188,7 @@ HELP
         }
 
         if ('json' === $format) {
-            $output->writeln(json_encode($result, \JSON_PRETTY_PRINT | \JSON_UNESCAPED_SLASHES));
+            $output->writeln(json_encode($result, \JSON_THROW_ON_ERROR | \JSON_PRETTY_PRINT | \JSON_UNESCAPED_SLASHES));
         } elseif ('toon' === $format) {
             $output->writeln(Toon::encode($result));
         } else {
@@ -288,6 +297,11 @@ HELP
                 continue;
             }
 
+            if ('--' === $token) {
+                // End-of-options separator; the console advertises it in the synopsis.
+                continue;
+            }
+
             if (!str_starts_with($token, '--')) {
                 // Short flags (e.g. -v) carry no tool parameter meaning.
                 continue;
@@ -301,14 +315,14 @@ HELP
 
             if (\in_array($name, self::RESERVED_VALUE_OPTIONS, true)) {
                 if (null === $value) {
-                    $value = $tokens[$i + 1] ?? null;
-                    if (null !== $value) {
-                        ++$i;
+                    $value = $this->takeValue($tokens, $i);
+                    if (null === $value) {
+                        throw new InvalidArgumentException(\sprintf('The "--%s" option requires a value.', $name));
                     }
                 }
-                if ('format' === $name && null !== $value) {
+                if ('format' === $name) {
                     $format = $value;
-                } elseif ('json' === $name) {
+                } else {
                     $json = $value;
                 }
 
@@ -320,19 +334,39 @@ HELP
             }
 
             if (null === $value) {
-                $next = $tokens[$i + 1] ?? null;
-                if (null !== $next && !str_starts_with($next, '-')) {
-                    $value = $next;
-                    ++$i;
-                } else {
-                    $value = true;
-                }
+                // No value in sight means a bare flag. Only a boolean parameter can accept that,
+                // which the caster decides once the tool is known.
+                $value = $this->takeValue($tokens, $i) ?? true;
             }
 
             $params[$name] = $value;
         }
 
         return [$toolName, $format, $json, $params];
+    }
+
+    /**
+     * Consumes the next token as a value when it is not another option, advancing the cursor.
+     *
+     * A leading `-` normally marks an option, but a negative number is a legitimate value and
+     * bridges document relative dates such as `-1 hour`, so those are taken too.
+     *
+     * @param list<string> $tokens
+     */
+    private function takeValue(array $tokens, int &$index): ?string
+    {
+        $next = $tokens[$index + 1] ?? null;
+        if (null === $next) {
+            return null;
+        }
+
+        if (str_starts_with($next, '-') && 1 !== preg_match('/^-\.?\d/', $next)) {
+            return null;
+        }
+
+        ++$index;
+
+        return $next;
     }
 
     private function renderPretty(mixed $result, SymfonyStyle $io): void
@@ -359,7 +393,7 @@ HELP
     private function formatValue(mixed $value): string
     {
         if (\is_array($value)) {
-            return json_encode($value, \JSON_UNESCAPED_SLASHES);
+            return json_encode($value, \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_SLASHES);
         }
 
         if (\is_bool($value)) {

@@ -73,7 +73,10 @@ final class DocBlockParser
             }
 
             $remainder = trim(substr($line, \strlen('@param')));
-            if (1 !== preg_match('/^(?:(?<type>[^$\s]\S*)\s+)?\$(?<name>\w+)\b\s*(?<desc>.*)$/', $remainder, $matches)) {
+            // The type is everything up to the last whitespace before the variable, so array shapes
+            // and generics containing spaces (`array<string, mixed>`, `array{a: int}`) survive, and
+            // a variadic `...$name` is matched too.
+            if (1 !== preg_match('/^(?:(?<type>\S.*?)\s+)?(?:\.\.\.)?\$(?<name>\w+)\b\s*(?<desc>.*)$/', $remainder, $matches)) {
                 continue;
             }
 

@@ -72,7 +72,8 @@ bin/mate tools:call symfony-profiler-list --limit=1   # ... with parameters as o
 bin/mate resources:read <uri>                   # Read a resource by URI
 ```
 
-Every command accepts `--format=json` (also `toon` when `helgesverre/toon` is installed) for
+The `tools:*`, `resources:read`, `debug:*`, `skills:list` and `skills:validate` commands accept
+`--format=json` (also `toon` when `helgesverre/toon` is installed) for
 machine-readable output.
 
 ## Agent Instructions Materialization

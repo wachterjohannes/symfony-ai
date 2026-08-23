@@ -18,6 +18,14 @@ CHANGELOG
  * Change `mate init` to write CLI-oriented agent instructions instead of generating `mcp.json`/`.mcp.json` and the Codex MCP wrappers (`bin/codex`, `bin/codex.bat`)
  * Remove prompts: there is no native equivalent of `#[McpPrompt]`, and `debug:capabilities` no longer accepts `--type=prompt`
  * Add `mate.invocation` and `mate.php_version` to `mate/config.php`: `mate init` asks how the coding agent should invoke Mate (defaulting to `ddev exec vendor/bin/mate` when a `.ddev/` directory is present), materializes that command into the agent instructions, and Mate refuses to start under a different PHP major.minor
+ * Fix `tools:call` argument parsing: a negative value (`--a -5`, `--from "-1 hour"`) is no longer mistaken for a flag, `--` is ignored, `--format`/`--json` no longer swallow the next option, the tool name may follow an option, and a value-taking option used as a bare flag is reported instead of silently coerced
+ * Fix unknown tool arguments being silently dropped; a name the handler does not declare is now reported
+ * Fix `@param` tags with array shapes or generics containing spaces (`array<string, mixed>`, `array{a: int}`) and variadic `...$name` being dropped, which lost both the type and the description from the generated schema
+ * Fix a union containing `array` losing its other members in the generated schema, and an unconstrained parameter encoding as `[]` instead of `{}`
+ * Fix integer casting accepting `--5`/`1e400`, enum casting raising a `TypeError` for int-backed enums, and boolean casting warning on non-scalars
+ * Fix a shadowed tool name resolving to a different handler than `tools:list`/`tools:inspect` describe
+ * Fix `AGENTS.md`/`CLAUDE.md` with unbalanced managed-block markers being appended to and then overwritten; Mate now refuses to write and logs instead
+ * Fix root-project tool handlers not being registered as services when no extension is enabled, and report an unwired handler instead of constructing it blindly
 
 0.12
 ----

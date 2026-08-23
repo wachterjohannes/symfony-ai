@@ -158,6 +158,14 @@ final class AgentInstructionsMaterializer
         }
 
         $updatedContent = $this->replaceManagedBlock($content, $managedBlock);
+        if (null === $updatedContent) {
+            $this->logger->warning('Refusing to update AGENTS.md: the managed block markers are unbalanced or out of order. Fix them by hand so the block can be replaced safely.', [
+                'path' => $path,
+            ]);
+
+            return false;
+        }
+
         $written = @file_put_contents($path, $this->normalizeContent($updatedContent));
         if (false === $written) {
             $this->logger->warning('Failed to update AGENTS.md file', [
@@ -215,6 +223,14 @@ final class AgentInstructionsMaterializer
             self::CLAUDE_END_MARKER,
         );
 
+        if (null === $updatedContent) {
+            $this->logger->warning('Refusing to update CLAUDE.md: the managed import markers are unbalanced or out of order. Fix them by hand so the block can be replaced safely.', [
+                'path' => $path,
+            ]);
+
+            return false;
+        }
+
         if ($this->normalizeContent($updatedContent) === $content) {
             return true;
         }
@@ -251,22 +267,35 @@ final class AgentInstructionsMaterializer
         ]);
     }
 
+    /**
+     * Returns null when the markers are present but unusable, so the caller can refuse to write.
+     *
+     * Appending in that case is what makes it destructive: the orphan marker plus the appended
+     * one form a span on the next run, and everything the user wrote between them is replaced.
+     */
     private function replaceManagedBlock(
         string $content,
         string $managedBlock,
         string $startMarker = self::AGENTS_START_MARKER,
         string $endMarker = self::AGENTS_END_MARKER,
-    ): string {
-        $startPos = strpos($content, $startMarker);
-        $endPos = strpos($content, $endMarker);
+    ): ?string {
+        $startCount = substr_count($content, $startMarker);
+        $endCount = substr_count($content, $endMarker);
 
-        if (false === $startPos || false === $endPos || $endPos < $startPos) {
+        if (0 === $startCount && 0 === $endCount) {
             $trimmedContent = trim($content);
             if ('' === $trimmedContent) {
                 return $managedBlock;
             }
 
             return $trimmedContent."\n\n".$managedBlock;
+        }
+
+        $startPos = strpos($content, $startMarker);
+        $endPos = strpos($content, $endMarker);
+
+        if (1 !== $startCount || 1 !== $endCount || false === $startPos || false === $endPos || $endPos < $startPos) {
+            return null;
         }
 
         $endPos += \strlen($endMarker);

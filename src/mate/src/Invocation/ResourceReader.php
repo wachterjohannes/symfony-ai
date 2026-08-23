@@ -11,7 +11,6 @@
 
 namespace Symfony\AI\Mate\Invocation;
 
-use Psr\Container\ContainerInterface;
 use Symfony\AI\Mate\Discovery\CapabilityRegistry;
 use Symfony\AI\Mate\Exception\ResourceNotFoundException;
 
@@ -26,14 +25,10 @@ use Symfony\AI\Mate\Exception\ResourceNotFoundException;
  */
 final class ResourceReader
 {
-    private ArgumentCaster $caster;
-
     public function __construct(
         private CapabilityRegistry $registry,
-        private ContainerInterface $container,
-        ?ArgumentCaster $caster = null,
+        private HandlerInvoker $handlerInvoker,
     ) {
-        $this->caster = $caster ?? new ArgumentCaster();
     }
 
     /**
@@ -73,26 +68,7 @@ final class ResourceReader
      */
     private function invoke(string $handlerClass, string $handlerMethod, array $arguments): mixed
     {
-        $method = new \ReflectionMethod($handlerClass, $handlerMethod);
-        $instance = $this->resolveInstance($handlerClass);
-        $args = $this->caster->build($method, $arguments);
-
-        return $method->invokeArgs($instance, $args);
-    }
-
-    /**
-     * @param class-string $className
-     */
-    private function resolveInstance(string $className): object
-    {
-        if ($this->container->has($className)) {
-            $instance = $this->container->get($className);
-            if (\is_object($instance)) {
-                return $instance;
-            }
-        }
-
-        return new $className();
+        return $this->handlerInvoker->call($handlerClass, $handlerMethod, $arguments);
     }
 
     /**
@@ -112,7 +88,7 @@ final class ResourceReader
             return [[
                 'uri' => $uri,
                 'mimeType' => $mimeType ?? 'text/plain',
-                'text' => (string) json_encode($result, \JSON_UNESCAPED_SLASHES),
+                'text' => json_encode($result, \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_SLASHES),
             ]];
         }
 
@@ -139,7 +115,7 @@ final class ResourceReader
         return [[
             'uri' => $uri,
             'mimeType' => $mimeType ?? 'text/plain',
-            'text' => (string) json_encode($result, \JSON_UNESCAPED_SLASHES),
+            'text' => json_encode($result, \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_SLASHES),
         ]];
     }
 
@@ -167,7 +143,7 @@ final class ResourceReader
             return $normalized;
         }
 
-        $normalized['text'] = (string) json_encode($content, \JSON_UNESCAPED_SLASHES);
+        $normalized['text'] = json_encode($content, \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_SLASHES);
 
         return $normalized;
     }

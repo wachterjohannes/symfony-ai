@@ -80,9 +80,12 @@ final class ContainerFactory
         $enabledExtensions = $this->getEnabledExtensions();
         $container->setParameter('mate.enabled_extensions', $enabledExtensions);
         if ([] === $enabledExtensions) {
-            $container->setParameter('mate.extensions', [
-                '_custom' => $extensionDiscovery->discoverRootProject(),
-            ]);
+            // The root project still contributes tools, so its handlers need registering here too;
+            // otherwise whether a user's own tool is wired depends on some unrelated vendor
+            // extension happening to be enabled.
+            $rootOnly = ['_custom' => $extensionDiscovery->discoverRootProject()];
+            $this->registerServices($container, $rootOnly, $logger);
+            $container->setParameter('mate.extensions', $rootOnly);
 
             return;
         }

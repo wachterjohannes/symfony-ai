@@ -77,4 +77,22 @@ final class DocBlockParserTest extends TestCase
 
         $this->assertSame(['type' => null, 'description' => 'Some value'], $tags['value']);
     }
+
+    public function testKeepsArrayShapeTypesThatContainSpaces()
+    {
+        $tags = (new DocBlockParser())->getParamTags(<<<'DOC'
+            /**
+             * @param array<string, mixed> $context The request context
+             * @param array{name: string, age: int} $shape A shape
+             * @param int ...$ids Identifiers to load
+             */
+            DOC);
+
+        $this->assertSame('array<string, mixed>', $tags['context']['type']);
+        $this->assertSame('The request context', $tags['context']['description']);
+        $this->assertSame('array{name: string, age: int}', $tags['shape']['type']);
+        $this->assertSame('A shape', $tags['shape']['description']);
+        $this->assertSame('int', $tags['ids']['type']);
+        $this->assertSame('Identifiers to load', $tags['ids']['description']);
+    }
 }
