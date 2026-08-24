@@ -141,8 +141,8 @@ class InitCommand extends Command
             'Next steps:',
             '  1. Run "composer dump-autoload" to register the Mate\\ autoloader',
             '  2. Add custom tools to mate/src/ (public methods with the #[MateTool] attribute)',
-            '  3. Point your coding agent at the CLI — it reads mate/AGENT_INSTRUCTIONS.md and runs',
-            '     "vendor/bin/mate tools:list", "tools:inspect <tool>" and "tools:call <tool> --<param>=<value>"',
+            '  3. Point your coding agent at the CLI; it reads mate/AGENT_INSTRUCTIONS.md and runs',
+            \sprintf('     "%s tools:list", "tools:inspect <tool>" and "tools:call <tool> --<param>=<value>"', $this->invocation),
         ]);
 
         if (!class_exists(Toon::class)) {

@@ -34,21 +34,21 @@ package versions. Use Composer for those.
 - **A family:** `composer show 'symfony/ai-*'` → every matching package and its version.
 - **Machine-readable:** `composer show --format=json symfony/console`.
 - **No Composer binary, or you want the raw record:** look the package up by `name` under
-  `packages` in `composer.lock` and read its `version` field — do not load the whole lock
+  `packages` in `composer.lock` and read its `version` field, but do not load the whole lock
   file into context.
 
 Monorepo / path-repo note: locally linked packages (for example symlinked `symfony/ai-*`
-in this repository) report `dev-main` or a path reference instead of a semver tag — that
+in this repository) report `dev-main` or a path reference instead of a semver tag, and that
 is the working copy, not a released version.
 
 ## Diagnosing a version mismatch
 
-1. Identify the package behind the failing API — the namespace usually maps to it
+1. Identify the package behind the failing API; the namespace usually maps to it
    (`Symfony\Component\Console\…` → `symfony/console`).
 2. Read the **installed** version with `composer show <package>` (or from `composer.lock`).
 3. Compare it against the version the code expects: a method or argument added in a newer
    minor, or removed/renamed in a newer major, is the classic signature.
-4. Report the gap precisely — name the package, the installed version, and the required
+4. Report the gap precisely: name the package, the installed version, and the required
    one: *"symfony/console is 6.4 (installed), but the code calls a 7.1 API."*
 
 ## Rules
@@ -56,6 +56,6 @@ is the working copy, not a released version.
 - Reach for `composer show` first; it is cheaper and more structured than reading
   `composer.lock` wholesale.
 - Report only the *one or two* facts that change the diagnosis (e.g. "symfony/console is
-  6.4, the code uses a 7.1 API") — never the entire lock file.
+  6.4, the code uses a 7.1 API"), never the entire lock file.
 - Never run state-changing commands. `composer show` is read-only; `composer require`,
   `composer update`, and `composer install` are not. This skill is read-only inspection.

@@ -562,7 +562,7 @@ avoid clashing with skills you maintain from other sources; the ``name`` in the 
   reads its own directory.
 
 Both folders are generated output: ``skills:install`` is an idempotent reconciler that rebuilds them
-from source on every run and prunes skills that are gone or disabled. Do not edit them by hand — your
+from source on every run and prunes skills that are gone or disabled. Do not edit them by hand, your
 changes are overwritten on the next run and reported as errors by ``mate skills:validate``.
 
 Skills are **copied, never symlinked into** ``vendor/``. What your agent loads is a real file you can
@@ -579,11 +579,11 @@ All skill state lives in ``mate/extensions.php``. Two keys per skill carry your 
   never writes into ``mate/skills/``. Use ``mate skills:override <name>`` to switch, and
   ``mate skills:reset <name>`` to hand the skill back.
 
-The ``skills:*`` commands set both for you, which is the recommended way to change them — they also
+The ``skills:*`` commands set both for you, which is the recommended way to change them, and they also
 reinstall, so the recorded state below never falls out of step with your intent. Editing the two keys
 by hand works as well; the next install picks the change up.
 
-Everything else is written by Mate and rewritten on every install — the resulting ``state``
+Everything else is written by Mate and rewritten on every install; the resulting ``state``
 (``managed``, ``override`` or ``disabled``), the ``source`` it was built from, the ``source_hash``
 and ``hash`` pair used to detect drift, and the generated ``targets``::
 

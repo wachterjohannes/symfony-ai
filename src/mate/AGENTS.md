@@ -22,9 +22,9 @@ not use MCP and does not integrate with the AI Bundle.
 - **ToolInvoker** / **ResourceReader**: Resolve the handler from the DI container and invoke it
 
 ### Attributes
-- `Symfony\AI\Mate\Attribute\MateTool` — marks a method as a CLI tool (params `name`, `title`, `description`)
-- `Symfony\AI\Mate\Attribute\MateResource` — marks a method as a static resource
-- `Symfony\AI\Mate\Attribute\MateResourceTemplate` — marks a method as a templated resource
+- `Symfony\AI\Mate\Attribute\MateTool`: marks a method as a CLI tool (params `name`, `title`, `description`)
+- `Symfony\AI\Mate\Attribute\MateResource`: marks a method as a static resource
+- `Symfony\AI\Mate\Attribute\MateResourceTemplate`: marks a method as a templated resource
 
 ### Key Directories
 - `src/Command/`: CLI commands (init, discover, clear-cache, debug:*, tools:*, resources:read)
@@ -120,7 +120,7 @@ By default, `mate init` sets `extension: false` in `composer.json` so vendor pac
 ## Tool & Resource Design Principles
 
 Every tool and resource in Mate serves one purpose: giving an AI assistant exactly the context
-it needs to act — no more, no less. The data sources Mate taps into (profiler, container,
+it needs to act, no more and no less. The data sources Mate taps into (profiler, container,
 logs, …) expose far more information than any AI needs in one turn. The tool layer's job is
 to distill that information, not relay it.
 
@@ -137,7 +137,7 @@ tool must earn its place by changing what the AI would diagnose or decide.
 
 Tools that can return unbounded data (log lines, queries, events, services, …) must enforce
 a hard upper limit and signal when the result is truncated. The AI can ask again with a
-narrower filter — it cannot unsee a 50 KB context dump.
+narrower filter, but it cannot unsee a 50 KB context dump.
 
 Always pair a truncation limit with a `_truncated: bool` (or equivalent) so the AI knows
 it is reasoning over a sample, not the full picture.
