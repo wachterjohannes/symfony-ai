@@ -130,7 +130,7 @@ final class ArgumentCaster
         } catch (InvalidArgumentException $e) {
             // The casters see a bare value; naming the option and the value it came from is what
             // lets a caller correct the call instead of guessing which one was rejected.
-            throw new InvalidArgumentException(\sprintf('Invalid value %s for "--%s": %s', $this->describe($argument), $parameter->getName(), $e->getMessage()), 0, $e);
+            throw new InvalidArgumentException('Invalid value '.$this->describe($argument).\sprintf(' for "--%s": ', $parameter->getName()).$e->getMessage(), 0, $e);
         }
     }
 
