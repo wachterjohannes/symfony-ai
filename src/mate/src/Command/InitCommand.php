@@ -164,8 +164,10 @@ class InitCommand extends Command
 
     private function postCopyTemplateAction(string $template, string $destination): void
     {
-        if ('mate/config.php' === $template) {
-            $this->fillConfigPlaceholders($destination);
+        // Both templates name the command the agent has to type, and AGENTS.md is about to
+        // promise that same command. A stale `vendor/bin/mate` here would contradict it.
+        if (\in_array($template, ['mate/config.php', 'mate/AGENT_INSTRUCTIONS.md'], true)) {
+            $this->fillPlaceholders($destination);
         }
 
         // Restrict files that may contain secrets or local configuration so they are not
@@ -193,7 +195,7 @@ class InitCommand extends Command
         return trim($answer);
     }
 
-    private function fillConfigPlaceholders(string $destination): void
+    private function fillPlaceholders(string $destination): void
     {
         $contents = @file_get_contents($destination);
         if (false === $contents) {

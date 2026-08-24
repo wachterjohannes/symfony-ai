@@ -190,6 +190,46 @@ final class ToolsCallCommandTest extends TestCase
         $this->assertStringContainsString('Unknown argument "nope"', $output);
     }
 
+    public function testRejectedValueNamesTheOptionItCameFrom()
+    {
+        $output = $this->runViaArgv(['sample-add', '--a=nope', '--format=json']);
+
+        $this->assertStringContainsString('Invalid value "nope" for "--a"', $output);
+    }
+
+    public function testPlainTextResultIsNotTreatedAsAnEncodedPayload()
+    {
+        $output = $this->runViaArgv(['sample-echo', '--text=hello world', '--format=json']);
+
+        $this->assertSame('hello world', json_decode($output, true));
+    }
+
+    /**
+     * A tool returning the string "42" must not turn into the number 42 on the way out.
+     */
+    public function testNumericTextResultKeepsItsType()
+    {
+        $output = $this->runViaArgv(['sample-echo', '--text=42', '--format=json']);
+
+        $this->assertSame('42', json_decode($output, true));
+    }
+
+    public function testRepeatedOptionFeedsAVariadicParameter()
+    {
+        $output = $this->runViaArgv(['sample-tags', '--sku=A', '--tags=red', '--tags=blue', '--format=json']);
+
+        $result = json_decode($output, true);
+        $this->assertIsArray($result);
+        $this->assertSame(['red', 'blue'], $result['tags']);
+    }
+
+    public function testRepeatedOptionOnASingleValueParameterIsReported()
+    {
+        $output = $this->runViaArgv(['sample-tags', '--sku=A', '--sku=B', '--format=json']);
+
+        $this->assertStringContainsString('takes a single value, but a list of 2 was', $output);
+    }
+
     /**
      * Runs the command with a real ArgvInput so the dynamic `--<param>` parsing is exercised.
      *

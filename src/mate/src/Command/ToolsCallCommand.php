@@ -184,7 +184,7 @@ HELP
         }
 
         if (\is_string($result)) {
-            $result = ResponseEncoder::decode($result);
+            $result = ResponseEncoder::tryDecode($result);
         }
 
         if ('json' === $format) {
@@ -206,7 +206,7 @@ HELP
      * options are supported. Other input types (used in tests) rely on the declared
      * options and the `--json` escape hatch only.
      *
-     * @return array{0: string|null, 1: string, 2: string|null, 3: array<string, string|bool>}
+     * @return array{0: string|null, 1: string, 2: string|null, 3: array<string, string|bool|list<string>>}
      */
     private function resolveInput(InputInterface $input): array
     {
@@ -273,7 +273,7 @@ HELP
     /**
      * @param list<string> $tokens
      *
-     * @return array{0: string|null, 1: string, 2: string|null, 3: array<string, string|bool>}
+     * @return array{0: string|null, 1: string, 2: string|null, 3: array<string, string|bool|list<string>>}
      */
     private function parseRawTokens(array $tokens): array
     {
@@ -337,6 +337,15 @@ HELP
                 // No value in sight means a bare flag. Only a boolean parameter can accept that,
                 // which the caster decides once the tool is known.
                 $value = $this->takeValue($tokens, $i) ?? true;
+            }
+
+            if (\array_key_exists($name, $params)) {
+                // Repeating an option is how a variadic parameter receives more than one value.
+                // Overwriting would drop everything but the last one without saying so.
+                $previous = $params[$name];
+                $params[$name] = \is_array($previous) ? [...$previous, $value] : [$previous, $value];
+
+                continue;
             }
 
             $params[$name] = $value;

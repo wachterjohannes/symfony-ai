@@ -108,18 +108,43 @@ final class ArgumentCaster
 
         $typeName = $type->getName();
 
-        if (enum_exists($typeName)) {
-            return $this->castEnum($argument, $typeName);
+        // A list arrives when the same option was repeated. Only a variadic parameter, which
+        // build() has already spread, or an array one can absorb that.
+        if (\is_array($argument) && !\in_array(strtolower($typeName), ['array', 'iterable', 'mixed'], true)) {
+            throw new InvalidArgumentException(\sprintf('The "--%s" option takes a single value, but a list of %d was given.', $parameter->getName(), \count($argument)));
         }
 
-        return match (strtolower($typeName)) {
-            'int', 'integer' => $this->castInt($argument),
-            'string' => $this->castString($argument),
-            'bool', 'boolean' => $this->castBool($argument),
-            'float', 'double' => $this->castFloat($argument),
-            'array' => $this->castArray($argument),
-            default => $argument,
-        };
+        try {
+            if (enum_exists($typeName)) {
+                return $this->castEnum($argument, $typeName);
+            }
+
+            return match (strtolower($typeName)) {
+                'int', 'integer' => $this->castInt($argument),
+                'string' => $this->castString($argument),
+                'bool', 'boolean' => $this->castBool($argument),
+                'float', 'double' => $this->castFloat($argument),
+                'array' => $this->castArray($argument),
+                default => $argument,
+            };
+        } catch (InvalidArgumentException $e) {
+            // The casters see a bare value; naming the option and the value it came from is what
+            // lets a caller correct the call instead of guessing which one was rejected.
+            throw new InvalidArgumentException(\sprintf('Invalid value %s for "--%s": %s', $this->describe($argument), $parameter->getName(), $e->getMessage()), 0, $e);
+        }
+    }
+
+    private function describe(mixed $argument): string
+    {
+        if (\is_string($argument)) {
+            return '"'.$argument.'"';
+        }
+
+        if (\is_scalar($argument)) {
+            return var_export($argument, true);
+        }
+
+        return get_debug_type($argument);
     }
 
     private function castEnum(mixed $argument, string $typeName): mixed

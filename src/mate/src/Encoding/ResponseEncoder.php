@@ -70,4 +70,22 @@ final class ResponseEncoder
 
         return json_decode($data, true, 512, \JSON_THROW_ON_ERROR);
     }
+
+    /**
+     * Decodes what {@see encode()} produced and returns anything else unchanged.
+     *
+     * A tool may legitimately return plain text, so a caller that cannot know which of the two
+     * it holds must not treat an undecodable string as an error. Only a structure counts as
+     * encoded: without that check the string "42" would come back as the number 42.
+     */
+    public static function tryDecode(string $data): mixed
+    {
+        try {
+            $decoded = self::decode($data);
+        } catch (\Throwable) {
+            return $data;
+        }
+
+        return \is_array($decoded) ? $decoded : $data;
+    }
 }

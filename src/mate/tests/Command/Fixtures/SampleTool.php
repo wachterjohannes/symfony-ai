@@ -34,4 +34,23 @@ final class SampleTool
 
         return ResponseEncoder::encode(['sum' => $sum]);
     }
+
+    /**
+     * @param string $text Text returned verbatim
+     */
+    #[MateTool(name: 'sample-echo', title: 'Sample Echo', description: 'Return plain text')]
+    public function echoText(string $text): string
+    {
+        return $text;
+    }
+
+    /**
+     * @param string $sku     Article number
+     * @param string ...$tags Extra tags
+     */
+    #[MateTool(name: 'sample-tags', title: 'Sample Tags', description: 'Collect variadic tags')]
+    public function tags(string $sku, string ...$tags): string
+    {
+        return ResponseEncoder::encode(['sku' => $sku, 'tags' => $tags]);
+    }
 }

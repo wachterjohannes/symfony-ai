@@ -153,6 +153,28 @@ final class InitCommandTest extends TestCase
         );
     }
 
+    /**
+     * The managed AGENTS.md block promises one command; the file it points at must not name
+     * another one until `discover` happens to run.
+     */
+    public function testWritesTheAgentInvocationIntoTheGeneratedInstructions()
+    {
+        $command = $this->createCommand();
+        $tester = new CommandTester($command);
+
+        $tester->setInputs(['ddev exec vendor/bin/mate']);
+        $tester->execute([]);
+
+        $instructions = file_get_contents($this->tempDir.'/mate/AGENT_INSTRUCTIONS.md');
+        $this->assertIsString($instructions);
+        $this->assertStringNotContainsString('##MATE_INVOCATION##', $instructions);
+        $this->assertStringContainsString('ddev exec vendor/bin/mate tools:list', $instructions);
+
+        $agents = file_get_contents($this->tempDir.'/AGENTS.md');
+        $this->assertIsString($agents);
+        $this->assertStringContainsString('ddev exec vendor/bin/mate', $agents);
+    }
+
     public function testDefaultsTheInvocationToThePlainBinary()
     {
         $command = $this->createCommand();

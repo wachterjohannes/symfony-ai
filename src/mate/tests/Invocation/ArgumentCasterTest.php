@@ -143,7 +143,7 @@ final class ArgumentCasterTest extends TestCase
         $method = new \ReflectionMethod(SchemaFixture::class, 'withBool');
 
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('Cannot cast value to boolean.');
+        $this->expectExceptionMessage('The "--flag" option takes a single value, but a list of 1 was given.');
 
         $this->caster->build($method, ['flag' => ['a' => 1]]);
     }
