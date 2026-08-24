@@ -190,6 +190,17 @@ final class ToolsCallCommandTest extends TestCase
         $this->assertStringContainsString('Unknown argument "nope"', $output);
     }
 
+    /**
+     * `--silent` suppresses all output, so treating it as a tool parameter turned a rejected
+     * unknown argument into a run that printed nothing and failed.
+     */
+    public function testGlobalSilentFlagIsNotTakenForAToolParameter()
+    {
+        $output = $this->runViaArgv(['sample-add', '--a=2', '--b=3', '--silent', '--format=json']);
+
+        $this->assertStringNotContainsString('Unknown argument', $output);
+    }
+
     public function testRejectedValueNamesTheOptionItCameFrom()
     {
         $output = $this->runViaArgv(['sample-add', '--a=nope', '--format=json']);

@@ -136,15 +136,24 @@ Check the actual schema before guessing:
     $ vendor/bin/mate tools:inspect <tool-name>
 
 Values are coerced to the parameter's declared type, so a value that cannot be cast is rejected
-rather than silently passed through. Arrays and other complex values cannot be expressed as a plain
-option; pass them as JSON:
+rather than silently passed through, naming the option and the value it rejected.
+
+A variadic parameter takes the option repeated:
 
 .. code-block:: terminal
 
-    $ vendor/bin/mate tools:call some-tool --json='{"tags": ["a", "b"]}'
+    $ vendor/bin/mate tools:call some-tool --tag=a --tag=b
+
+Repeating an option that is not variadic is an error, so a typo cannot quietly discard the first
+value. Nested or associative values have no option form; pass them as JSON:
+
+.. code-block:: terminal
+
+    $ vendor/bin/mate tools:call some-tool --json='{"filters": {"level": "error"}}'
 
 The same applies to a parameter whose name is taken by a console option (``format``, ``json``,
-``help``, ``quiet``, ``verbose``, ``version``, ``ansi``, ``no-ansi``, ``no-interaction``).
+``help``, ``silent``, ``quiet``, ``verbose``, ``version``, ``ansi``, ``no-ansi``,
+``no-interaction``).
 
 The Output Is Too Large
 ~~~~~~~~~~~~~~~~~~~~~~~

@@ -107,7 +107,7 @@ To disable an extension, set ``enabled`` to ``false``::
 Dependency Injection
 --------------------
 
-Tools, Resources, and Prompts support constructor dependency injection via Symfony's DI Container.
+Tools and resources support constructor dependency injection via Symfony's DI Container.
 Dependencies are automatically resolved and injected.
 
 Configuring Services
@@ -244,7 +244,7 @@ Example opt-out:
     }
 
 Writing Effective Agent Instructions
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Agent instructions help AI assistants understand when and how to use your extension's tools.
 A good ``INSTRUCTIONS.md`` file should:
@@ -444,4 +444,4 @@ If your agent instructions aren't being provided to AI assistants:
 
    Look for ``instructions`` field in the output.
 
-For general server issues and debugging tips, see the :doc:`troubleshooting` guide.
+For general issues and debugging tips, see the :doc:`troubleshooting` guide.

@@ -49,7 +49,7 @@ class ToolsCallCommand extends Command
     /**
      * Global console flags that carry no tool parameter meaning.
      */
-    private const GLOBAL_FLAGS = ['help', 'quiet', 'verbose', 'version', 'ansi', 'no-ansi', 'no-interaction'];
+    private const GLOBAL_FLAGS = ['help', 'silent', 'quiet', 'verbose', 'version', 'ansi', 'no-ansi', 'no-interaction'];
 
     public function __construct(
         private CapabilityRegistry $registry,
@@ -102,8 +102,8 @@ The <info>%command.name%</info> command executes a tool, passing each of its par
   %command.full_name% some-tool --json='{"tags": ["a", "b"]}'
 
   <comment># --json is also the only way to pass a parameter whose name is taken by this
-  # command or by a global console flag: format, json, help, quiet, verbose, version,
-  # ansi, no-ansi, no-interaction</comment>
+  # command or by a global console flag: format, json, help, silent, quiet, verbose,
+  # version, ansi, no-ansi, no-interaction</comment>
   %command.full_name% some-tool --json='{"format": "csv"}'
 
   <comment># JSON output format for scripting</comment>

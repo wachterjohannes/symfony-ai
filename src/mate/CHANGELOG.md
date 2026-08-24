@@ -16,21 +16,9 @@ CHANGELOG
  * Add content checks to `skills:validate`: a warning when SKILL.md links to a file that is not part of the installed skill (failing `--strict` like any other warning), and suggestions when a description is shorter than 40 characters or never says when the skill applies (printed only, never changing the exit code, not even with `--strict`)
  * Add `skills:disable` and `skills:enable` commands: flip `enabled` for a single skill and rebuild or remove its generated folders
  * Add a managed `CLAUDE.md` in the project root to `mate init`/`mate discover` that imports `AGENTS.md` via `@AGENTS.md`, so Claude Code discovers the Mate CLI instructions it would otherwise never read
- * Replace the MCP server with a native CLI: Mate no longer depends on `mcp/sdk` and no longer runs an MCP server. Tools/resources are discovered by reflection from the native `#[MateTool]`, `#[MateResource]` and `#[MateResourceTemplate]` attributes (in `Symfony\AI\Mate\Attribute`), and agents call them through the `mate` CLI directly
- * Rename the tool/resource commands from `mcp:tools:*`/`mcp:resources:read` to `tools:list`, `tools:inspect`, `tools:call` and `resources:read`
- * Change `tools:call` to accept tool parameters as long options (e.g. `tools:call symfony-profiler-list --limit=1`) with a `--json` escape hatch for complex/array inputs, replacing the positional JSON argument
- * Remove the `serve` and `stop` commands and the MCP server runtime (`App` MCP wiring, `ServeCommand`, `StopCommand`, `CliSession`, `RegistryProvider`)
- * Change `mate init` to write CLI-oriented agent instructions instead of generating `mcp.json`/`.mcp.json` and the Codex MCP wrappers (`bin/codex`, `bin/codex.bat`)
- * Remove prompts: there is no native equivalent of `#[McpPrompt]`, and `debug:capabilities` no longer accepts `--type=prompt`
+ * Replace the MCP server with a native CLI: Mate no longer depends on `mcp/sdk`, the `serve` and `stop` commands and the MCP runtime are gone, and `mate init` writes CLI-oriented agent instructions instead of `mcp.json`/`.mcp.json` and the Codex wrappers. Tools and resources are discovered by reflection from the native `#[MateTool]`, `#[MateResource]` and `#[MateResourceTemplate]` attributes in `Symfony\AI\Mate\Attribute`; prompts have no native equivalent and are removed along with `debug:capabilities --type=prompt`
+ * Rename the tool/resource commands from `mcp:tools:*`/`mcp:resources:read` to `tools:list`, `tools:inspect`, `tools:call` and `resources:read`, and change `tools:call` to take tool parameters as long options (`tools:call symfony-profiler-list --limit=1`, repeated for variadic parameters) with `--json` for nested values, replacing the positional JSON argument
  * Add `mate.invocation` and `mate.php_version` to `mate/config.php`: `mate init` asks how the coding agent should invoke Mate (defaulting to `ddev exec vendor/bin/mate` when a `.ddev/` directory is present), materializes that command into the agent instructions, and Mate refuses to start under a different PHP major.minor (`init`, `list`, `help` and `completion` warn instead of refusing)
- * Fix `tools:call` argument parsing: a negative value (`--a -5`, `--from "-1 hour"`) is no longer mistaken for a flag, `--` is ignored, `--format`/`--json` no longer swallow the next option, the tool name may follow an option, and a value-taking option used as a bare flag is reported instead of silently coerced
- * Fix unknown tool arguments being silently dropped; a name the handler does not declare is now reported
- * Fix `@param` tags with array shapes or generics containing spaces (`array<string, mixed>`, `array{a: int}`) and variadic `...$name` being dropped, which lost both the type and the description from the generated schema
- * Fix a union containing `array` losing its other members in the generated schema, and an unconstrained parameter encoding as `[]` instead of `{}`
- * Fix integer casting accepting `--5`/`1e400`, enum casting raising a `TypeError` for int-backed enums, and boolean casting warning on non-scalars
- * Fix a shadowed tool name resolving to a different handler than `tools:list`/`tools:inspect` describe
- * Fix `AGENTS.md`/`CLAUDE.md` with unbalanced managed-block markers being appended to and then overwritten; Mate now refuses to write and logs instead
- * Fix root-project tool handlers not being registered as services when no extension is enabled, and report an unwired handler instead of constructing it blindly
 
 0.12
 ----

@@ -131,13 +131,15 @@ There is nothing to start. Your agent discovers Mate through the instructions wr
     $ vendor/bin/mate resources:read symfony-profiler://profile/<token>
 
 Tool parameters are passed as long options, one per parameter, and coerced to the parameter's
-declared type. Booleans may be passed as a bare flag. For array or otherwise complex values, and
-for parameter names that collide with a console option, pass a JSON object instead:
+declared type. Booleans may be passed as a bare flag, and a variadic parameter collects the option
+repeated. For nested or associative values, and for parameter names that collide with a console
+option, pass a JSON object instead:
 
 .. code-block:: terminal
 
     $ vendor/bin/mate tools:call monolog-search --term="^GET" --regex
-    $ vendor/bin/mate tools:call some-tool --json='{"tags": ["a", "b"]}'
+    $ vendor/bin/mate tools:call some-tool --tag=a --tag=b
+    $ vendor/bin/mate tools:call some-tool --json='{"filters": {"level": "error"}}'
 
 All four accept ``--format``. Use ``--format=json`` when the result is parsed, and
 ``--format=toon`` (requires ``helgesverre/toon``) for the smallest context footprint.
@@ -374,8 +376,10 @@ Container Introspection
 
 **Tools:**
 
-* ``symfony-services`` - List Symfony services from the compiled container and optionally filter by service ID or class name using the ``query`` parameter
-* ``symfony-service-detail`` - Get full details of a single service by its exact ID
+* ``symfony-services`` - Search services in the compiled container, filtered by service ID,
+  class name or tag
+* ``symfony-service-detail`` - Show one service by its exact ID, including class, tags, method
+  calls and constructor or factory information
 
 **Configuration:**
 
@@ -862,13 +866,15 @@ Commands
 
     ``--<param>=<value>``
         One option per tool parameter. Values are coerced to the parameter's declared type.
-        A boolean parameter may be passed as a bare ``--<flag>``.
+        A boolean parameter may be passed as a bare ``--<flag>``. Repeat the option to pass
+        several values to a variadic parameter; repeating it on a single-value parameter is an
+        error rather than a silent last-one-wins.
 
     ``--json=JSON``
         Tool parameters as a JSON object, merged under any ``--<param>`` options. Use this for
-        array or otherwise complex values, and for parameter names shadowed by a console option
-        (``format``, ``json``, ``help``, ``quiet``, ``verbose``, ``version``, ``ansi``,
-        ``no-ansi``, ``no-interaction``).
+        nested or associative values, and for parameter names shadowed by a console option
+        (``format``, ``json``, ``help``, ``silent``, ``quiet``, ``verbose``, ``version``,
+        ``ansi``, ``no-ansi``, ``no-interaction``).
 
     ``--format=FORMAT``
         Output format: ``pretty`` (default), ``json``, or ``toon``.
