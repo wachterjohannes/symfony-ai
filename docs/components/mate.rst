@@ -225,10 +225,12 @@ does not just fail, it reports on something that is not the application under te
     ;
 
 ``mate.invocation``
-    The command the agent must use. It is materialized into ``mate/AGENT_INSTRUCTIONS.md`` and the
-    managed ``AGENTS.md`` block, so the prefix ends up where the agent actually reads it. When a
-    ``.ddev/`` directory is present, ``mate init`` proposes ``ddev exec vendor/bin/mate`` as the
-    default.
+    The full command the agent must use, wrapper included. It is materialized into
+    ``mate/AGENT_INSTRUCTIONS.md`` and the managed ``AGENTS.md`` block, so the prefix ends up where
+    the agent actually reads it. When a ``.ddev/`` directory is present, ``mate init`` proposes
+    ``ddev exec vendor/bin/mate`` as the default. Answering with a wrapper alone is enough,
+    ``symfony php`` is recorded as ``symfony php vendor/bin/mate``. Left at its default, the value
+    is the plain ``vendor/bin/mate`` and nothing is prefixed anywhere.
 
 ``mate.php_version``
     The PHP version the project runs on, recorded as ``major.minor``. Mate refuses to start under a

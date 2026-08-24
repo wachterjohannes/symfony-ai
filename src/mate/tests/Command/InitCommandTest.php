@@ -175,6 +175,40 @@ final class InitCommandTest extends TestCase
         $this->assertStringContainsString('ddev exec vendor/bin/mate', $agents);
     }
 
+    /**
+     * A wrapper on its own is the natural answer to "which command", and materializing it
+     * verbatim would produce "symfony php tools:list", which runs nothing.
+     */
+    public function testCompletesABareWrapperWithTheBinary()
+    {
+        $command = $this->createCommand();
+        $tester = new CommandTester($command);
+
+        $tester->setInputs(['symfony php']);
+        $tester->execute([]);
+
+        $config = file_get_contents($this->tempDir.'/mate/config.php');
+        $this->assertIsString($config);
+        $this->assertStringContainsString("'symfony php vendor/bin/mate'", $config);
+
+        $instructions = file_get_contents($this->tempDir.'/mate/AGENT_INSTRUCTIONS.md');
+        $this->assertIsString($instructions);
+        $this->assertStringContainsString('symfony php vendor/bin/mate tools:list', $instructions);
+    }
+
+    public function testKeepsAnInvocationThatAlreadyNamesTheBinary()
+    {
+        $command = $this->createCommand();
+        $tester = new CommandTester($command);
+
+        $tester->setInputs(['docker compose exec app php bin/mate']);
+        $tester->execute([]);
+
+        $config = file_get_contents($this->tempDir.'/mate/config.php');
+        $this->assertIsString($config);
+        $this->assertStringContainsString("'docker compose exec app php bin/mate'", $config);
+    }
+
     public function testDefaultsTheInvocationToThePlainBinary()
     {
         $command = $this->createCommand();

@@ -42,7 +42,9 @@ class InitCommand extends Command
         'mate/config.php',
     ];
 
-    private string $invocation = 'vendor/bin/mate';
+    private const BINARY = 'vendor/bin/mate';
+
+    private string $invocation = self::BINARY;
     private string $phpVersion = '';
 
     public function __construct(
@@ -184,15 +186,34 @@ class InitCommand extends Command
      */
     private function askInvocation(SymfonyStyle $io): string
     {
-        $default = is_dir($this->rootDir.'/.ddev') ? 'ddev exec vendor/bin/mate' : 'vendor/bin/mate';
+        $default = is_dir($this->rootDir.'/.ddev') ? 'ddev exec '.self::BINARY : self::BINARY;
 
-        $answer = $io->ask('Which command should your coding agent use to run Mate?', $default);
+        $answer = $io->ask(\sprintf('Which command should your coding agent use to run Mate? A wrapper alone ("symfony php", "ddev exec") is enough, "%s" is appended', self::BINARY), $default);
 
         if (!\is_string($answer) || '' === trim($answer)) {
             return $default;
         }
 
-        return trim($answer);
+        return $this->completeInvocation(trim($answer));
+    }
+
+    /**
+     * Accepts a full command as well as a bare wrapper, so that "symfony php" is not materialized
+     * as "symfony php tools:list", which names no binary at all.
+     */
+    private function completeInvocation(string $answer): string
+    {
+        $tokens = preg_split('/\s+/', $answer);
+        if (false === $tokens || [] === $tokens) {
+            return self::BINARY;
+        }
+
+        $last = (string) end($tokens);
+        if (str_contains(basename($last), 'mate')) {
+            return $answer;
+        }
+
+        return $answer.' '.self::BINARY;
     }
 
     private function fillPlaceholders(string $destination): void
