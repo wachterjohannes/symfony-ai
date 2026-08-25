@@ -377,7 +377,10 @@ Container Introspection
 **Tools:**
 
 * ``symfony-services`` - Search services in the compiled container, filtered by service ID,
-  class name or tag
+  class name or tag. Returns the matches under ``services`` together with ``count`` and
+  ``truncated``; at most ``limit`` entries (default 100) are listed, so narrow the filter rather
+  than raising the limit. Both this tool and the next one fail loudly when no container has been
+  dumped yet, instead of answering as if nothing matched
 * ``symfony-service-detail`` - Show one service by its exact ID, including class, tags, method
   calls and constructor or factory information
 

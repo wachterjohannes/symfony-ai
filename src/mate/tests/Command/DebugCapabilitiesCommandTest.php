@@ -18,7 +18,6 @@ use Symfony\AI\Mate\Command\DebugCapabilitiesCommand;
 use Symfony\AI\Mate\Discovery\CapabilityCollector;
 use Symfony\AI\Mate\Discovery\CapabilityRegistry;
 use Symfony\AI\Mate\Discovery\ReflectionDiscoverer;
-use Symfony\AI\Mate\Exception\InvalidArgumentException;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Tester\CommandTester;
 
@@ -154,10 +153,10 @@ final class DebugCapabilitiesCommandTest extends TestCase
         $command = $this->createCommand($rootDir, $extensions);
         $tester = new CommandTester($command);
 
-        $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('Extension "invalid-extension" not found');
-
         $tester->execute(['--extension' => 'invalid-extension']);
+
+        $this->assertSame(Command::FAILURE, $tester->getStatusCode());
+        $this->assertStringContainsString('Extension "invalid-extension" not found', $tester->getDisplay());
     }
 
     public function testExecuteWithTypeFilter()
@@ -187,10 +186,10 @@ final class DebugCapabilitiesCommandTest extends TestCase
         $command = $this->createCommand($rootDir, $extensions);
         $tester = new CommandTester($command);
 
-        $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('Invalid type "invalid-type"');
-
         $tester->execute(['--type' => 'invalid-type']);
+
+        $this->assertSame(Command::FAILURE, $tester->getStatusCode());
+        $this->assertStringContainsString('Invalid type "invalid-type"', $tester->getDisplay());
     }
 
     public function testExecuteWithCombinedFilters()

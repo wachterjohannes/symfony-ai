@@ -14,6 +14,7 @@ namespace Symfony\AI\Mate\Container;
 use Psr\Log\LoggerInterface;
 use Symfony\AI\Mate\Discovery\ComposerExtensionDiscovery;
 use Symfony\AI\Mate\Discovery\ReflectionDiscoverer;
+use Symfony\AI\Mate\Exception\ContainerCompilationException;
 use Symfony\AI\Mate\Exception\MissingDependencyException;
 use Symfony\Component\Config\FileLocator;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
@@ -48,12 +49,12 @@ final class ContainerFactory
         $extensionDiscovery = new ComposerExtensionDiscovery($this->rootDir, $logger);
 
         $this->loadExtensions($container, $extensionDiscovery, $logger);
-        $this->loadUserServices($container, $extensionDiscovery, $logger);
+        $includes = $this->loadUserServices($container, $extensionDiscovery, $logger);
         $this->loadEnvironmentVariables($container);
 
         // Remove the logger definition, it's not needed anymore'
         $container->removeDefinition('_build.logger');
-        $container->compile(true);
+        $this->compile($container, $includes);
 
         // Hand the build-time instance to the runtime so discovery is not repeated per invocation.
         if (null !== $this->discoverer) {
@@ -225,14 +226,19 @@ final class ContainerFactory
         (new Dotenv())->load($this->rootDir.\DIRECTORY_SEPARATOR.$envFile, ...$extra);
     }
 
-    private function loadUserServices(ContainerBuilder $container, ComposerExtensionDiscovery $extensionDiscovery, LoggerInterface $logger): void
+    /**
+     * @return list<string> the service files that were loaded, for use in a compile error
+     */
+    private function loadUserServices(ContainerBuilder $container, ComposerExtensionDiscovery $extensionDiscovery, LoggerInterface $logger): array
     {
         $rootProject = $extensionDiscovery->discoverRootProject();
+        $loaded = [];
 
         $loader = new PhpFileLoader($container, new FileLocator($this->rootDir));
         foreach ($rootProject['includes'] as $include) {
             try {
                 $loader->load($include);
+                $loaded[] = $include;
 
                 $logger->debug('Loaded user services', [
                     'file' => $include,
@@ -243,6 +249,28 @@ final class ContainerFactory
                     'error' => $e->getMessage(),
                 ]);
             }
+        }
+
+        return $loaded;
+    }
+
+    /**
+     * A service file that parses but does not compile is a user mistake, and the compiler reports
+     * it from deep inside the DI internals. Naming the files that were loaded points at the one
+     * place the caller can actually change.
+     *
+     * @param list<string> $includes
+     */
+    private function compile(ContainerBuilder $container, array $includes): void
+    {
+        try {
+            $container->compile(true);
+        } catch (\Throwable $e) {
+            $hint = [] === $includes
+                ? ''
+                : \sprintf(' Check the service definitions in "%s".', implode('", "', $includes));
+
+            throw new ContainerCompilationException('The Mate container could not be compiled: '.$e->getMessage().$hint, 0, $e);
         }
     }
 }

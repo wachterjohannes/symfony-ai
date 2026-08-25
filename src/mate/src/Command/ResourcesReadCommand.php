@@ -13,6 +13,7 @@ namespace Symfony\AI\Mate\Command;
 
 use HelgeSverre\Toon\Toon;
 use Symfony\AI\Mate\Command\Trait\EnsuresToonFormatAvailabilityTrait;
+use Symfony\AI\Mate\Encoding\ResponseEncoder;
 use Symfony\AI\Mate\Exception\ResourceNotFoundException;
 use Symfony\AI\Mate\Invocation\ResourceReader;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -92,7 +93,7 @@ HELP
         $format = $input->getOption('format');
         \assert(\is_string($format));
 
-        if (!$this->ensureToonFormatAvailable($io, $format)) {
+        if (!$this->ensureFormatSupported($io, $format, ['pretty', 'json', 'toon'])) {
             return Command::FAILURE;
         }
 
@@ -115,13 +116,13 @@ HELP
         $contents = $result['contents'];
 
         if ('json' === $format) {
-            $output->writeln(json_encode($contents, \JSON_THROW_ON_ERROR | \JSON_PRETTY_PRINT | \JSON_UNESCAPED_SLASHES));
+            $output->writeln(json_encode($this->decodeContents($contents), \JSON_THROW_ON_ERROR | \JSON_PRETTY_PRINT | \JSON_UNESCAPED_SLASHES));
 
             return Command::SUCCESS;
         }
 
         if ('toon' === $format) {
-            $output->writeln(Toon::encode($contents));
+            $output->writeln(Toon::encode($this->decodeContents($contents)));
 
             return Command::SUCCESS;
         }
@@ -141,6 +142,28 @@ HELP
         }
 
         return Command::SUCCESS;
+    }
+
+    /**
+     * Unwraps an encoded payload so machine-readable output carries structure rather than a
+     * JSON document escaped inside a JSON string, which the caller would have to parse twice.
+     *
+     * @param list<ResourceContent> $contents
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function decodeContents(array $contents): array
+    {
+        $decoded = [];
+        foreach ($contents as $content) {
+            if (isset($content['text']) && \is_string($content['text'])) {
+                $content['text'] = ResponseEncoder::tryDecode($content['text']);
+            }
+
+            $decoded[] = $content;
+        }
+
+        return $decoded;
     }
 
     /**

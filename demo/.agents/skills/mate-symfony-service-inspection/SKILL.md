@@ -1,5 +1,5 @@
 ---
-name: symfony-service-inspection
+name: mate-symfony-service-inspection
 description: Diagnose a Symfony dependency-injection or wiring problem, service not found, wrong implementation injected, an autoconfigured tag not applied, or a factory/decorator not doing what you expect. Use for container/config bugs, not runtime request errors (profiler), log trends (log investigation), or a missing PHP extension breaking the tool itself (php environment check).
 ---
 

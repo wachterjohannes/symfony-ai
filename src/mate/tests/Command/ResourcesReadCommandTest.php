@@ -79,6 +79,39 @@ final class ResourcesReadCommandTest extends TestCase
         $this->assertSame('Hello from the Mate test fixture!', $contents[0]['text']);
     }
 
+    /**
+     * An encoded body has to arrive as structure, not as a JSON document escaped inside a JSON
+     * string, which the caller would have to parse a second time.
+     */
+    public function testReadWithJsonFormatUnwrapsAnEncodedBody()
+    {
+        $tester = new CommandTester($this->createCommand());
+
+        $tester->execute([
+            'uri' => 'sample://payload',
+            '--format' => 'json',
+        ]);
+
+        $this->assertSame(Command::SUCCESS, $tester->getStatusCode());
+
+        $contents = json_decode($tester->getDisplay(), true);
+        $this->assertIsArray($contents);
+        $this->assertSame(['answer' => 42, 'nested' => ['ok' => true]], $contents[0]['text']);
+    }
+
+    public function testUnknownFormatIsRejected()
+    {
+        $tester = new CommandTester($this->createCommand());
+
+        $tester->execute([
+            'uri' => 'sample://greeting',
+            '--format' => 'xml',
+        ]);
+
+        $this->assertSame(Command::FAILURE, $tester->getStatusCode());
+        $this->assertStringContainsString('Unknown output format "xml"', $tester->getDisplay());
+    }
+
     public function testReadWithToonFormat()
     {
         $tester = new CommandTester($this->createCommand());

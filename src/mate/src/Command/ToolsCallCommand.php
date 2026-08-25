@@ -131,7 +131,7 @@ HELP
             return Command::INVALID;
         }
 
-        if (!$this->ensureToonFormatAvailable($io, $format)) {
+        if (!$this->ensureFormatSupported($io, $format, ['pretty', 'json', 'toon'])) {
             return Command::FAILURE;
         }
 

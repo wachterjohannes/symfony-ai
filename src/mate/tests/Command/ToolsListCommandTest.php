@@ -205,6 +205,26 @@ final class ToolsListCommandTest extends TestCase
     }
 
     /**
+     * Falling back to the table for an unknown value answers a request for machine-readable
+     * output with something the caller cannot parse, and reports success while doing it.
+     */
+    public function testUnknownFormatIsRejected()
+    {
+        $rootDir = __DIR__.'/../..';
+        $extensions = [
+            '_custom' => ['dirs' => ['src/Capability'], 'includes' => []],
+        ];
+
+        $tester = new CommandTester($this->createCommand($rootDir, $extensions));
+
+        $tester->execute(['--format' => 'jsonl']);
+
+        $this->assertSame(Command::FAILURE, $tester->getStatusCode());
+        $this->assertStringContainsString('Unknown output format "jsonl"', $tester->getDisplay());
+        $this->assertStringContainsString('"table", "json", "toon"', $tester->getDisplay());
+    }
+
+    /**
      * @param array<string, array{dirs: string[], includes: string[]}> $extensions
      * @param array<string, array<string, array{enabled: bool}>>       $disabledFeatures
      */

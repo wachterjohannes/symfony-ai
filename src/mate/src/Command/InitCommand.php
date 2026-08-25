@@ -96,7 +96,7 @@ class InitCommand extends Command
                 $this->copyTemplate($file, $fullPath);
                 $this->postCopyTemplateAction($file, $fullPath);
                 $actions[] = ['✓', 'Created', $file];
-            } elseif ($io->confirm(\sprintf('<question>%s already exists. Overwrite?</question>', $fullPath), false)) {
+            } elseif ($io->confirm(\sprintf('<question>%s already exists. Replace it with the template, discarding its current content?</question>', $fullPath), false)) {
                 unlink($fullPath);
                 $this->copyTemplate($file, $fullPath);
                 $this->postCopyTemplateAction($file, $fullPath);
@@ -120,7 +120,7 @@ class InitCommand extends Command
 
         // The container was built before mate/config.php existed, so hand the answer in directly.
         $materializationResult = $this->instructionsMaterializer
-            ->withInvocation($this->invocation)
+            ->withInvocation($this->invocation, $this->phpVersion)
             ->synchronizeFromCurrentInstructionsFile();
         if ($materializationResult['agents_file_updated']) {
             $actions[] = ['✓', 'Updated', 'AGENTS.md (AI Mate managed instructions block)'];

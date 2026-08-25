@@ -8,7 +8,7 @@ dependency of this project (`composer.json`: `symfony/ai-mate`); the binary live
 AI Mate provides diagnostic tools that report measured facts about the running
 application instead of inferences from reading code. Always invoke Mate as
 `vendor/bin/mate`; another interpreter reports on a runtime that is not this
-application's, and Mate refuses to run under one.
+application's.
 
 Discover the tools with `vendor/bin/mate tools:list`, inspect a tool's parameters with
 `vendor/bin/mate tools:inspect <tool>`, and run one with

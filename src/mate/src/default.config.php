@@ -86,6 +86,7 @@ return static function (ContainerConfigurator $container): void {
             ->bind('$disabledFeatures', '%mate.disabled_features%')
             ->bind('$enabledExtensions', '%mate.enabled_extensions%')
             ->bind('$invocation', '%mate.invocation%')
+            ->bind('$pinnedPhpVersion', '%mate.php_version%')
 
         ->set('_build.logger', Logger::class)
             ->private() // To be removed when we compile

@@ -13,6 +13,7 @@ namespace Symfony\AI\Mate\Tests\Command\Fixtures;
 
 use Symfony\AI\Mate\Attribute\MateResource;
 use Symfony\AI\Mate\Attribute\MateResourceTemplate;
+use Symfony\AI\Mate\Encoding\ResponseEncoder;
 
 /**
  * @author Johannes Wachter <johannes@sulu.io>
@@ -28,6 +29,17 @@ final class SampleResources
     public function getGreeting(): string
     {
         return 'Hello from the Mate test fixture!';
+    }
+
+    #[MateResource(
+        uri: 'sample://payload',
+        name: 'sample-payload',
+        description: 'A resource whose body is an encoded structure',
+        mimeType: 'application/json',
+    )]
+    public function getPayload(): string
+    {
+        return ResponseEncoder::encode(['answer' => 42, 'nested' => ['ok' => true]]);
     }
 
     /**

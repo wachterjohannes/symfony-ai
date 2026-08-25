@@ -113,7 +113,7 @@ HELP
         $format = $input->getOption('format');
         \assert(\is_string($format));
 
-        if (!$this->ensureToonFormatAvailable($io, $format)) {
+        if (!$this->ensureFormatSupported($io, $format, ['text', 'json', 'toon'])) {
             return Command::FAILURE;
         }
 
@@ -125,14 +125,22 @@ HELP
         $extensionFilter = $input->getOption('extension');
         $typeFilter = $input->getOption('type');
 
-        if (null !== $extensionFilter) {
-            \assert(\is_string($extensionFilter));
-            $capabilities = $this->filterExtensions($capabilities, $extensionFilter);
-        }
+        // A rejected filter is a caller mistake, not a crash; rendering it as an uncaught
+        // exception buries the message under a file and line the caller cannot act on.
+        try {
+            if (null !== $extensionFilter) {
+                \assert(\is_string($extensionFilter));
+                $capabilities = $this->filterExtensions($capabilities, $extensionFilter);
+            }
 
-        if (null !== $typeFilter) {
-            \assert(\is_string($typeFilter));
-            $capabilities = $this->filterByType($capabilities, $typeFilter);
+            if (null !== $typeFilter) {
+                \assert(\is_string($typeFilter));
+                $capabilities = $this->filterByType($capabilities, $typeFilter);
+            }
+        } catch (InvalidArgumentException $e) {
+            $io->error($e->getMessage());
+
+            return Command::FAILURE;
         }
 
         if ('json' === $format) {

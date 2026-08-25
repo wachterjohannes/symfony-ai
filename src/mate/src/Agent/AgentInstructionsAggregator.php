@@ -38,6 +38,7 @@ final class AgentInstructionsAggregator
         private array $extensions,
         private LoggerInterface $logger,
         private string $invocation = 'vendor/bin/mate',
+        private ?string $pinnedPhpVersion = null,
     ) {
     }
 
@@ -45,10 +46,11 @@ final class AgentInstructionsAggregator
      * `mate init` writes the invocation into `mate/config.php` after the container was built,
      * so the value it just collected has to be handed in for that first run.
      */
-    public function withInvocation(string $invocation): self
+    public function withInvocation(string $invocation, ?string $pinnedPhpVersion = null): self
     {
         $clone = clone $this;
         $clone->invocation = $invocation;
+        $clone->pinnedPhpVersion = $pinnedPhpVersion;
 
         return $clone;
     }
@@ -183,6 +185,12 @@ final class AgentInstructionsAggregator
     {
         $mate = $this->invocation;
 
+        // Only promise the refusal when a version is actually pinned; an upgraded project that
+        // never gained `mate.php_version` would otherwise be told about a guard that is off.
+        $enforcement = null === $this->pinnedPhpVersion
+            ? ''
+            : ', and Mate refuses to run under one';
+
         return <<<MD
             ## AI Mate Agent Instructions
 
@@ -194,7 +202,7 @@ final class AgentInstructionsAggregator
             AI Mate provides diagnostic tools that report measured facts about the running
             application instead of inferences from reading code. Always invoke Mate as
             `{$mate}`; another interpreter reports on a runtime that is not this
-            application's, and Mate refuses to run under one.
+            application's{$enforcement}.
 
             Discover the tools with `{$mate} tools:list`, inspect a tool's parameters with
             `{$mate} tools:inspect <tool>`, and run one with

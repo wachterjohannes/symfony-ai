@@ -235,23 +235,57 @@ Mate
    longer accepts `--type=prompt` and no longer reports a prompt count. Move the content of a
    prompt method into a skill (`mate skills:install`) or into your project's `AGENTS.md`.
 
- * `mate/config.php` gained two parameters, and `mate init` fills them in. `mate.invocation` is
-   the command your coding agent must use (for example `ddev exec vendor/bin/mate`); it is written
-   into `mate/AGENT_INSTRUCTIONS.md` and the managed `AGENTS.md` block. `mate.php_version` records
-   the runtime, and Mate now refuses to start under a different major.minor, because it would
+ * `symfony-services` no longer returns the bare `id => class` map. It now answers with the map
+   under `services`, plus `count` and `truncated`, and lists at most `limit` entries (default 100)
+   so an unfiltered call cannot fill the context window. Together with the `untrusted_data`
+   envelope that all tool responses gained, a script reading the old shape needs two extra hops:
+
+   ```diff
+   -$services = json_decode($output, true);
+   +$services = json_decode($output, true)['untrusted_data']['services'];
+   ```
+
+   In a multi-kernel application the result stays nested per context, so each context carries its
+   own `services`, `count` and `truncated`:
+   `json_decode($output, true)['untrusted_data']['admin']['services']`.
+
+   The tool also fails now, instead of answering with an empty result, when no container has been
+   dumped yet. That case used to be indistinguishable from "no service matched"; warm the cache
+   (`bin/console cache:warmup`) in the environment you are inspecting.
+
+ * An unknown `--format` value is rejected instead of falling back to the human-readable default.
+   A script passing anything other than the formats a command lists now gets an error and a
+   non-zero exit code rather than a table it cannot parse.
+
+ * `mate/config.php` gained two parameters, and `mate init` fills them in for new projects.
+   `mate.invocation` is the command your coding agent must use (for example
+   `ddev exec vendor/bin/mate`); it is written into `mate/AGENT_INSTRUCTIONS.md` and the managed
+   `AGENTS.md` block, so the wrapper reaches the agent that has to type it. `mate.php_version`
+   records the runtime, and Mate refuses to start under a different major.minor, because it would
    otherwise report on a runtime that is not your application's. `init`, `list`, `help` and
-   `completion` print a warning instead of refusing. Projects that were initialized
-   with an earlier `0.13` build have neither parameter; the defaults (`vendor/bin/mate` and no
-   version check) preserve the previous behavior. Re-run `vendor/bin/mate init` to be asked, or add
-   them by hand:
+   `completion` print a warning instead of refusing.
+
+   **An existing project gets neither parameter, and therefore neither behavior.** `discover` does
+   not add them, `mate.invocation` stays the bare `vendor/bin/mate` and the interpreter check stays
+   off. Add both by hand; do not re-run `vendor/bin/mate init` for this, because accepting its
+   overwrite prompt replaces `mate/config.php` with the template and drops any services you
+   registered in it:
 
    ```diff
     // mate/config.php
     $container->parameters()
+   +    // The command your coding agent must use, wrapper included.
    +    ->set('mate.invocation', 'ddev exec vendor/bin/mate')
+   +
+   +    // The major.minor your application runs on. Leave it out to keep Mate runnable under any
+   +    // interpreter, which is what an upgraded project does until you set it.
    +    ->set('mate.php_version', '8.3')
     ;
    ```
+
+   This matters most where the application does not run on the host: under DDEV, Docker or the
+   Symfony CLI, an unpinned Mate started on the host reads the host's runtime and reports on
+   something that is not the application under test.
 
 Platform
 --------

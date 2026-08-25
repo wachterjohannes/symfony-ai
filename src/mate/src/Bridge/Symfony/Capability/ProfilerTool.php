@@ -85,6 +85,17 @@ final class ProfilerTool
         }
 
         $profile = $profileData->getProfile();
+
+        // The description promises the available collectors, and without them this returns the
+        // same nine fields the listing already gave, leaving no way to reach the actual data.
+        $collectors = [];
+        foreach ($this->getDataProvider()->listAvailableCollectors($token) as $collectorName) {
+            $collectors[] = [
+                'name' => $collectorName,
+                'uri' => \sprintf('symfony-profiler://profile/%s/%s', $token, $collectorName),
+            ];
+        }
+
         $data = [
             'token' => $profile->getToken(),
             'ip' => $profile->getIp(),
@@ -95,6 +106,7 @@ final class ProfilerTool
             'status_code' => $profile->getStatusCode(),
             'parent_token' => $profile->getParentToken(),
             'resource_uri' => \sprintf('symfony-profiler://profile/%s', $profile->getToken()),
+            'collectors' => $collectors,
         ];
 
         if (null !== $profileData->getContext()) {
