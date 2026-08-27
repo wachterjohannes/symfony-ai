@@ -103,9 +103,14 @@ class SymfonyAiFeaturesTool
             ];
 
             if ($includeDetails) {
-                $platform['has_api_key'] = isset($settings['api_key']);
-                if (isset($settings['api_key'])) {
-                    $platform['api_key_env_var'] = $this->extractEnvVar($settings['api_key']);
+                $apiKey = $settings['api_key'] ?? null;
+                $platform['has_api_key'] = \is_string($apiKey) && $this->isApiKeyValuePresent($apiKey);
+
+                if (\is_string($apiKey)) {
+                    $envVar = $this->extractEnvVar($apiKey);
+                    if (null !== $envVar) {
+                        $platform['api_key_env_var'] = $envVar;
+                    }
                 }
             }
 
@@ -403,6 +408,40 @@ class SymfonyAiFeaturesTool
         }
 
         return null;
+    }
+
+    /**
+     * Measures whether an `api_key` config value genuinely resolves to a non-empty
+     * secret, instead of merely being set in the YAML config.
+     *
+     * A configured `api_key` is typically an `%env(NAME)%` placeholder rather than
+     * the resolved value, so `isset()` on the raw config value is true even when the
+     * underlying environment variable is unset or empty. This reads the real
+     * environment variable Mate is running under (falling back to treating the
+     * config value as a literal secret when it is not a placeholder) and reports
+     * only whether it is non-empty; the value itself is never returned.
+     */
+    private function isApiKeyValuePresent(string $apiKey): bool
+    {
+        $envVar = $this->extractEnvVar($apiKey);
+
+        if (null === $envVar) {
+            return '' !== $apiKey;
+        }
+
+        return '' !== $this->readEnvVar($envVar);
+    }
+
+    private function readEnvVar(string $envVar): string
+    {
+        // Env processors chain as `%env(processor:...:NAME)%`; the actual
+        // environment variable is always the last segment.
+        $segments = explode(':', $envVar);
+        $name = end($segments);
+
+        $value = $_SERVER[$name] ?? $_ENV[$name] ?? getenv($name);
+
+        return \is_string($value) ? $value : '';
     }
 
     private function categorizePackage(string $package): string
