@@ -87,6 +87,19 @@ After running ``mate init``, update your autoloader:
 
     $ composer dump-autoload
 
+Finally, install the skills:
+
+.. code-block:: terminal
+
+    $ vendor/bin/mate skills:install
+
+This writes the ``SKILL.md`` files of every enabled extension into ``.agents/skills/``, with a
+mirror in ``.claude/skills/``. Do not skip this step. The instructions above tell an agent that
+Mate exists, but the skills are what tell it *when* to reach for which tool, and they are the file
+an agent trips over on its own while looking around a fresh checkout. ``mate discover`` runs the
+install for you, and so does Composer after ``composer require``, so in practice you rarely call
+it by hand. See `Skills`_.
+
 Automatic Discovery
 -------------------
 
