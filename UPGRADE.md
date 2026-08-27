@@ -287,6 +287,14 @@ Mate
    Symfony CLI, an unpinned Mate started on the host reads the host's runtime and reports on
    something that is not the application under test.
 
+ * The Monolog bridge's `monolog-tail` tool takes a `limit` parameter instead of `lines`, matching
+   `monolog-search` and `monolog-context-search`:
+
+   ```diff
+   -vendor/bin/mate tools:call monolog-tail --lines=50
+   +vendor/bin/mate tools:call monolog-tail --limit=50
+   ```
+
 Platform
 --------
 
