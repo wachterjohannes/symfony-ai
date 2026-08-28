@@ -568,6 +568,41 @@ tools option with a list of tool names::
 
     $this->agent->call($messages, ['tools' => ['tavily_search']]);
 
+Tool Search
+~~~~~~~~~~~
+
+Sending the definition of every tool with every request costs tokens and, with a growing number of tools, degrades the
+model's ability to pick the right one. The :class:`Symfony\\AI\\Agent\\Toolbox\\SearchableToolbox` decorator therefore
+hides the tools behind a ``tool_search`` tool that the model can use to find the tools it needs for the task at hand::
+
+    use Symfony\AI\Agent\Agent;
+    use Symfony\AI\Agent\Toolbox\SearchableToolbox;
+
+    // Platform, LLM & Toolbox instantiation
+
+    $toolbox = new SearchableToolbox($innerToolbox);
+
+    $agent = new Agent($platform, $model, toolbox: $toolbox);
+
+Only ``tool_search`` is advertised upfront. Once the model searched for a tool, the matching tools are added to the
+exposed tools and can be called in one of the next steps of the same tool calling loop.
+
+Tools that are needed frequently can be exposed upfront by their name, and the number of tools a search returns is
+configurable::
+
+    $toolbox = new SearchableToolbox($innerToolbox, maxResults: 3, alwaysExposedTools: ['clock']);
+
+The default search implementation :class:`Symfony\\AI\\Agent\\Toolbox\\ToolSearch\\Bm25ToolSearch` ranks the tools with
+the BM25 scoring function over their name, description and parameters, without requiring embeddings or any other
+external service. To search differently, e.g. based on embeddings, implement
+:class:`Symfony\\AI\\Agent\\Toolbox\\ToolSearch\\ToolSearchInterface` and pass it as second argument.
+
+.. note::
+
+    The decorator remembers the tools found so far, so that they stay available for the rest of the conversation. In a
+    long-running process, call ``reset()`` before starting a new conversation. As a service in a Symfony application it
+    implements ``Symfony\Contracts\Service\ResetInterface`` and is therefore reset between requests and messages.
+
 Tool Result Interception
 ~~~~~~~~~~~~~~~~~~~~~~~~
 

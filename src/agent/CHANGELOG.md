@@ -8,6 +8,7 @@ CHANGELOG
  * [BC BREAK] Remove `Toolbox\AgentProcessor`; tool calling is now driven by the `Agent` itself, configured with the `toolbox`, `toolExecutor`, `maxToolCalls`, `excludeToolMessages`, `includeSources` and `eventDispatcher` constructor arguments
  * Add `Toolbox\ToolExecutorInterface` and its default `SequentialToolExecutor` implementation, making the execution of the requested tool calls replaceable
  * `SystemPromptInputProcessor` now accepts and preserves a `Template`
+ * Add `Toolbox\SearchableToolbox`, which hides the tools of the decorated toolbox behind a `tool_search` tool the model uses to find them, ranked by the zero-dependency `Toolbox\ToolSearch\Bm25ToolSearch`
 
 0.12
 ----
