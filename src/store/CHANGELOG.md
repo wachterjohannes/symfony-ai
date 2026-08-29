@@ -5,6 +5,7 @@ CHANGELOG
 ----
 
  * Add `Document\VectorDocumentFactoryInterface`, letting an embeddable document decide which vector document it turns into
+ * Add `Bridge\Doctrine` store, keeping vectors in a column of the table a Doctrine entity already lives in and returning entities when queried, on PostgreSQL/pgvector, MariaDB, MySQL and SQLite/sqlite-vec
 
 0.14
 ----
