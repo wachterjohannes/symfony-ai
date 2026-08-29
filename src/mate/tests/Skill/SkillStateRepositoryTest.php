@@ -54,6 +54,7 @@ final class SkillStateRepositoryTest extends TestCase
                         'source' => 'vendor/vendor/pkg-a/skills/system-information',
                         'source_hash' => 'sha256:aaa',
                         'hash' => 'sha256:bbb',
+                        'invocation' => 'ddev exec vendor/bin/mate',
                         'targets' => [
                             '.agents/skills/mate-system-information',
                             '.claude/skills/mate-system-information',

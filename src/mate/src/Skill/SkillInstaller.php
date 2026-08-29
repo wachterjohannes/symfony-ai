@@ -41,6 +41,19 @@ final class SkillInstaller
     public const CLAUDE_SKILLS_DIR = '.claude/skills';
     public const OVERRIDE_SKILLS_DIR = 'mate/skills';
 
+    /**
+     * Written into a shipped skill wherever a command has to be typed, and replaced with the
+     * project's `mate.invocation` on install.
+     */
+    public const INVOCATION_PLACEHOLDER = '##MATE_INVOCATION##';
+
+    /**
+     * The form a skill written without the placeholder uses. Substituting it too keeps skills from
+     * third-party extensions, which cannot be expected to know about the placeholder, from
+     * silently telling the agent to run the wrong binary.
+     */
+    private const BARE_BINARY = 'vendor/bin/mate';
+
     public function __construct(
         private string $rootDir,
         private SkillStateRepository $repository,
@@ -49,6 +62,7 @@ final class SkillInstaller
         private LinkerInterface $linker,
         private Filesystem $filesystem,
         private LoggerInterface $logger,
+        private string $invocation = self::BARE_BINARY,
     ) {
     }
 
@@ -300,6 +314,7 @@ final class SkillInstaller
             'state' => $override ? 'override' : 'managed',
             'source' => $source,
             'source_hash' => $sourceHash,
+            'invocation' => $this->invocation,
             'targets' => [
                 self::AGENTS_SKILLS_DIR.'/'.$skill->installedName,
                 self::CLAUDE_SKILLS_DIR.'/'.$skill->installedName,
@@ -321,6 +336,7 @@ final class SkillInstaller
         $this->filesystem->remove($agentsTarget);
         $this->copyDirectory($sourceDir, $agentsTarget);
         $this->rewriteSkillName($agentsTarget.'/SKILL.md', $skill->installedName);
+        $this->rewriteInvocation($agentsTarget);
 
         $notice = null;
         if (!$this->linkMirror($claudeTarget, $skill->installedName, $agentsTarget)) {
@@ -338,6 +354,13 @@ final class SkillInstaller
     private function isUpToDate(array $previous, ?string $sourceHash, string $agentsTarget, string $installedName): bool
     {
         if (null === $sourceHash || ($previous['source_hash'] ?? null) !== $sourceHash) {
+            return false;
+        }
+
+        // Neither hash changes when `mate.invocation` does: the source is untouched and the copy
+        // still matches what was written last time. Without this the skills would keep telling the
+        // agent to use the previous command.
+        if (($previous['invocation'] ?? null) !== $this->invocation) {
             return false;
         }
 
@@ -384,6 +407,60 @@ final class SkillInstaller
         }
 
         return $anyRemoved;
+    }
+
+    /**
+     * Substitutes the project's invocation into every file of the installed skill, not just
+     * SKILL.md: a skill may put its commands in a reference file next to it.
+     */
+    private function rewriteInvocation(string $skillDir): void
+    {
+        if (!is_dir($skillDir)) {
+            return;
+        }
+
+        $iterator = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($skillDir, \FilesystemIterator::SKIP_DOTS),
+        );
+
+        foreach ($iterator as $file) {
+            if (!$file instanceof \SplFileInfo || !$file->isFile()) {
+                continue;
+            }
+
+            $path = $file->getPathname();
+            $content = @file_get_contents($path);
+            if (false === $content) {
+                $this->logger->warning('Could not read skill file to materialize the invocation', ['path' => $path]);
+
+                continue;
+            }
+
+            // One pass over both forms. Replacing them one after the other would substitute into
+            // the result of the first replacement: a placeholder becoming "ddev exec
+            // vendor/bin/mate" still contains "vendor/bin/mate". The callback keeps the
+            // invocation literal, since a "$1" or a backslash in it would otherwise be read as a
+            // backreference.
+            $rewritten = preg_replace_callback(
+                '/'.preg_quote(self::INVOCATION_PLACEHOLDER, '/').'|'.preg_quote(self::BARE_BINARY, '/').'/',
+                fn (array $match): string => $this->invocation,
+                $content,
+            );
+
+            if (null === $rewritten) {
+                $this->logger->warning('Could not materialize the invocation into a skill file', ['path' => $path]);
+
+                continue;
+            }
+
+            if ($rewritten === $content) {
+                continue;
+            }
+
+            if (false === @file_put_contents($path, $rewritten)) {
+                $this->logger->warning('Could not write skill file while materializing the invocation', ['path' => $path]);
+            }
+        }
     }
 
     private function rewriteSkillName(string $skillFile, string $installedName): void

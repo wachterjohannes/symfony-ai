@@ -5,6 +5,7 @@ CHANGELOG
 ----
 
  * Add a Mistral audio normalizer so `Content\Audio` can be used as a chat message part (audio understanding) with Voxtral models such as `voxtral-small-latest`
+ * Add Voxtral speech-to-text support through the dedicated `/v1/audio/transcriptions` endpoint, exposing a `SpeechToText` model, model client, result converter and audio normalizer (opt-in via `new SpeechToText('voxtral-mini-latest')`)
 
 0.11
 ----
