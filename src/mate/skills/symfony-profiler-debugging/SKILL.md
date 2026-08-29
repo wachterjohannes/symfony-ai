@@ -17,9 +17,9 @@ These commands accept `--format`: `json` to parse the result, `toon` (when `helg
 ## Workflow
 
 1. Find the profile. Do not scroll all profiles.
-   - Error: `vendor/bin/mate tools:call symfony-profiler-list --statusCode=500 --limit=5`
+   - Error: `##MATE_INVOCATION## tools:call symfony-profiler-list --statusCode=500 --limit=5`
    - Known URL: `--url=/checkout`. Latest request: `--limit=1`.
-2. `vendor/bin/mate resources:read symfony-profiler://profile/<token>` to see which collectors exist. Apps differ; only read what is present.
+2. `##MATE_INVOCATION## resources:read symfony-profiler://profile/<token>` to see which collectors exist. Apps differ; only read what is present.
 3. Read collectors in diagnosis order, not all of them.
 
 ## Reading order

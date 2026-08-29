@@ -31,6 +31,7 @@ use Symfony\AI\Mate\Exception\FileWriteException;
  *     source?: string,
  *     source_hash?: string|null,
  *     hash?: string|null,
+ *     invocation?: string|null,
  *     targets?: list<string>,
  * }
  * @phpstan-type ExtensionConfig array{enabled: bool, skills?: array<string, SkillState>}
@@ -326,6 +327,7 @@ final class SkillStateRepository
         $normalized['source'] = $source;
         $normalized['source_hash'] = \is_string($state['source_hash'] ?? null) ? $state['source_hash'] : null;
         $normalized['hash'] = \is_string($state['hash'] ?? null) ? $state['hash'] : null;
+        $normalized['invocation'] = \is_string($state['invocation'] ?? null) ? $state['invocation'] : null;
 
         $targets = [];
         foreach (\is_array($state['targets'] ?? null) ? $state['targets'] : [] as $target) {
@@ -401,6 +403,7 @@ final class SkillStateRepository
         $content .= \sprintf("                'source' => %s,\n", var_export($state['source'] ?? '', true));
         $content .= \sprintf("                'source_hash' => %s,\n", $this->renderNullableString($state['source_hash'] ?? null));
         $content .= \sprintf("                'hash' => %s,\n", $this->renderNullableString($state['hash'] ?? null));
+        $content .= \sprintf("                'invocation' => %s,\n", $this->renderNullableString($state['invocation'] ?? null));
 
         $targets = $state['targets'] ?? [];
         if ([] === $targets) {

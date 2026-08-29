@@ -141,6 +141,7 @@ return static function (ContainerConfigurator $container): void {
         ->set(Linker::class)
             ->alias(LinkerInterface::class, Linker::class)
         ->set(SkillInstaller::class)
+            ->arg('$invocation', '%mate.invocation%')
         ->set(SkillManager::class)
 
         // Register all commands

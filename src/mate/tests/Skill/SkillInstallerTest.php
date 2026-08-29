@@ -275,6 +275,66 @@ final class SkillInstallerTest extends TestCase
     }
 
     /**
+     * A skill is a per-project artifact: it already carries this project's installed name, so it
+     * should carry this project's command too, instead of asking the agent to combine a command
+     * from one file with a prefix from another.
+     */
+    public function testMaterializesTheInvocationIntoTheInstalledSkill()
+    {
+        $this->writeSourceSkill('demo', 'Run `##MATE_INVOCATION## tools:list` and then `vendor/bin/mate tools:call x`.');
+
+        $this->installer(null, 'ddev exec vendor/bin/mate')->install($this->discover());
+
+        $installed = (string) file_get_contents($this->rootDir.'/.agents/skills/mate-demo/SKILL.md');
+        $this->assertStringContainsString('`ddev exec vendor/bin/mate tools:list`', $installed);
+        $this->assertStringNotContainsString('##MATE_INVOCATION##', $installed);
+
+        // A skill from a third-party extension cannot be expected to know the placeholder.
+        $this->assertStringContainsString('`ddev exec vendor/bin/mate tools:call x`', $installed);
+    }
+
+    public function testMaterializesTheInvocationIntoEveryFileOfTheSkill()
+    {
+        $this->writeSourceSkill('demo', 'See reference.md.');
+        file_put_contents($this->sourceSkillDir('demo').'/reference.md', "Run `##MATE_INVOCATION## tools:list`.\n");
+
+        $this->installer(null, 'symfony php vendor/bin/mate')->install($this->discover());
+
+        $reference = (string) file_get_contents($this->rootDir.'/.agents/skills/mate-demo/reference.md');
+        $this->assertStringContainsString('`symfony php vendor/bin/mate tools:list`', $reference);
+    }
+
+    /**
+     * Neither hash changes when only `mate.invocation` does, so without the recorded invocation
+     * the reconciler would consider the stale copy up to date and leave the old command in place.
+     */
+    public function testChangingTheInvocationRebuildsTheInstalledSkill()
+    {
+        $this->writeSourceSkill('demo', 'Run `##MATE_INVOCATION## tools:list`.');
+
+        $skills = $this->discover();
+        $this->installer(null, 'vendor/bin/mate')->install($skills);
+
+        $result = $this->installer(null, 'ddev exec vendor/bin/mate')->install($skills);
+
+        $installed = (string) file_get_contents($this->rootDir.'/.agents/skills/mate-demo/SKILL.md');
+        $this->assertStringContainsString('`ddev exec vendor/bin/mate tools:list`', $installed);
+        $this->assertSame(['mate-demo'], $result->updated);
+    }
+
+    public function testReinstallingWithTheSameInvocationChangesNothing()
+    {
+        $this->writeSourceSkill('demo', 'Run `##MATE_INVOCATION## tools:list`.');
+
+        $skills = $this->discover();
+        $this->installer(null, 'ddev exec vendor/bin/mate')->install($skills);
+
+        $result = $this->installer(null, 'ddev exec vendor/bin/mate')->install($skills);
+
+        $this->assertSame([], $result->updated);
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function state(string $package, string $name): array
@@ -296,7 +356,22 @@ final class SkillInstallerTest extends TestCase
         ]);
     }
 
-    private function installer(?LinkerInterface $linker = null): SkillInstaller
+    private function sourceSkillDir(string $name): string
+    {
+        return $this->rootDir.'/vendor/vendor/pkg-a/skills/'.$name;
+    }
+
+    private function writeSourceSkill(string $name, string $body): void
+    {
+        $dir = $this->sourceSkillDir($name);
+        if (!is_dir($dir)) {
+            mkdir($dir, 0755, true);
+        }
+
+        file_put_contents($dir.'/SKILL.md', "---\nname: ".$name."\ndescription: >-\n  A skill used to check that the project's invocation reaches the installed copy.\n---\n\n# Demo\n\n".$body."\n");
+    }
+
+    private function installer(?LinkerInterface $linker = null, string $invocation = 'vendor/bin/mate'): SkillInstaller
     {
         return new SkillInstaller(
             $this->rootDir,
@@ -306,6 +381,7 @@ final class SkillInstallerTest extends TestCase
             $linker ?? new Linker(),
             new Filesystem(),
             new NullLogger(),
+            $invocation,
         );
     }
 }
