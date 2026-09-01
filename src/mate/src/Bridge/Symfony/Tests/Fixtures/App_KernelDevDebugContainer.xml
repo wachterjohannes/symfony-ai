@@ -14,11 +14,15 @@
             <tag name="container.service_locator"/>
         </service>
         <service id="my_service" alias="cache.app"/>
+        <service id="alias_chain_middle" alias="cache.app"/>
+        <service id="alias_chain_outer" alias="alias_chain_middle"/>
         <service id="router" class="Symfony\Component\Routing\Router">
             <factory class="RouterFactory" method="create"/>
         </service>
         <service id="app.event_listener" class="App\EventListener\RequestListener">
             <tag name="kernel.event_listener" event="kernel.request" method="onKernelRequest"/>
+            <argument type="service" id="event_dispatcher"/>
+            <argument type="service" id="logger"/>
         </service>
     </services>
 </container>
