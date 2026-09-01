@@ -1,6 +1,11 @@
 CHANGELOG
 =========
 
+0.14
+----
+
+ * Add a size-based auto-fallback to `tools:call`: when the effective format is `pretty` (the default, or explicitly requested) and the result's compact JSON encoding exceeds 8 KB, render it as `json` instead and print a note explaining why, since `renderPretty()` folds a large nested value onto a single unreadable line; `--format=json`/`--format=toon` are unaffected
+
 0.13
 ----
 
