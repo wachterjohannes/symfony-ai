@@ -82,22 +82,6 @@ final class SearchCriteria
         return $this->offset;
     }
 
-    public function withLimit(int $limit): self
-    {
-        return new self(
-            $this->term,
-            $this->regex,
-            $this->level,
-            $this->channel,
-            $this->from,
-            $this->to,
-            $this->contextKey,
-            $this->contextValue,
-            $limit,
-            $this->offset,
-        );
-    }
-
     public function matches(LogEntry $entry): bool
     {
         if (null !== $this->level && strtoupper($this->level) !== strtoupper($entry->getLevel())) {
