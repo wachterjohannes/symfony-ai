@@ -113,8 +113,8 @@ final class LogSearchToolTest extends TestCase
             $result = $this->decodeUntrusted($tool->search('', level: 'ERROR'));
 
             $this->assertCount(100, $result['entries']);
-            $this->assertSame(150, $result['total_matched'], 'total_matched must count every match, not just the returned page');
-            $this->assertTrue($result['truncated']);
+            $this->assertSame(100, $result['total_matched'], 'total_matched is the size of the returned page, not an exact total beyond limit');
+            $this->assertTrue($result['truncated'], 'truncated signals the page filled up, i.e. more matches may exist');
         } finally {
             $this->removeDirectory($tempDir);
         }

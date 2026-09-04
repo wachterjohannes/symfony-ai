@@ -4,7 +4,7 @@ CHANGELOG
 0.14
 ----
 
- * Add `total_matched` and `truncated` fields to `monolog-search`, `monolog-context-search`, and `monolog-tail`'s response, so a result page capped at `limit` is no longer indistinguishable from the true total: `monolog-search` and `monolog-context-search` now scan every matching entry to report an exact count instead of stopping at the first `limit` matches; `monolog-tail`'s count covers the file(s) it actually reads (the newest file per kernel context), not the whole log directory
+ * Add `total_matched` and `truncated` fields to `monolog-search`, `monolog-context-search`, and `monolog-tail`'s response, so an agent reads a count instead of counting `entries` by hand: for `monolog-search` and `monolog-context-search`, `total_matched` is the size of the returned page (not an exact total beyond `limit`) and `truncated` is true when the page filled up, a signal that more matches may exist; `monolog-tail`'s `total_matched` is an exact count within the file(s) it actually reads (the newest file per kernel context), not the whole log directory
 
 0.13
 ----

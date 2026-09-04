@@ -39,7 +39,7 @@ final class LogSearchTool
      * @param int         $limit         Maximum number of entries to return
      * @param string|null $kernelContext Filter by kernel context (e.g. the APP_ID of a multi-kernel application), only relevant when multiple log directories are configured
      */
-    #[MateTool(name: 'monolog-search', title: 'Log Search', description: 'Search log entries by text or regex pattern. Supports filtering by log level, channel, environment, and date range. Use empty string for term to match all entries when using filters only. When multiple kernel contexts are configured, entries carry a kernel_context field and can be narrowed with the kernelContext parameter. The response also carries total_matched (the real match count) and truncated (true when total_matched exceeds limit): the length of entries alone is not the total count when truncated is true, raise limit instead.')]
+    #[MateTool(name: 'monolog-search', title: 'Log Search', description: 'Search log entries by text or regex pattern. Supports filtering by log level, channel, environment, and date range. Use empty string for term to match all entries when using filters only. When multiple kernel contexts are configured, entries carry a kernel_context field and can be narrowed with the kernelContext parameter. The response also carries total_matched (the number of returned entries, so you do not have to count them) and truncated (true when total_matched equals limit, meaning more matches may exist beyond the page): raise limit and search again to see if truncated turns false.')]
     public function search(
         string $term,
         bool $regex = false,
@@ -87,7 +87,7 @@ final class LogSearchTool
      * @param int         $limit         Maximum number of entries to return
      * @param string|null $kernelContext Filter by kernel context (e.g. the APP_ID of a multi-kernel application), only relevant when multiple log directories are configured
      */
-    #[MateTool(name: 'monolog-context-search', title: 'Log Context Search', description: 'Search log entries by structured context data. Finds entries where a specific context key contains the given value. The response also carries total_matched (the real match count) and truncated (true when total_matched exceeds limit): the length of entries alone is not the total count when truncated is true, raise limit instead.')]
+    #[MateTool(name: 'monolog-context-search', title: 'Log Context Search', description: 'Search log entries by structured context data. Finds entries where a specific context key contains the given value. The response also carries total_matched (the number of returned entries, so you do not have to count them) and truncated (true when total_matched equals limit, meaning more matches may exist beyond the page): raise limit and search again to see if truncated turns false.')]
     public function searchContext(
         string $key,
         string $value,
@@ -170,30 +170,25 @@ final class LogSearchTool
      */
     private function collectResults(SearchCriteria $criteria, ?string $environment = null, ?string $kernelContext = null): array
     {
-        $limit = $criteria->getLimit();
         $entries = [];
-        $totalMatched = 0;
 
-        // Read without the caller's limit so total_matched reflects every match in the
-        // file, not just the ones that fit in the returned page; entries beyond $limit
-        // are counted but not kept.
-        $unboundedCriteria = $criteria->withLimit(\PHP_INT_MAX);
         $generator = null !== $environment
-            ? $this->reader->readForEnvironment($environment, $unboundedCriteria, $kernelContext)
-            : $this->reader->readAll($unboundedCriteria, $kernelContext);
+            ? $this->reader->readForEnvironment($environment, $criteria, $kernelContext)
+            : $this->reader->readAll($criteria, $kernelContext);
 
         foreach ($generator as $entry) {
-            ++$totalMatched;
-
-            if (\count($entries) < $limit) {
-                $entries[] = $entry->toArray();
-            }
+            $entries[] = $entry->toArray();
         }
 
+        // total_matched here is just a count of the returned page, not an exact total
+        // across the whole log directory: reading stops at $limit like it always did, so
+        // an agent gets a number to read instead of having to count entries by hand.
+        // truncated is a lower-bound signal (entries reached limit, so more may exist),
+        // not proof of an exact total beyond it.
         return [
             'entries' => $entries,
-            'total_matched' => $totalMatched,
-            'truncated' => $totalMatched > $limit,
+            'total_matched' => \count($entries),
+            'truncated' => \count($entries) === $criteria->getLimit(),
         ];
     }
 
