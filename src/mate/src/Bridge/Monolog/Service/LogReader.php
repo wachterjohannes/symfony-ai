@@ -150,11 +150,12 @@ final class LogReader
     /**
      * Returns the most recent entries of the newest log file of every configured context.
      *
-     * @return LogEntry[]
+     * @return array{entries: LogEntry[], total_matched: int, truncated: bool}
      */
     public function tail(int $limit = 50, ?string $level = null, ?string $environment = null, ?string $channel = null, ?string $kernelContext = null): array
     {
         $entriesPerContext = [];
+        $totalMatched = 0;
 
         foreach ($this->resolveLogDirs($kernelContext) as $context => $dir) {
             $files = $this->collectLogFiles([$context => $dir]);
@@ -171,21 +172,31 @@ final class LogReader
                 continue;
             }
 
-            $entriesPerContext[] = $this->tailFromFile($file, $limit, $level, $channel);
+            $tailed = $this->tailFromFile($file, $limit, $level, $channel);
+            $entriesPerContext[] = $tailed['entries'];
+            $totalMatched += $tailed['total_matched'];
         }
 
         if ([] === $entriesPerContext) {
-            return [];
+            return ['entries' => [], 'total_matched' => 0, 'truncated' => false];
         }
 
         if (1 === \count($entriesPerContext)) {
-            return $entriesPerContext[0];
+            $entries = $entriesPerContext[0];
+        } else {
+            $entries = array_merge(...$entriesPerContext);
+            usort($entries, static fn (LogEntry $a, LogEntry $b) => $a->getDatetime() <=> $b->getDatetime());
+            $entries = \array_slice($entries, -$limit);
         }
 
-        $entries = array_merge(...$entriesPerContext);
-        usort($entries, static fn (LogEntry $a, LogEntry $b) => $a->getDatetime() <=> $b->getDatetime());
-
-        return \array_slice($entries, -$limit);
+        return [
+            'entries' => $entries,
+            'total_matched' => $totalMatched,
+            // Merging multiple contexts can discard entries a single context's own tail
+            // already kept, so truncation is judged against what is actually returned,
+            // not against $limit.
+            'truncated' => $totalMatched > \count($entries),
+        ];
     }
 
     /**
@@ -216,34 +227,26 @@ final class LogReader
     }
 
     /**
-     * @return LogEntry[]
+     * @return array{entries: LogEntry[], total_matched: int}
      */
     private function tailFromFile(string $file, int $limit, ?string $level = null, ?string $channel = null): array
     {
         $handle = fopen($file, 'r');
         if (false === $handle) {
-            return [];
+            return ['entries' => [], 'total_matched' => 0];
         }
 
         try {
-            $buffer = [];
+            $entries = [];
+            $totalMatched = 0;
             $lineNumber = 0;
             $relativePath = $this->getRelativePath($file);
             $fileContext = $this->getKernelContext($file);
 
             while (false !== ($line = fgets($handle))) {
                 ++$lineNumber;
-                $buffer[] = ['line' => $line, 'number' => $lineNumber];
 
-                // Keep buffer size at 2x the requested limit to account for filtered entries
-                if (\count($buffer) > $limit * 2) {
-                    array_shift($buffer);
-                }
-            }
-
-            $entries = [];
-            for ($i = \count($buffer) - 1; $i >= 0 && \count($entries) < $limit; --$i) {
-                $entry = $this->parser->parse($buffer[$i]['line'], $relativePath, $buffer[$i]['number'], $fileContext);
+                $entry = $this->parser->parse($line, $relativePath, $lineNumber, $fileContext);
                 if (null === $entry) {
                     continue;
                 }
@@ -256,10 +259,18 @@ final class LogReader
                     continue;
                 }
 
+                ++$totalMatched;
+
+                // Keep only the most recent $limit matching entries, so a match earlier in
+                // the file is never dropped because of how raw lines happened to be
+                // distributed near the end of it.
                 $entries[] = $entry;
+                if (\count($entries) > $limit) {
+                    array_shift($entries);
+                }
             }
 
-            return array_reverse($entries);
+            return ['entries' => $entries, 'total_matched' => $totalMatched];
         } finally {
             fclose($handle);
         }
