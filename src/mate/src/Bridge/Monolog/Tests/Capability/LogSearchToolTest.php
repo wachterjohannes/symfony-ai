@@ -95,7 +95,7 @@ final class LogSearchToolTest extends TestCase
         $this->assertFalse($result['truncated']);
     }
 
-    public function testSearchReportsTruncationWhenMatchesExceedLimit()
+    public function testSearchSignalsTruncationWhenPageFillsAtLimit()
     {
         $tempDir = sys_get_temp_dir().'/mate-log-search-tool-test-'.uniqid();
         mkdir($tempDir, 0755, true);
@@ -109,7 +109,8 @@ final class LogSearchToolTest extends TestCase
         try {
             $tool = new LogSearchTool(new LogReader(new LogParser(), $tempDir));
 
-            // default limit is 100, but the file carries 150 matching entries
+            // default limit is 100, the file carries 150 matching entries: reading still
+            // stops at limit, total_matched does not reach past it
             $result = $this->decodeUntrusted($tool->search('', level: 'ERROR'));
 
             $this->assertCount(100, $result['entries']);
