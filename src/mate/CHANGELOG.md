@@ -8,6 +8,7 @@ CHANGELOG
  * Add a `tools:inspect <tool-name>` hint to `tools:call`'s error output when a parameter name is unknown or a required one is missing
  * Add a per-skill status table to `skills:install` output (same columns as `skills:list`, plus an `action` column showing installed/rebuilt/skipped/unchanged), and `--format=json`/`--format=toon` support, matching `skills:list`
  * Add a size-based auto-fallback to `tools:call`: when the effective format is `pretty` (the default, or explicitly requested) and the result's compact JSON encoding exceeds 8 KB, render it as `json` instead and print a note explaining why, since `renderPretty()` folds a large nested value onto a single unreadable line; `--format=json`/`--format=toon` are unaffected
+ * Add `total_matched` and `truncated` fields to `monolog-search`, `monolog-context-search`, and `monolog-tail`'s response, so a result page capped at `limit` is no longer indistinguishable from the true total: `monolog-search` and `monolog-context-search` now scan every matching entry to report an exact count instead of stopping at the first `limit` matches; `monolog-tail`'s count covers the file(s) it actually reads (the newest file per kernel context), not the whole log directory
 
 0.13
 ----
