@@ -1,6 +1,11 @@
 CHANGELOG
 =========
 
+0.14
+----
+
+ * Add `total_matched` and `truncated` fields to `monolog-search`, `monolog-context-search`, and `monolog-tail`'s response, so a result page capped at `limit` is no longer indistinguishable from the true total: `monolog-search` and `monolog-context-search` now scan every matching entry to report an exact count instead of stopping at the first `limit` matches; `monolog-tail`'s count covers the file(s) it actually reads (the newest file per kernel context), not the whole log directory
+
 0.13
 ----
 
