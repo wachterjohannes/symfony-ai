@@ -6,6 +6,7 @@ CHANGELOG
 
  * Add an `Arguments` column to `tools:list`'s table output, and stop truncating tool descriptions to 50 characters, so a tool's parameters and full description are visible without a separate `tools:inspect` call
  * Add a `tools:inspect <tool-name>` hint to `tools:call`'s error output when a parameter name is unknown or a required one is missing
+ * Change `tools:call`'s `--format=pretty` rendering to print one unpadded `key: value` line per result field instead of `SymfonyStyle::definitionList()`, which padded every value to the width of the widest one in the list, inflating small/medium results with whitespace alone (a representative real result rendered ~5x smaller after this change, with no information loss)
 
 0.13
 ----

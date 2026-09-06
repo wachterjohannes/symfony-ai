@@ -388,6 +388,28 @@ HELP
         return $next;
     }
 
+    /**
+     * Renders an associative-array result as one `key: value` line per entry.
+     *
+     * `SymfonyStyle::definitionList()` (built on the Table renderer) pads every value to
+     * the width of the widest cell in the list so the columns line up. That is fine for a
+     * human skimming a handful of short rows, but a single long value (a JSON-encoded
+     * array/object, a long string, ...) forces every other row to pad out to match it,
+     * inflating the rendered output by whitespace alone. Even the built-in `server-info`
+     * tool, whose payload is a modest 528 bytes of JSON, renders to roughly 2.7 KB through
+     * `definitionList()` because its `extensions` value is far longer than its other three
+     * fields. `Table` has no option to skip column padding, so a plain, unpadded line per
+     * entry replaces it entirely rather than trying to special-case the padding away.
+     *
+     * @param array<string, mixed> $result
+     */
+    private function renderPrettyList(array $result, SymfonyStyle $io): void
+    {
+        foreach ($result as $key => $value) {
+            $io->text(\sprintf('<info>%s</info>: %s', $key, $this->formatValue($value)));
+        }
+    }
+
     private function renderPretty(mixed $result, SymfonyStyle $io): void
     {
         if (\is_array($result)) {
@@ -396,7 +418,7 @@ HELP
                     $io->text($this->formatValue($item));
                 }
             } else {
-                $io->definitionList(...array_map(fn ($key, $value) => [$key => $this->formatValue($value)], array_keys($result), $result));
+                $this->renderPrettyList($result, $io);
             }
         } elseif (\is_string($result)) {
             $io->text($result);
