@@ -7,6 +7,7 @@ CHANGELOG
  * Add an `Arguments` column to `tools:list`'s table output, and stop truncating tool descriptions to 50 characters, so a tool's parameters and full description are visible without a separate `tools:inspect` call
  * Add a `tools:inspect <tool-name>` hint to `tools:call`'s error output when a parameter name is unknown or a required one is missing
  * Add `tools:call-batch` command: executes several tools in one command call from a `--json` array of `{"tool": "...", "params": {...}}` objects, saving the round-trips an agent would otherwise pay calling `tools:call` once per tool for a single investigation. Calls run sequentially and one failing call does not abort the others; a tool whose name looks mutating (contains `-apply`, `-fix`, `-install`, `-enable`, `-disable`, `-override`, `-reset` or `-prune`) is rejected from the batch
+ * Surface `tools:call-batch` in `tools:list` and in the instructions `discover` writes into `AGENTS.md`, so it is discoverable without loading a skill that happens to mention it
 
 0.13
 ----
