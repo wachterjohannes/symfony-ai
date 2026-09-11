@@ -27,7 +27,7 @@ trait RendersToolResultTrait
                     $io->text($this->formatValue($item));
                 }
             } else {
-                $io->definitionList(...array_map(fn ($key, $value) => [$key => $this->formatValue($value)], array_keys($result), $result));
+                $this->renderPrettyList($result, $io);
             }
         } elseif (\is_string($result)) {
             $io->text($result);
@@ -37,6 +37,19 @@ trait RendersToolResultTrait
             $io->text('<comment>null</comment>');
         } else {
             $io->text((string) $result);
+        }
+    }
+
+    /**
+     * `SymfonyStyle::definitionList()` pads every value to the width of the widest one in
+     * the list, so a single long value bloats every other row with whitespace.
+     *
+     * @param array<string, mixed> $result
+     */
+    private function renderPrettyList(array $result, SymfonyStyle $io): void
+    {
+        foreach ($result as $key => $value) {
+            $io->text(\sprintf('<info>%s</info>: %s', $key, $this->formatValue($value)));
         }
     }
 
