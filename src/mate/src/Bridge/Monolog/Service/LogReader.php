@@ -192,9 +192,8 @@ final class LogReader
         return [
             'entries' => $entries,
             'total_matched' => $totalMatched,
-            // Merging multiple contexts can discard entries a single context's own tail
-            // already kept, so truncation is judged against what is actually returned,
-            // not against $limit.
+            // Merging contexts can discard entries a single context's tail already kept,
+            // so truncation is judged against what is actually returned, not against $limit.
             'truncated' => $totalMatched > \count($entries),
         ];
     }
@@ -261,9 +260,8 @@ final class LogReader
 
                 ++$totalMatched;
 
-                // Keep only the most recent $limit matching entries, so a match earlier in
-                // the file is never dropped because of how raw lines happened to be
-                // distributed near the end of it.
+                // Keep only the most recent $limit matches, so an earlier match is never
+                // dropped based on where raw lines happen to fall near the end of the file.
                 $entries[] = $entry;
                 if (\count($entries) > $limit) {
                     array_shift($entries);
