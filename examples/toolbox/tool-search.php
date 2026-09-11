@@ -51,6 +51,7 @@ $platform = Factory::createPlatform(env('OPENAI_API_KEY'), http_client());
 $toolbox = new Toolbox([new CurrencyConverter(), new InvoiceFetcher(), new ReleaseTrain()], logger: logger());
 
 // only the tool search is exposed to the model, the three tools above have to be found first
+// (activationThreshold lets small toolboxes skip search and expose all tools directly)
 $toolbox = new SearchableToolbox($toolbox);
 
 $agent = new Agent($platform, 'gpt-5-mini', toolbox: $toolbox);
