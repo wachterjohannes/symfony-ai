@@ -192,9 +192,8 @@ final class LogReader
         return [
             'entries' => $entries,
             'total_matched' => $totalMatched,
-            // Merging multiple contexts can discard entries a single context's own tail
-            // already kept, so truncation is judged against what is actually returned,
-            // not against $limit.
+            // Merging contexts can discard entries a single context's tail already kept,
+            // so truncation is judged against what is actually returned, not against $limit.
             'truncated' => $totalMatched > \count($entries),
         ];
     }

@@ -189,11 +189,8 @@ final class LogSearchTool
             $entries[] = $entry->toArray();
         }
 
-        // total_matched here is just a count of the returned page, not an exact total
-        // across the whole log directory: reading stops at $limit like it always did, so
-        // an agent gets a number to read instead of having to count entries by hand.
-        // truncated is a lower-bound signal (entries reached limit, so more may exist),
-        // not proof of an exact total beyond it.
+        // total_matched is the size of the returned page, not an exact total across the
+        // whole log directory: reading still stops at $limit.
         return [
             'entries' => $entries,
             'total_matched' => \count($entries),
