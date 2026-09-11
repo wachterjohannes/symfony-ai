@@ -42,6 +42,20 @@ final class SearchableToolboxTest extends TestCase
         $this->assertSame([], $toolbox->getTools());
     }
 
+    public function testExposesToolsDirectlyBelowActivationThreshold()
+    {
+        $toolbox = new SearchableToolbox($this->createInnerToolbox(), activationThreshold: 2);
+
+        $this->assertSame(['send_email', 'get_invoice'], $this->getToolNames($toolbox));
+    }
+
+    public function testExposesSearchToolAboveActivationThreshold()
+    {
+        $toolbox = new SearchableToolbox($this->createInnerToolbox(), activationThreshold: 1);
+
+        $this->assertSame([SearchableToolbox::SEARCH_TOOL_NAME], $this->getToolNames($toolbox));
+    }
+
     public function testSearchToolHasQueryParameter()
     {
         $toolbox = new SearchableToolbox($this->createInnerToolbox());

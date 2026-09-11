@@ -39,21 +39,24 @@ final class SearchableToolbox implements ToolboxInterface, ResetInterface
     private array $foundTools = [];
 
     /**
-     * @param list<string> $alwaysExposedTools names of tools that are exposed without being searched for
+     * @param list<string> $alwaysExposedTools  names of tools that are exposed without being searched for
+     * @param int          $activationThreshold a toolbox with this many tools or fewer is exposed directly,
+     *                                           without paying for the search tool call
      */
     public function __construct(
         private readonly ToolboxInterface $innerToolbox,
         private readonly ToolSearchInterface $toolSearch = new Bm25ToolSearch(),
         private readonly int $maxResults = 5,
         private readonly array $alwaysExposedTools = [],
+        private readonly int $activationThreshold = 0,
     ) {
     }
 
     public function getTools(): array
     {
         $tools = $this->innerToolbox->getTools();
-        if ([] === $tools) {
-            return [];
+        if ([] === $tools || \count($tools) <= $this->activationThreshold) {
+            return $tools;
         }
 
         $exposed = [$this->createSearchTool()];
