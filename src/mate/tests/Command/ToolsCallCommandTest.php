@@ -48,13 +48,6 @@ final class ToolsCallCommandTest extends TestCase
         $this->assertStringContainsString(\PHP_VERSION, $output);
     }
 
-    /**
-     * Guards against a regression to `SymfonyStyle::definitionList()`, which pads every
-     * value to the width of the widest one in the list. `server-info`'s own `extensions`
-     * value is long enough that this alone used to inflate its ~528-byte JSON payload to
-     * roughly 2.7 KB of rendered whitespace; the leaner per-line renderer must not pad
-     * short values (like `php_version`) out to match it.
-     */
     public function testPrettyFormatDoesNotPadShortValuesToTheWidestColumn()
     {
         $tester = new CommandTester($this->createServerInfoCommand());
@@ -81,10 +74,6 @@ final class ToolsCallCommandTest extends TestCase
         $this->assertDoesNotMatchRegularExpression('/ {5,}/', $output);
     }
 
-    /**
-     * Measures the actual byte reduction against the `definitionList()` rendering this
-     * replaces, using the real `server-info` payload rather than a synthetic one.
-     */
     public function testPrettyFormatIsSignificantlySmallerThanTheOldDefinitionListRendering()
     {
         $jsonTester = new CommandTester($this->createServerInfoCommand());
