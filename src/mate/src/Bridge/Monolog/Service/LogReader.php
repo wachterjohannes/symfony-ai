@@ -247,9 +247,8 @@ final class LogReader
                     continue;
                 }
 
-                // Keep only the most recent $limit matching entries, so a match earlier in
-                // the file is never dropped because of how raw lines happened to be
-                // distributed near the end of it.
+                // Keep only the most recent $limit matches, so an earlier match is never
+                // dropped based on where raw lines happen to fall near the end of the file.
                 $entries[] = $entry;
                 if (\count($entries) > $limit) {
                     array_shift($entries);
