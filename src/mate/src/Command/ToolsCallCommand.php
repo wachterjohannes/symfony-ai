@@ -53,15 +53,8 @@ class ToolsCallCommand extends Command
 
     /**
      * Size (in bytes of compact JSON) above which `--format=pretty` rendering is skipped in
-     * favor of automatic JSON output.
-     *
-     * `renderPretty()`/`formatValue()` json_encode a nested array value onto a single line
-     * for `$io->definitionList()`; once that line grows past a few kilobytes, the console's
-     * word-wrapping turns it into an unreadable wall of wrapped/truncated text instead of a
-     * readable table cell. A real tool result that triggered this measured 35,657 bytes of
-     * total JSON (with a single formatted value 2,726 bytes long); 8 KB stays comfortably
-     * below that case while still allowing legitimately small-but-nested results to render
-     * as pretty tables.
+     * favor of automatic JSON output, since a large nested value renders as an unreadable
+     * wall of wrapped text otherwise. A real case that triggered this measured 35 KB.
      */
     private const PRETTY_RENDER_SIZE_THRESHOLD = 8192;
 
