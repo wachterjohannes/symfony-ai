@@ -63,6 +63,9 @@ enum Capability: string
     // RERANKING
     case RERANKING = 'reranking';
 
+    // CLASSIFICATION
+    case CLASSIFICATION = 'classification';
+
     // Thinking
     case THINKING = 'thinking';
 

@@ -144,6 +144,8 @@ Supported Models & Platforms
   * `Voyage's Embeddings`_ with `Voyage`_ as Platform
   * `Mistral Embed`_ with `Mistral`_ and `OpenRouter`_ as Platform
   * `Qwen`_ with `OpenRouter`_ as Platform
+* **Classification Models**
+  * `TypeSafe's Jev`_ with `TypeSafe`_ as Platform
 * **Other Models**
   * `OpenAI's GPT Image`_ with `OpenAI`_ as Platform (generation and editing)
   * `OpenAI's Whisper`_ with `OpenAI`_ and `Azure`_ as Platform
@@ -1240,6 +1242,61 @@ Code Examples
 * `Multimodal embeddings with Voyage`_
 * `Embeddings with Mistral`_
 
+Classification
+--------------
+
+Some models do not answer with free-form text but with calibrated, typed answers to a fixed set of
+questions about a given state - free text or structured data. This is useful wherever the answer drives
+application logic, for instance to route a support ticket, and the probabilities tell how much to trust it.
+
+Questions are passed with the ``questions`` option as a map of names to one of three question types:
+
+* :class:`Symfony\\AI\\Platform\\Classification\\BooleanQuestion` - yes or no, with optional
+  descriptions of what counts as true and false;
+* :class:`Symfony\\AI\\Platform\\Classification\\ChoiceQuestion` - exactly one of the given labeled
+  options;
+* :class:`Symfony\\AI\\Platform\\Classification\\ScoreQuestion` - a level on an ordered scale,
+  lowest first.
+
+The result is a :class:`Symfony\\AI\\Platform\\Result\\ClassificationResult` holding one answer per
+question, each carrying a calibrated confidence, or ``null`` when the provider cannot measure it::
+
+    use Symfony\AI\Platform\Bridge\TypeSafe\Factory;
+    use Symfony\AI\Platform\Classification\BooleanQuestion;
+    use Symfony\AI\Platform\Classification\ChoiceQuestion;
+    use Symfony\AI\Platform\Classification\ScoreQuestion;
+
+    $platform = Factory::createPlatform($apiKey);
+
+    $result = $platform->invoke('jev', $ticket, [
+        'questions' => [
+            'urgent' => new BooleanQuestion(
+                'Does this need an immediate response?',
+                trueCriterion: 'Explicitly time-sensitive',
+                falseCriterion: 'No urgency expressed',
+            ),
+            'department' => new ChoiceQuestion('Which team should handle this?', [
+                'billing' => 'Payments, invoices, refunds',
+                'technical' => 'Bugs, outages, integrations',
+            ]),
+            'frustration' => new ScoreQuestion('How frustrated is the customer?', [
+                'Calm', 'Frustrated', 'Very angry',
+            ]),
+        ],
+    ])->getResult();
+
+    $result->getAnswer('urgent')->getValue();              // true
+    $result->getAnswer('department')->getChoice();         // 'technical'
+    $result->getAnswer('department')->getProbabilities();  // ['billing' => 0.13, 'technical' => 0.87]
+    $result->getAnswer('frustration')->getScore();         // 1.24, probability-weighted level index
+    $result->getAnswer('frustration')->getLevel();         // 'Frustrated'
+
+Classification is currently provided by the TypeSafe bridge:
+
+.. code-block:: terminal
+
+    $ composer require symfony/ai-type-safe-platform
+
 Structured Output
 -----------------
 
@@ -2036,6 +2093,8 @@ Code Examples
 .. _`OpenAI's Text Embeddings`: https://platform.openai.com/docs/guides/embeddings/embedding-models
 .. _`Voyage's Embeddings`: https://docs.voyageai.com/docs/embeddings
 .. _`Voyage`: https://www.voyageai.com/
+.. _`TypeSafe's Jev`: https://typesafe.ai/
+.. _`TypeSafe`: https://typesafe.ai/
 .. _`Mistral Embed`: https://www.mistral.ai/
 .. _`OpenAI's GPT Image`: https://platform.openai.com/docs/guides/image-generation
 .. _`OpenAI's Whisper`: https://platform.openai.com/docs/guides/speech-to-text
