@@ -25,7 +25,21 @@ final class ModelCatalog extends AbstractModelCatalog
     public function __construct(array $additionalModels = [])
     {
         $defaultModels = [
-            'jev' => [
+            'jev-latest' => [
+                'class' => TypeSafe::class,
+                'capabilities' => [
+                    Capability::INPUT_TEXT,
+                    Capability::CLASSIFICATION,
+                ],
+            ],
+            'jev-preview' => [
+                'class' => TypeSafe::class,
+                'capabilities' => [
+                    Capability::INPUT_TEXT,
+                    Capability::CLASSIFICATION,
+                ],
+            ],
+            'jev-1.13.0' => [
                 'class' => TypeSafe::class,
                 'capabilities' => [
                     Capability::INPUT_TEXT,

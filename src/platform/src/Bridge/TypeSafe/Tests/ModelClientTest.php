@@ -11,13 +11,10 @@
 
 namespace Symfony\AI\Platform\Bridge\TypeSafe\Tests;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\AI\Platform\Bridge\TypeSafe\ModelClient;
 use Symfony\AI\Platform\Bridge\TypeSafe\TypeSafe;
-use Symfony\AI\Platform\Classification\BooleanQuestion;
-use Symfony\AI\Platform\Classification\ChoiceQuestion;
-use Symfony\AI\Platform\Classification\QuestionInterface;
-use Symfony\AI\Platform\Classification\ScoreQuestion;
 use Symfony\AI\Platform\Exception\InvalidArgumentException;
 use Symfony\AI\Platform\Model;
 use Symfony\Component\HttpClient\MockHttpClient;
@@ -32,14 +29,14 @@ final class ModelClientTest extends TestCase
     {
         $client = new ModelClient(new MockHttpClient(), 'test-key');
 
-        $this->assertTrue($client->supports(new TypeSafe('jev')));
+        $this->assertTrue($client->supports(new TypeSafe('jev-latest')));
     }
 
     public function testItDoesNotSupportOtherModels()
     {
         $client = new ModelClient(new MockHttpClient(), 'test-key');
 
-        $this->assertFalse($client->supports(new Model('jev')));
+        $this->assertFalse($client->supports(new Model('jev-latest')));
     }
 
     public function testItSendsExpectedRequest()
@@ -50,7 +47,7 @@ final class ModelClientTest extends TestCase
             $this->assertContains('Authorization: Bearer test-key', $options['headers']);
 
             $this->assertSame([
-                'model' => 'jev',
+                'model' => 'jev-latest',
                 'state' => 'Our checkout is down since this morning and customers cannot pay. Fix this NOW!',
                 'questions' => [
                     'urgent' => [
@@ -63,11 +60,6 @@ final class ModelClientTest extends TestCase
                         'instructions' => 'Which team should handle this?',
                         'criteria' => ['billing' => 'Payments, invoices, refunds', 'technical' => 'Bugs, outages, integrations'],
                     ],
-                    'frustration' => [
-                        'type' => 'score',
-                        'instructions' => 'How frustrated is the customer?',
-                        'criteria' => ['Calm', 'Frustrated', 'Very angry'],
-                    ],
                 ],
             ], json_decode($options['body'], true));
 
@@ -75,24 +67,30 @@ final class ModelClientTest extends TestCase
         });
 
         $client = new ModelClient($httpClient, 'test-key');
-        $client->request(
-            new TypeSafe('jev'),
-            'Our checkout is down since this morning and customers cannot pay. Fix this NOW!',
-            ['questions' => [
-                'urgent' => new BooleanQuestion('Does this need an immediate response?', 'Explicitly time-sensitive', 'No urgency expressed'),
-                'department' => new ChoiceQuestion('Which team should handle this?', ['billing' => 'Payments, invoices, refunds', 'technical' => 'Bugs, outages, integrations']),
-                'frustration' => new ScoreQuestion('How frustrated is the customer?', ['Calm', 'Frustrated', 'Very angry']),
-            ]],
-        );
+        $client->request(new TypeSafe('jev-latest'), [
+            'state' => 'Our checkout is down since this morning and customers cannot pay. Fix this NOW!',
+            'questions' => [
+                'urgent' => (object) [
+                    'type' => 'noul',
+                    'instructions' => 'Does this need an immediate response?',
+                    'criteria' => (object) ['true' => 'Explicitly time-sensitive', 'false' => 'No urgency expressed'],
+                ],
+                'department' => (object) [
+                    'type' => 'choice',
+                    'instructions' => 'Which team should handle this?',
+                    'criteria' => (object) ['billing' => 'Payments, invoices, refunds', 'technical' => 'Bugs, outages, integrations'],
+                ],
+            ],
+        ]);
 
         $this->assertSame(1, $httpClient->getRequestsCount());
     }
 
-    public function testItOmitsBooleanCriteriaWhenNoneAreGiven()
+    public function testItSendsStructuredStateAndKeepsNumericQuestionNamesAsObject()
     {
         $httpClient = new MockHttpClient(function (string $method, string $url, array $options): JsonMockResponse {
             $this->assertSame(
-                '{"model":"jev","state":"Buy cheap watches!","questions":{"spam":{"type":"noul","instructions":"Is this spam?"}}}',
+                '{"model":"jev-latest","state":{"subject":"Refund","body":"Please refund order 42."},"questions":{"0":{"type":"noul","instructions":"Is this urgent?"}}}',
                 $options['body'],
             );
 
@@ -100,30 +98,11 @@ final class ModelClientTest extends TestCase
         });
 
         $client = new ModelClient($httpClient, 'test-key');
-        $client->request(new TypeSafe('jev'), 'Buy cheap watches!', ['questions' => ['spam' => new BooleanQuestion('Is this spam?')]]);
-
-        $this->assertSame(1, $httpClient->getRequestsCount());
-    }
-
-    public function testItSendsStructuredStateAndKeepsNumericKeysAsObjects()
-    {
-        $httpClient = new MockHttpClient(function (string $method, string $url, array $options): JsonMockResponse {
-            $this->assertSame(
-                '{"model":"jev","state":{"subject":"Refund","body":"Please refund order 42."},"questions":{"0":{"type":"choice","instructions":"Priority?","criteria":{"0":"Low","1":"High"}}}}',
-                $options['body'],
-            );
-
-            return new JsonMockResponse(['answers' => []]);
-        });
-
-        $client = new ModelClient($httpClient, 'test-key');
-        $client->request(
-            new TypeSafe('jev'),
-            ['subject' => 'Refund', 'body' => 'Please refund order 42.'],
-            // PHP turns numeric-string labels into integer keys, which must still be sent as JSON objects
-            /* @phpstan-ignore argument.type */
-            ['questions' => [new ChoiceQuestion('Priority?', ['Low', 'High'])]],
-        );
+        $client->request(new TypeSafe('jev-latest'), [
+            'state' => ['subject' => 'Refund', 'body' => 'Please refund order 42.'],
+            // PHP turns numeric-string names into integer keys, which must still be sent as a JSON object
+            'questions' => [['type' => 'noul', 'instructions' => 'Is this urgent?']],
+        ]);
 
         $this->assertSame(1, $httpClient->getRequestsCount());
     }
@@ -137,54 +116,35 @@ final class ModelClientTest extends TestCase
         });
 
         $client = new ModelClient($httpClient, 'test-key', 'https://typesafe.example.com/');
-        $client->request(new TypeSafe('jev'), 'state', ['questions' => ['spam' => new BooleanQuestion('Is this spam?')]]);
+        $client->request(new TypeSafe('jev-latest'), [
+            'state' => 'state',
+            'questions' => ['spam' => ['type' => 'noul', 'instructions' => 'Is this spam?']],
+        ]);
 
         $this->assertSame(1, $httpClient->getRequestsCount());
     }
 
-    public function testItThrowsOnEmptyState()
+    /**
+     * @param array<string, mixed>|string $payload
+     */
+    #[DataProvider('invalidPayloadProvider')]
+    public function testItThrowsOnInvalidPayload(array|string $payload)
     {
         $client = new ModelClient(new MockHttpClient(), 'test-key');
 
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('The state to classify must not be empty.');
+        $this->expectExceptionMessage('The TypeSafe payload must be an array with a "state" and a "questions" key.');
 
-        $client->request(new TypeSafe('jev'), '', ['questions' => ['spam' => new BooleanQuestion('Is this spam?')]]);
+        $client->request(new TypeSafe('jev-latest'), $payload);
     }
 
-    public function testItThrowsWithoutQuestions()
+    /**
+     * @return iterable<string, array{array<string, mixed>|string}>
+     */
+    public static function invalidPayloadProvider(): iterable
     {
-        $client = new ModelClient(new MockHttpClient(), 'test-key');
-
-        $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('The "questions" option must be a non-empty map of question names to questions.');
-
-        $client->request(new TypeSafe('jev'), 'state');
-    }
-
-    public function testItThrowsOnInvalidQuestion()
-    {
-        $client = new ModelClient(new MockHttpClient(), 'test-key');
-
-        $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage(\sprintf('The question "spam" must be an instance of "%s", "string" given.', QuestionInterface::class));
-
-        $client->request(new TypeSafe('jev'), 'state', ['questions' => ['spam' => 'Is this spam?']]);
-    }
-
-    public function testItThrowsOnUnsupportedQuestionType()
-    {
-        $client = new ModelClient(new MockHttpClient(), 'test-key');
-        $question = new class implements QuestionInterface {
-            public function getInstructions(): string
-            {
-                return 'Summarize this.';
-            }
-        };
-
-        $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('is not supported by TypeSafe.');
-
-        $client->request(new TypeSafe('jev'), 'state', ['questions' => ['summary' => $question]]);
+        yield 'string' => ['Is this spam?'];
+        yield 'without state' => [['questions' => ['spam' => ['type' => 'noul', 'instructions' => 'Is this spam?']]]];
+        yield 'without questions' => [['state' => 'Buy cheap watches!']];
     }
 }

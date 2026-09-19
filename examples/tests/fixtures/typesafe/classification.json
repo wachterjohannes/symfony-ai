@@ -1,0 +1,70 @@
+{
+    "interactions": [
+        {
+            "request": {
+                "method": "POST",
+                "url": "https://api.typesafe.ai/v1/systemone",
+                "signature": "7bd26e1cfab6ae5b5826c274ec7e42d9",
+                "signature_v2": "e166aabe7b6b7d6f59f225830e931afd",
+                "headers": {
+                    "content-type": [
+                        "application/json"
+                    ],
+                    "authorization": [
+                        "[redacted]"
+                    ]
+                },
+                "body": {
+                    "model": "jev-latest",
+                    "state": "Our checkout is down since this morning and customers cannot pay. Fix this NOW!",
+                    "questions": {
+                        "urgent": {
+                            "type": "noul",
+                            "instructions": "Does this need an immediate response?",
+                            "criteria": {
+                                "true": "Explicitly time-sensitive",
+                                "false": "No urgency expressed"
+                            }
+                        },
+                        "department": {
+                            "type": "choice",
+                            "instructions": "Which team should handle this?",
+                            "criteria": {
+                                "billing": "Payments, invoices, refunds",
+                                "technical": "Bugs, outages, integrations"
+                            }
+                        },
+                        "frustration": {
+                            "type": "score",
+                            "instructions": "How frustrated is the customer?",
+                            "criteria": [
+                                "Calm",
+                                "Frustrated",
+                                "Very angry"
+                            ]
+                        }
+                    }
+                }
+            },
+            "response": {
+                "status": 200,
+                "headers": {
+                    "server": [
+                        "istio-envoy"
+                    ],
+                    "content-length": [
+                        "401"
+                    ],
+                    "content-type": [
+                        "application/json"
+                    ],
+                    "x-typesafe-request-id": [
+                        "req_01a0bb528aab7124beb270c7c9420544"
+                    ]
+                },
+                "body_format": "json",
+                "body": "{\"model\":\"jev-1.13.0\",\"answers\":{\"urgent\":{\"type\":\"noul\",\"noul\":0.98},\"department\":{\"type\":\"choice\",\"choice\":\"technical\",\"confidence\":0.91,\"probabilities\":{\"technical\":0.96,\"billing\":0.04}},\"frustration\":{\"type\":\"score\",\"score\":1.98,\"confidence\":0.97,\"legend\":{\"0\":\"Calm\",\"1\":\"Frustrated\",\"2\":\"Very angry\"},\"probabilities\":{\"0\":0.0,\"1\":0.02,\"2\":0.98}}},\"usage\":{\"input_tokens\":413,\"output_tokens\":63}}"
+            }
+        }
+    ]
+}

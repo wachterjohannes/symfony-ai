@@ -75,7 +75,7 @@ final class ResultConverter implements ResultConverterInterface
     {
         $type = $answer['type'] ?? null;
 
-        // the answer value is keyed by its wire type, e.g. {"type": "noul", "noul": true}
+        // the answer value is keyed by its wire type, e.g. {"type": "noul", "noul": 0.98}
         if (!\is_string($type) || !\array_key_exists($type, $answer)) {
             throw new RuntimeException(\sprintf('Malformed answer for question "%s".', $name));
         }
@@ -83,7 +83,8 @@ final class ResultConverter implements ResultConverterInterface
         $confidence = isset($answer['confidence']) ? (float) $answer['confidence'] : null;
 
         return match ($type) {
-            'noul' => new BooleanAnswer((bool) $answer['noul'], $confidence),
+            // a noul answer is the calibrated probability that the question is true, not a boolean
+            'noul' => new BooleanAnswer((float) $answer['noul'], $confidence),
             'choice' => new ChoiceAnswer(
                 (string) $answer['choice'],
                 array_map(floatval(...), $answer['probabilities'] ?? []),
@@ -100,7 +101,7 @@ final class ResultConverter implements ResultConverterInterface
     }
 
     /**
-     * Score levels are keyed by string-encoded integers on the wire.
+     * Score probabilities and legends arrive as JSON lists, so normalize them to integer level indexes.
      *
      * @param array<array-key, mixed> $values
      *

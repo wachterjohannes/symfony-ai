@@ -15,6 +15,7 @@ use PHPUnit\Framework\TestCase;
 use Symfony\AI\Platform\Classification\BooleanAnswer;
 use Symfony\AI\Platform\Classification\ChoiceAnswer;
 use Symfony\AI\Platform\Classification\ScoreAnswer;
+use Symfony\AI\Platform\Exception\InvalidArgumentException;
 
 /**
  * @author Johannes Wachter <johannes@sulu.io>
@@ -23,10 +24,28 @@ final class AnswerTest extends TestCase
 {
     public function testBooleanAnswer()
     {
-        $answer = new BooleanAnswer(true, 0.91);
+        $answer = new BooleanAnswer(0.98, 0.91);
 
+        $this->assertSame(0.98, $answer->getProbability());
         $this->assertTrue($answer->getValue());
         $this->assertSame(0.91, $answer->getConfidence());
+    }
+
+    public function testBooleanAnswerBelowHalfIsFalse()
+    {
+        $answer = new BooleanAnswer(0.49);
+
+        $this->assertSame(0.49, $answer->getProbability());
+        $this->assertFalse($answer->getValue());
+        $this->assertNull($answer->getConfidence());
+    }
+
+    public function testBooleanAnswerRejectsProbabilityOutsideZeroToOne()
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('The probability must be between 0 and 1, "1.5" given.');
+
+        new BooleanAnswer(1.5);
     }
 
     public function testChoiceAnswer()

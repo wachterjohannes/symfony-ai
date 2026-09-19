@@ -11,6 +11,7 @@
 
 namespace Symfony\AI\Platform\Bridge\TypeSafe;
 
+use Symfony\AI\Platform\Bridge\TypeSafe\Contract\ClassificationInputNormalizer;
 use Symfony\AI\Platform\Contract;
 use Symfony\AI\Platform\ModelCatalog\ModelCatalogInterface;
 use Symfony\AI\Platform\ModelRouter\CatalogBasedModelRouter;
@@ -46,7 +47,7 @@ final class Factory
             [new ModelClient($httpClient, $apiKey, $baseUrl)],
             [new ResultConverter()],
             $modelCatalog,
-            $contract ?? Contract::create(),
+            $contract ?? Contract::create([new ClassificationInputNormalizer()]),
             $eventDispatcher,
         );
     }

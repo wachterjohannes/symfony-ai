@@ -24,7 +24,9 @@ final class ModelCatalogTest extends ModelCatalogTestCase
 {
     public static function modelsProvider(): iterable
     {
-        yield 'jev' => ['jev', TypeSafe::class, [Capability::INPUT_TEXT, Capability::CLASSIFICATION]];
+        yield 'jev-latest' => ['jev-latest', TypeSafe::class, [Capability::INPUT_TEXT, Capability::CLASSIFICATION]];
+        yield 'jev-preview' => ['jev-preview', TypeSafe::class, [Capability::INPUT_TEXT, Capability::CLASSIFICATION]];
+        yield 'jev-1.13.0' => ['jev-1.13.0', TypeSafe::class, [Capability::INPUT_TEXT, Capability::CLASSIFICATION]];
     }
 
     protected function createModelCatalog(): ModelCatalogInterface

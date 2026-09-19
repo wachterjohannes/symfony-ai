@@ -24,7 +24,7 @@ final class ClassificationResultTest extends TestCase
 {
     public function testGetContentReturnsAnswersByQuestionName()
     {
-        $urgent = new BooleanAnswer(true);
+        $urgent = new BooleanAnswer(0.98);
         $department = new ChoiceAnswer('technical', ['billing' => 0.13, 'technical' => 0.87], 0.82);
 
         $result = new ClassificationResult(['urgent' => $urgent, 'department' => $department]);
@@ -39,7 +39,7 @@ final class ClassificationResultTest extends TestCase
 
     public function testGetAnswer()
     {
-        $urgent = new BooleanAnswer(true);
+        $urgent = new BooleanAnswer(0.98);
 
         $this->assertSame($urgent, (new ClassificationResult(['urgent' => $urgent]))->getAnswer('urgent'));
     }
@@ -49,6 +49,6 @@ final class ClassificationResultTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('The classification result does not contain an answer for "unknown".');
 
-        (new ClassificationResult(['urgent' => new BooleanAnswer(true)]))->getAnswer('unknown');
+        (new ClassificationResult(['urgent' => new BooleanAnswer(0.98)]))->getAnswer('unknown');
     }
 }

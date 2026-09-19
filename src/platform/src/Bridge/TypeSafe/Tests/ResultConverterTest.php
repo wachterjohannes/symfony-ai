@@ -40,12 +40,12 @@ final class ResultConverterTest extends TestCase
     {
         $result = (new ResultConverter())->convert($this->createRawResult([
             'answers' => [
-                'urgent' => ['type' => 'noul', 'noul' => true],
+                'urgent' => ['type' => 'noul', 'noul' => 0.98],
                 'department' => ['type' => 'choice', 'choice' => 'technical', 'probabilities' => ['billing' => 0.13, 'technical' => 0.87], 'confidence' => 0.82],
-                'frustration' => ['type' => 'score', 'score' => 1.24, 'probabilities' => ['0' => 0.12, '1' => 0.52, '2' => 0.36], 'legend' => ['0' => 'Calm', '1' => 'Frustrated', '2' => 'Very angry'], 'confidence' => null],
+                'frustration' => ['type' => 'score', 'score' => 1.24, 'probabilities' => [0.12, 0.52, 0.36], 'legend' => ['Calm', 'Frustrated', 'Very angry'], 'confidence' => null],
             ],
             'usage' => ['input_tokens' => 123, 'output_tokens' => 45],
-            'model' => 'jev',
+            'model' => 'jev-1.13.0',
         ]));
 
         $this->assertInstanceOf(ClassificationResult::class, $result);
@@ -53,6 +53,7 @@ final class ResultConverterTest extends TestCase
 
         $urgent = $result->getAnswer('urgent');
         $this->assertInstanceOf(BooleanAnswer::class, $urgent);
+        $this->assertSame(0.98, $urgent->getProbability());
         $this->assertTrue($urgent->getValue());
         $this->assertNull($urgent->getConfidence());
 
@@ -71,16 +72,29 @@ final class ResultConverterTest extends TestCase
         $this->assertNull($frustration->getConfidence());
     }
 
-    public function testItConvertsFalseBooleanWithConfidence()
+    public function testItKeepsALowBooleanProbabilityFalse()
     {
         $result = (new ResultConverter())->convert($this->createRawResult([
-            'answers' => ['spam' => ['type' => 'noul', 'noul' => false, 'confidence' => 0.97]],
+            'answers' => ['spam' => ['type' => 'noul', 'noul' => 0.01]],
         ]));
 
         $spam = $result->getAnswer('spam');
         $this->assertInstanceOf(BooleanAnswer::class, $spam);
+        $this->assertSame(0.01, $spam->getProbability());
         $this->assertFalse($spam->getValue());
-        $this->assertSame(0.97, $spam->getConfidence());
+        $this->assertNull($spam->getConfidence());
+    }
+
+    public function testItCastsAnIntegerBooleanProbabilityToFloat()
+    {
+        $result = (new ResultConverter())->convert($this->createRawResult([
+            'answers' => ['spam' => ['type' => 'noul', 'noul' => 1]],
+        ]));
+
+        $spam = $result->getAnswer('spam');
+        $this->assertInstanceOf(BooleanAnswer::class, $spam);
+        $this->assertSame(1.0, $spam->getProbability());
+        $this->assertTrue($spam->getValue());
     }
 
     public function testItCastsIntegerProbabilitiesToFloats()

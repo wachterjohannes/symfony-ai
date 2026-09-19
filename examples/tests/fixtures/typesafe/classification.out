@@ -1,0 +1,17 @@
+Urgent: yes (probability 0.98)
+Department: technical (confidence 0.91)
+  technical  0.96
+  billing    0.04
+Frustration: Very angry (score 1.98)
++------------ Token Usage +------------+
+| Model                   | jev-1.13.0 |
+| Prompt tokens           | 413        |
+| Completion tokens       | 63         |
+| Thinking tokens         | n/a        |
+| Tool tokens             | n/a        |
+| Cached tokens           | n/a        |
+| Remaining tokens minute | n/a        |
+| Remaining tokens month  | n/a        |
+| Remaining tokens        | n/a        |
+| Total tokens            | n/a        |
++-------------------------+------------+

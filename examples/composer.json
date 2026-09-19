@@ -74,6 +74,7 @@
         "symfony/ai-surreal-db-store": "^0.13",
         "symfony/ai-tavily-tool": "^0.13",
         "symfony/ai-transformers-php-platform": "^0.13",
+        "symfony/ai-type-safe-platform": "^0.13",
         "symfony/ai-typesense-store": "^0.13",
         "symfony/ai-vektor-store": "^0.13",
         "symfony/ai-vertex-ai-platform": "^0.13",

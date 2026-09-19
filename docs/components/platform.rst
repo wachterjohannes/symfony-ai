@@ -1249,10 +1249,12 @@ Some models do not answer with free-form text but with calibrated, typed answers
 questions about a given state - free text or structured data. This is useful wherever the answer drives
 application logic, for instance to route a support ticket, and the probabilities tell how much to trust it.
 
-Questions are passed with the ``questions`` option as a map of names to one of three question types:
+State and questions are passed as a :class:`Symfony\\AI\\Platform\\Classification\\ClassificationInput`,
+which holds the questions as a map of names to one of three question types:
 
 * :class:`Symfony\\AI\\Platform\\Classification\\BooleanQuestion` - yes or no, with optional
-  descriptions of what counts as true and false;
+  descriptions of what counts as true and false. Its answer carries the calibrated probability
+  that the question is true, so a decision can demand more than a bare ``true``;
 * :class:`Symfony\\AI\\Platform\\Classification\\ChoiceQuestion` - exactly one of the given labeled
   options;
 * :class:`Symfony\\AI\\Platform\\Classification\\ScoreQuestion` - a level on an ordered scale,
@@ -1264,28 +1266,28 @@ question, each carrying a calibrated confidence, or ``null`` when the provider c
     use Symfony\AI\Platform\Bridge\TypeSafe\Factory;
     use Symfony\AI\Platform\Classification\BooleanQuestion;
     use Symfony\AI\Platform\Classification\ChoiceQuestion;
+    use Symfony\AI\Platform\Classification\ClassificationInput;
     use Symfony\AI\Platform\Classification\ScoreQuestion;
 
     $platform = Factory::createPlatform($apiKey);
 
-    $result = $platform->invoke('jev', $ticket, [
-        'questions' => [
-            'urgent' => new BooleanQuestion(
-                'Does this need an immediate response?',
-                trueCriterion: 'Explicitly time-sensitive',
-                falseCriterion: 'No urgency expressed',
-            ),
-            'department' => new ChoiceQuestion('Which team should handle this?', [
-                'billing' => 'Payments, invoices, refunds',
-                'technical' => 'Bugs, outages, integrations',
-            ]),
-            'frustration' => new ScoreQuestion('How frustrated is the customer?', [
-                'Calm', 'Frustrated', 'Very angry',
-            ]),
-        ],
-    ])->getResult();
+    $result = $platform->invoke('jev-latest', new ClassificationInput($ticket, [
+        'urgent' => new BooleanQuestion(
+            'Does this need an immediate response?',
+            trueCriterion: 'Explicitly time-sensitive',
+            falseCriterion: 'No urgency expressed',
+        ),
+        'department' => new ChoiceQuestion('Which team should handle this?', [
+            'billing' => 'Payments, invoices, refunds',
+            'technical' => 'Bugs, outages, integrations',
+        ]),
+        'frustration' => new ScoreQuestion('How frustrated is the customer?', [
+            'Calm', 'Frustrated', 'Very angry',
+        ]),
+    ]))->getResult();
 
-    $result->getAnswer('urgent')->getValue();              // true
+    $result->getAnswer('urgent')->getProbability();        // 0.98, calibrated probability that it is true
+    $result->getAnswer('urgent')->getValue();              // true, the probability is at least 0.5
     $result->getAnswer('department')->getChoice();         // 'technical'
     $result->getAnswer('department')->getProbabilities();  // ['billing' => 0.13, 'technical' => 0.87]
     $result->getAnswer('frustration')->getScore();         // 1.24, probability-weighted level index
@@ -1296,6 +1298,11 @@ Classification is currently provided by the TypeSafe bridge:
 .. code-block:: terminal
 
     $ composer require symfony/ai-type-safe-platform
+
+Code Examples
+~~~~~~~~~~~~~
+
+* `Classification with TypeSafe`_
 
 Structured Output
 -----------------
@@ -2128,3 +2135,4 @@ Code Examples
 .. _`LM Studio Catalog`: https://lmstudio.ai/models
 .. _`Cerebras Chat`: https://github.com/symfony/ai/blob/main/examples/cerebras/chat.php
 .. _`Cerebras Streaming`: https://github.com/symfony/ai/blob/main/examples/cerebras/stream.php
+.. _`Classification with TypeSafe`: https://github.com/symfony/ai/blob/main/examples/typesafe/classification.php

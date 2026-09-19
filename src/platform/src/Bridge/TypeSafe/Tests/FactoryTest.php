@@ -17,6 +17,7 @@ use Symfony\AI\Platform\Classification\BooleanAnswer;
 use Symfony\AI\Platform\Classification\BooleanQuestion;
 use Symfony\AI\Platform\Classification\ChoiceAnswer;
 use Symfony\AI\Platform\Classification\ChoiceQuestion;
+use Symfony\AI\Platform\Classification\ClassificationInput;
 use Symfony\AI\Platform\Classification\ScoreAnswer;
 use Symfony\AI\Platform\Classification\ScoreQuestion;
 use Symfony\AI\Platform\Platform;
@@ -40,36 +41,35 @@ final class FactoryTest extends TestCase
             $this->assertSame('https://api.typesafe.ai/v1/systemone', $url);
 
             $body = json_decode($options['body'], true);
-            $this->assertSame('jev', $body['model']);
+            $this->assertSame('jev-latest', $body['model']);
             $this->assertSame('Our checkout is down since this morning and customers cannot pay. Fix this NOW!', $body['state']);
             $this->assertSame(['urgent', 'department', 'frustration'], array_keys($body['questions']));
 
             return new JsonMockResponse([
                 'answers' => [
-                    'urgent' => ['type' => 'noul', 'noul' => true],
+                    'urgent' => ['type' => 'noul', 'noul' => 0.98],
                     'department' => ['type' => 'choice', 'choice' => 'technical', 'probabilities' => ['billing' => 0.13, 'technical' => 0.87], 'confidence' => 0.82],
-                    'frustration' => ['type' => 'score', 'score' => 1.24, 'probabilities' => ['0' => 0.12, '1' => 0.52, '2' => 0.36], 'legend' => ['0' => 'Calm', '1' => 'Frustrated', '2' => 'Very angry'], 'confidence' => null],
+                    'frustration' => ['type' => 'score', 'score' => 1.24, 'probabilities' => [0.12, 0.52, 0.36], 'legend' => ['Calm', 'Frustrated', 'Very angry'], 'confidence' => null],
                 ],
                 'usage' => ['input_tokens' => 123, 'output_tokens' => 45],
-                'model' => 'jev',
+                'model' => 'jev-1.13.0',
             ]);
         });
 
         $platform = Factory::createPlatform('test-api-key', $httpClient);
 
-        $deferred = $platform->invoke('jev', 'Our checkout is down since this morning and customers cannot pay. Fix this NOW!', [
-            'questions' => [
-                'urgent' => new BooleanQuestion('Does this need an immediate response?', 'Explicitly time-sensitive', 'No urgency expressed'),
-                'department' => new ChoiceQuestion('Which team should handle this?', ['billing' => 'Payments, invoices, refunds', 'technical' => 'Bugs, outages, integrations']),
-                'frustration' => new ScoreQuestion('How frustrated is the customer?', ['Calm', 'Frustrated', 'Very angry']),
-            ],
-        ]);
+        $deferred = $platform->invoke('jev-latest', new ClassificationInput('Our checkout is down since this morning and customers cannot pay. Fix this NOW!', [
+            'urgent' => new BooleanQuestion('Does this need an immediate response?', 'Explicitly time-sensitive', 'No urgency expressed'),
+            'department' => new ChoiceQuestion('Which team should handle this?', ['billing' => 'Payments, invoices, refunds', 'technical' => 'Bugs, outages, integrations']),
+            'frustration' => new ScoreQuestion('How frustrated is the customer?', ['Calm', 'Frustrated', 'Very angry']),
+        ]));
 
         $result = $deferred->getResult();
         $this->assertInstanceOf(ClassificationResult::class, $result);
 
         $urgent = $result->getAnswer('urgent');
         $this->assertInstanceOf(BooleanAnswer::class, $urgent);
+        $this->assertSame(0.98, $urgent->getProbability());
         $this->assertTrue($urgent->getValue());
 
         $department = $result->getAnswer('department');
