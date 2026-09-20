@@ -1,6 +1,9 @@
 Troubleshooting
 ===============
 
+Symfony AI Mate (``vendor/bin/mate``) is a CLI that gives coding agents project-aware tools for a
+PHP application: the compiled container, the profiler and the logs.
+
 Start with these three commands. They answer most questions below:
 
 .. code-block:: terminal
@@ -25,7 +28,8 @@ PHP Version Mismatch
 
 .. code-block:: terminal
 
-     [ERROR] Mate is running under PHP 8.4.15 but this project expects PHP 8.3.
+     [ERROR] Mate is running under PHP "8.4.15" but this project expects PHP "8.3".
+             Run it as "ddev exec vendor/bin/mate".
 
 Run the command the error names. If the recorded version is the wrong one, correct
 ``mate.php_version`` in ``mate/config.php``. See :ref:`mate-choosing-the-interpreter`.
@@ -77,8 +81,9 @@ An Extension Is Not Discovered
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 1. The package needs an ``extra.ai-mate`` section in its ``composer.json``.
-2. A package that sets ``extra.ai-mate.extension`` to ``false`` is never discovered. That is what
-   ``mate init`` writes into an application.
+2. A package that sets ``extra.ai-mate.extension`` to ``false`` is never discovered as an
+   extension of another project. That is what ``mate init`` writes into an application. The flag
+   does not affect the application's own tools under ``mate/src/``.
 3. Run ``vendor/bin/mate discover`` and check that the package is listed in
    ``mate/extensions.php`` with ``'enabled' => true``.
 
@@ -129,8 +134,8 @@ The Instructions of an Extension Are Missing
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Check that the file named by ``extra.ai-mate.instructions`` exists. The path is relative to the
-package root. ``vendor/bin/mate debug:extensions`` shows the ``instructions`` field of every
-extension.
+package root. ``vendor/bin/mate debug:extensions`` prints an ``Agent instructions`` line for every
+extension that has one. With ``--format=json`` the key is ``agent_instructions``.
 
 Instructions or Skills Are Stale
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -164,13 +169,13 @@ error, so a typo cannot quietly discard the first value:
 
 .. code-block:: terminal
 
-    $ vendor/bin/mate tools:call some-tool --tag=a --tag=b
+    $ vendor/bin/mate tools:call <tool-name> --tag=a --tag=b
 
 Nested or associative values have no option form. Pass them as JSON:
 
 .. code-block:: terminal
 
-    $ vendor/bin/mate tools:call some-tool --json='{"filters": {"level": "error"}}'
+    $ vendor/bin/mate tools:call <tool-name> --json='{"filters": {"level": "error"}}'
 
 The same applies to a parameter whose name is taken by a console option, like ``format`` or
 ``verbose``. See ``tools:call`` in the :doc:`commands` for the full list.
@@ -178,7 +183,7 @@ The same applies to a parameter whose name is taken by a console option, like ``
 A Custom Tool Fails When Called
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-A tool must return a scalar value or an array. Objects are not serialized::
+A tool must return a scalar value or an array. An object fails when the result is encoded::
 
     // Good
     public function execute(): string { return 'result'; }
@@ -243,8 +248,8 @@ Debugging Tips
 Debug Logging
 ~~~~~~~~~~~~~
 
-``MATE_DEBUG=1`` writes debug-level logs to stderr: service registration, extension discovery,
-classes that could not be autoloaded, and tool execution.
+``MATE_DEBUG=1`` writes debug-level logs to stderr: service registration, extension discovery and
+classes that could not be autoloaded.
 
 .. code-block:: terminal
 

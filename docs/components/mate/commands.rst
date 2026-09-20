@@ -1,8 +1,13 @@
 Command Reference
 =================
 
+Symfony AI Mate (``vendor/bin/mate``) is a CLI that gives coding agents project-aware tools for a
+PHP application: the compiled container, the profiler and the logs. This page lists the commands of
+the CLI itself. The parameters of the individual tools are listed in :doc:`bridges`.
+
 Every command is run through ``vendor/bin/mate``, or through the wrapper recorded as
-``mate.invocation`` (see :ref:`mate-choosing-the-interpreter`).
+``mate.invocation`` (see :ref:`mate-choosing-the-interpreter`). The standard Symfony Console
+commands ``list``, ``help`` and ``completion`` are available as well.
 
 .. _mate-output-formats:
 
@@ -133,10 +138,10 @@ These are the four commands a coding agent uses.
         $ vendor/bin/mate tools:call monolog-search --term="^GET" --regex
 
         # A variadic parameter
-        $ vendor/bin/mate tools:call some-tool --tag=a --tag=b
+        $ vendor/bin/mate tools:call <tool-name> --tag=a --tag=b
 
         # Nested values
-        $ vendor/bin/mate tools:call some-tool --json='{"filters": {"level": "error"}}'
+        $ vendor/bin/mate tools:call <tool-name> --json='{"filters": {"level": "error"}}'
 
 ``mate resources:read <uri>``
     Read a resource by its URI. The URI may belong to a static resource or match a resource

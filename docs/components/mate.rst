@@ -14,8 +14,9 @@ Mate reads your application without booting it. The compiled container is parsed
 XML, and the profiler and logs are read from disk. Mate therefore still answers when the
 application itself does not boot, which is usually the moment you need it.
 
-The core package is framework-agnostic and works with any PHP application. Symfony-specific tools
-come as separate :doc:`bridges <mate/bridges>`.
+The core package is framework-agnostic and works with any PHP application. More tools come from
+extensions, which are Composer packages. The Symfony-specific ones are the
+:doc:`bridges <mate/bridges>`, the extensions maintained in the Symfony AI repository.
 
 .. caution::
 
@@ -42,15 +43,14 @@ Initialize Mate in your project:
 .. code-block:: terminal
 
     $ vendor/bin/mate init
-    $ composer dump-autoload
-    $ vendor/bin/mate discover
 
-``mate init`` asks which command your coding agent should use to run Mate. Accept the default
-unless your PHP runs in a container or behind a wrapper, see
-:ref:`mate-choosing-the-interpreter`. It then creates:
+``mate init`` asks which command your coding agent should use to run Mate. If your PHP runs in a
+container or behind a wrapper, answer with the wrapper, for example ``ddev exec`` or
+``symfony php``. Otherwise accept the default. :ref:`mate-choosing-the-interpreter` has the
+details. The command then creates:
 
 * ``mate/config.php`` for parameters and services
-* ``mate/extensions.php`` with the enabled extensions and their skills
+* ``mate/extensions.php``, the list of extensions that ``mate discover`` fills
 * ``mate/.env`` and ``mate/.gitignore``
 * ``mate/src/`` for your own tools
 * ``mate/AGENT_INSTRUCTIONS.md``, a managed block in ``AGENTS.md``, and a ``CLAUDE.md`` that
@@ -78,6 +78,13 @@ It also adds this to your ``composer.json``:
 ``extension: false`` keeps your application from being discovered as a Mate extension when it is
 installed as a dependency elsewhere.
 
+Then register the new namespace and let Mate find the installed extensions:
+
+.. code-block:: terminal
+
+    $ composer dump-autoload
+    $ vendor/bin/mate discover
+
 ``mate discover`` registers the installed extensions, writes the agent instructions and installs
 the :doc:`skills <mate/skills>`. Check the result:
 
@@ -85,7 +92,7 @@ the :doc:`skills <mate/skills>`. Check the result:
 
     $ vendor/bin/mate tools:list
 
-Then ask your coding agent to run the same command. If it does not pick Mate up on its own
+Then check that your coding agent can run the same command. If it does not pick Mate up on its own
 afterwards, see :doc:`mate/integration`.
 
 Keeping Mate Up to Date
@@ -116,17 +123,18 @@ and works with four commands:
 
 Tool parameters are passed as long options, one per parameter, and cast to the declared type. A
 boolean may be passed as a bare flag, and a variadic parameter takes the option repeated. Nested
-values are passed as a JSON object:
+values are passed as a JSON object, and so is a parameter whose name collides with a console option
+like ``format``:
 
 .. code-block:: terminal
 
     $ vendor/bin/mate tools:call monolog-search --term="^GET" --regex
-    $ vendor/bin/mate tools:call some-tool --tag=a --tag=b
-    $ vendor/bin/mate tools:call some-tool --json='{"filters": {"level": "error"}}'
+    $ vendor/bin/mate tools:call <tool-name> --tag=a --tag=b
+    $ vendor/bin/mate tools:call <tool-name> --json='{"filters": {"level": "error"}}'
 
 All four commands accept ``--format``. Use ``--format=json`` when the result is parsed, and
-``--format=toon`` for the smallest context footprint. See :doc:`mate/commands` for every command
-and option.
+``--format=toon`` (requires ``helgesverre/toon``) for the smallest context footprint. See
+:doc:`mate/commands` for every command and option.
 
 Adding Custom Tools
 -------------------
@@ -184,7 +192,12 @@ Two more attributes cover data the agent navigates into:
     }
 
 A tool is something the agent *calls* with arguments. A resource is something it *addresses* and
-can drill into, which keeps large payloads out of the context window until they are needed.
+can drill into, which keeps large payloads out of the context window until they are needed:
+
+.. code-block:: terminal
+
+    $ vendor/bin/mate tools:call my-tool --param=value
+    $ vendor/bin/mate resources:read my-app://entity/42
 
 Run ``composer dump-autoload`` when the autoloader does not know the new class yet, and verify with
 ``vendor/bin/mate tools:list``. To share tools between projects, see
@@ -192,6 +205,8 @@ Run ``composer dump-autoload`` when the autoloader does not know the new class y
 
 Configuration
 -------------
+
+Mate works without further configuration. Come back to this section when a default does not fit.
 
 Parameters and Services
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -237,7 +252,8 @@ The core parameters:
 ``mate.root_dir``
     The project root. Read-only, use it to build paths.
 
-The parameters of the bridges are listed in :doc:`mate/bridges`.
+The parameters of the bridges are listed in :doc:`mate/bridges`. For an application with several
+kernels, see :ref:`mate-multi-kernel`.
 
 Environment Variables
 ~~~~~~~~~~~~~~~~~~~~~

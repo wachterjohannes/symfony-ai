@@ -1,8 +1,9 @@
 Integration
 ===========
 
-This page explains how your coding agent finds Symfony AI Mate, and how to make sure it runs Mate
-under the right PHP.
+Symfony AI Mate (``vendor/bin/mate``) is a CLI that gives coding agents project-aware tools for a
+PHP application: the compiled container, the profiler and the logs. This page explains how your coding
+agent finds Mate, and how to make sure it runs Mate under the right PHP.
 
 There is no server to configure. Mate is a CLI, so any agent that can run a shell command can
 already use it. The integration problem is a different one: **an agent will not use a tool it does
@@ -15,7 +16,8 @@ How Agents Find Mate
 
 ``mate/AGENT_INSTRUCTIONS.md``
     The aggregated instructions of every enabled extension: which tools exist and when to reach for
-    them.
+    them. The whole file is rewritten on every ``discover``, so do not edit it. Put your own notes
+    into ``AGENTS.md`` outside the markers described below.
 
 A managed block in ``AGENTS.md``
     A summary that points at the CLI, delimited by ``<!-- BEGIN AI_MATE_INSTRUCTIONS -->`` and
@@ -40,7 +42,7 @@ Claude Code
 ~~~~~~~~~~~
 
 Works out of the box after ``mate init``. It reads ``CLAUDE.md``, which imports ``AGENTS.md``, and
-loads skills from ``.claude/skills/``. To verify, ask Claude Code to run:
+loads skills from ``.claude/skills/``. To verify, run this from a Claude Code session:
 
 .. code-block:: terminal
 
@@ -120,8 +122,8 @@ reports on something that is not the application under test.
 
         $ vendor/bin/mate tools:list
 
-         [ERROR] Mate is running under PHP 8.4.15 but this project expects PHP 8.3.
-                 Run it as "ddev exec vendor/bin/mate". ...
+         [ERROR] Mate is running under PHP "8.4.15" but this project expects PHP "8.3".
+                 Run it as "ddev exec vendor/bin/mate".
 
     Set the parameter to ``null`` to disable the check.
 
@@ -133,3 +135,11 @@ reports on something that is not the application under test.
 
 After changing either parameter, run ``vendor/bin/mate discover`` so the instructions pick the new
 command up.
+
+.. caution::
+
+    With ``--no-interaction``, ``mate init`` does not ask. It records ``vendor/bin/mate`` and the
+    PHP version of the process that runs ``init``. Only a ``.ddev/`` directory changes that default.
+    Running ``init`` again does not correct it, because the question is skipped once
+    ``mate/config.php`` exists. For a project in Docker Compose, Lando or a similar setup, edit
+    both parameters by hand and run ``vendor/bin/mate discover``.

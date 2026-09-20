@@ -1,6 +1,9 @@
 Skills
 ======
 
+Symfony AI Mate (``vendor/bin/mate``) is a CLI that gives coding agents project-aware tools for a
+PHP application: the compiled container, the profiler and the logs.
+
 `Agent Skills <https://agentskills.io>`_ are ``SKILL.md`` files that give a coding agent
 structured, multi-step knowledge for a task. Extensions ship skills next to their tools, and Mate
 installs them where coding agents read them.

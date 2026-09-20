@@ -1,6 +1,9 @@
 Creating Mate Extensions
 ========================
 
+Symfony AI Mate (``vendor/bin/mate``) is a CLI that gives coding agents project-aware tools for a
+PHP application: the compiled container, the profiler and the logs.
+
 A Mate extension is a Composer package that declares itself through an ``extra.ai-mate`` section
 in its ``composer.json``, similar to a PHPStan extension. It can ship tools, resources, agent
 instructions and skills.
@@ -31,7 +34,9 @@ Quick Start
         }
     }
 
-The ``extra.ai-mate`` section is what makes the package an extension.
+The ``extra.ai-mate`` section is what makes the package an extension. Create the
+``INSTRUCTIONS.md`` file next to ``composer.json``. `Writing Agent Instructions`_ explains what
+belongs in it.
 
 2. Create Capabilities
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -76,7 +81,7 @@ Three attributes are available, all in ``Symfony\AI\Mate\Attribute``:
     Data addressed by a URI pattern. The variables of ``uriTemplate`` are passed to the method.
     Parameters: ``uriTemplate``, ``name``, ``title``, ``description``, ``mimeType``.
 
-A tool must return a scalar value or an array. Objects are not serialized.
+A tool must return a scalar value or an array. An object fails when the result is encoded.
 
 .. note::
 
@@ -184,7 +189,8 @@ All keys live under ``extra.ai-mate`` in ``composer.json``. All of them are opti
 are relative to the package root.
 
 ``scan-dirs``
-    List of directories to scan for Mate attributes. Default: the package root.
+    List of directories to scan for Mate attributes. Without it no class is scanned, so an
+    extension that ships tools or resources needs this key.
 
 ``includes``
     List of PHP service configuration files in the Symfony DI format. Environment variables are
@@ -192,8 +198,8 @@ are relative to the package root.
 
 ``instructions``
     Path to a Markdown file with instructions for coding agents, by convention
-    ``INSTRUCTIONS.md``. The content is aggregated into ``mate/AGENT_INSTRUCTIONS.md`` of the
-    project.
+    ``INSTRUCTIONS.md``. The content is aggregated into the generated
+    ``mate/AGENT_INSTRUCTIONS.md`` of the project.
 
 ``skills``
     List of directories that hold `Agent Skills`_. A single string is accepted as well. By
@@ -264,8 +270,8 @@ Two things decide whether a skill works:
 
 * **The description.** It is all an agent has when it decides whether to load the skill. Say what
   the skill does and when it applies.
-* **The links.** A Markdown link in ``SKILL.md`` must point at a file inside the skill directory.
-  Nothing else is copied.
+* **The links.** The whole skill directory is copied, and nothing outside of it. A Markdown link
+  in ``SKILL.md`` must therefore point at a file inside the skill directory.
 
 ``vendor/bin/mate skills:validate`` checks both in a project that has your extension installed.
 

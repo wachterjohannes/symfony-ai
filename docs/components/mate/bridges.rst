@@ -1,8 +1,10 @@
-Bridges
-=======
+Mate Bridges
+============
 
-Bridges are Mate extensions maintained in the Symfony AI repository. Each one is a Composer
-package of its own. Install the ones that match your application:
+Symfony AI Mate (``vendor/bin/mate``) is a CLI that gives coding agents project-aware tools for a
+PHP application: the compiled container, the profiler and the logs. Bridges are Mate
+extensions maintained in the Symfony AI repository. Each one is a Composer package of its own.
+Install the ones that match your application:
 
 .. code-block:: terminal
 
@@ -11,6 +13,23 @@ package of its own. Install the ones that match your application:
 The Composer plugin runs ``mate discover`` afterwards, which enables the bridges and installs their
 skills. Run ``vendor/bin/mate tools:inspect <tool-name>`` for the full parameter list of any tool
 below.
+
+Which Tool for Which Question
+-----------------------------
+
+=======================================================  ==================================================
+Question                                                 Tool or resource
+=======================================================  ==================================================
+Which service handles this, is a listener registered?    ``symfony-services``
+How is one service wired?                                ``symfony-service-detail``
+Which requests failed or were slow?                      ``symfony-profiler-list``
+What happened in one request?                            ``symfony-profiler://profile/{token}``
+What did one collector record (``db``, ``exception``)?   ``symfony-profiler://profile/{token}/{collector}``
+Which log entries match a text, a level or a time?       ``monolog-search``
+Which log entries belong to one order or user?           ``monolog-context-search``
+What was logged last?                                    ``monolog-tail``
+Which log files and channels exist?                      ``monolog-list-files``, ``monolog-list-channels``
+=======================================================  ==================================================
 
 .. _mate-untrusted-data:
 
@@ -181,12 +200,12 @@ A collector without a formatter is exposed with its raw data.
 
 To add a formatter for your own collector, implement
 ``Symfony\AI\Mate\Bridge\Symfony\Profiler\Service\CollectorFormatterInterface`` and tag the service
-with ``ai_mate_symfony.profiler_collector_formatter``::
+with ``ai_mate.profiler_collector_formatter``::
 
     // mate/config.php
     $container->services()
         ->set(MyCollectorFormatter::class)
-            ->tag('ai_mate_symfony.profiler_collector_formatter');
+            ->tag('ai_mate.profiler_collector_formatter');
 
 ``getName()`` returns the collector name, ``getSummary()`` the short form shown in the profile, and
 ``format()`` the full data.
@@ -241,10 +260,11 @@ the standard Monolog line format and JSON.
     ``channel`` and ``kernelContext``.
 
 ``monolog-list-files``
-    List the log files with path, size and modification time.
+    List the log files with path, size and modification time. Takes ``environment`` and
+    ``kernelContext``.
 
 ``monolog-list-channels``
-    List all channel names found in the logs.
+    List all channel names found in the logs. Takes ``kernelContext``.
 
 .. code-block:: terminal
 
