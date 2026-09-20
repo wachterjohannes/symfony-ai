@@ -212,8 +212,8 @@ Narrow the filter, read a resource URI over dumping everything, and use a compac
 
 See :ref:`mate-output-formats`.
 
-Bridge Issues
--------------
+Symfony and Monolog Extension Issues
+------------------------------------
 
 The Container Is Not Found
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -238,7 +238,7 @@ Logs Are Not Found or Not Parsed
 
 1. Check that ``ai_mate_monolog.log_dir`` points at the directory with your log files. Run
    ``vendor/bin/mate tools:call monolog-list-files`` to see what Mate finds.
-2. The bridge reads the standard Monolog line format and JSON. Entries in a custom format are
+2. The extension reads the standard Monolog line format and JSON. Entries in a custom format are
    skipped.
 3. Check the file permissions of the log files.
 

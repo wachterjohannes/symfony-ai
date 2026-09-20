@@ -15,8 +15,8 @@ XML, and the profiler and logs are read from disk. Mate therefore still answers 
 application itself does not boot, which is usually the moment you need it.
 
 The core package is framework-agnostic and works with any PHP application. More tools come from
-extensions, which are Composer packages. The Symfony-specific ones are the
-:doc:`bridges <mate/bridges>`, the extensions maintained in the Symfony AI repository.
+:doc:`extensions <mate/extensions>`, which are Composer packages. Two of them are maintained in the
+Symfony AI repository, one for Symfony and one for Monolog.
 
 .. caution::
 
@@ -29,7 +29,7 @@ Installation
 
     $ composer require --dev symfony/ai-mate
 
-For a Symfony application, add the two bridges:
+For a Symfony application, add the two extensions:
 
 .. code-block:: terminal
 
@@ -252,8 +252,8 @@ The core parameters:
 ``mate.root_dir``
     The project root. Read-only, use it to build paths.
 
-The parameters of the bridges are listed in :doc:`mate/bridges`. For an application with several
-kernels, see :ref:`mate-multi-kernel`.
+The parameters of the extensions are listed in :doc:`mate/extensions`. For an application with
+several kernels, see :ref:`mate-multi-kernel`.
 
 Environment Variables
 ~~~~~~~~~~~~~~~~~~~~~
@@ -312,11 +312,11 @@ Extensions
 The core package ships one tool, ``server-info``. It reports the PHP version, the OS and the loaded
 PHP extensions of the runtime Mate uses. Everything else comes from extensions:
 
-* The **Symfony bridge** (``symfony/ai-symfony-mate-extension``) searches the compiled container
+* The **Symfony extension** (``symfony/ai-symfony-mate-extension``) searches the compiled container
   and reads the profiler.
-* The **Monolog bridge** (``symfony/ai-monolog-mate-extension``) searches the log files.
+* The **Monolog extension** (``symfony/ai-monolog-mate-extension``) searches the log files.
 
-Both are documented in :doc:`mate/bridges`. A third-party extension is installed the same way:
+Both are documented in :doc:`mate/extensions`. A third-party extension is installed the same way:
 
 .. code-block:: terminal
 
@@ -336,9 +336,9 @@ your agent. Review ``mate/extensions.php`` after installing packages, and commit
 the generated skill folders so that changes show up in code review.
 
 **Tool output is data.** Logs, profiles and container metadata contain text that end users and
-third-party packages control. The bridges mark such output as untrusted and redact known sensitive
-values. See :ref:`mate-untrusted-data`. Redaction is best effort, so treat the output of the
-profiler and log tools as sensitive.
+third-party packages control. Both extensions mark such output as untrusted and redact known
+sensitive values. See :ref:`mate-untrusted-data`. Redaction is best effort, so treat the output of
+the profiler and log tools as sensitive.
 
 Further Reading
 ---------------
@@ -347,7 +347,7 @@ Further Reading
     :maxdepth: 1
 
     mate/integration
-    mate/bridges
+    mate/extensions
     mate/skills
     mate/commands
     mate/creating-extensions

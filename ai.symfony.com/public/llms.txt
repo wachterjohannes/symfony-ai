@@ -66,7 +66,7 @@ A demo application (`composer create-project symfony/ai-demo`) with 8 scenarios:
 - [Chat Component](https://symfony.com/doc/current/ai/components/chat.html): High-level API for conversations with agents and message history persistence
 - [Mate Component](https://symfony.com/doc/current/ai/components/mate.html): Command-line assistant giving coding agents project-aware tools for PHP/Symfony applications
 - [Mate Integration](https://symfony.com/doc/current/ai/components/mate/integration.html): How coding agents find Mate, and choosing the PHP interpreter
-- [Mate Bridges](https://symfony.com/doc/current/ai/components/mate/bridges.html): The tools of the Symfony and Monolog bridges (symfony-services, symfony-profiler-list, monolog-search, ...) with their parameters, resources and configuration
+- [Mate Extensions](https://symfony.com/doc/current/ai/components/mate/extensions.html): The tools of the Symfony and Monolog extensions (symfony-services, symfony-profiler-list, monolog-search, ...) with their parameters, resources and configuration
 - [Mate Skills](https://symfony.com/doc/current/ai/components/mate/skills.html): Installing, overriding and validating Agent Skills shipped by extensions
 - [Mate Commands](https://symfony.com/doc/current/ai/components/mate/commands.html): Reference of the mate CLI's own commands (init, discover, tools:call, skills:*, debug:*) and their options, not the parameters of individual tools
 - [Creating Extensions](https://symfony.com/doc/current/ai/components/mate/creating-extensions.html): Building custom extensions for Mate

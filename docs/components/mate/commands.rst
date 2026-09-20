@@ -3,7 +3,7 @@ Command Reference
 
 Symfony AI Mate (``vendor/bin/mate``) is a CLI that gives coding agents project-aware tools for a
 PHP application: the compiled container, the profiler and the logs. This page lists the commands of
-the CLI itself. The parameters of the individual tools are listed in :doc:`bridges`.
+the CLI itself. The parameters of the individual tools are listed in :doc:`extensions`.
 
 Every command is run through ``vendor/bin/mate``, or through the wrapper recorded as
 ``mate.invocation`` (see :ref:`mate-choosing-the-interpreter`). The standard Symfony Console

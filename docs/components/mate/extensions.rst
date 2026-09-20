@@ -1,18 +1,18 @@
-Mate Bridges
-============
+Mate Extensions
+===============
 
 Symfony AI Mate (``vendor/bin/mate``) is a CLI that gives coding agents project-aware tools for a
-PHP application: the compiled container, the profiler and the logs. Bridges are Mate
-extensions maintained in the Symfony AI repository. Each one is a Composer package of its own.
-Install the ones that match your application:
+PHP application: the compiled container, the profiler and the logs. Extensions are Composer
+packages that add tools. This page covers the two extensions maintained in the Symfony AI
+repository. Install the ones that match your application:
 
 .. code-block:: terminal
 
     $ composer require --dev symfony/ai-symfony-mate-extension symfony/ai-monolog-mate-extension
 
-The Composer plugin runs ``mate discover`` afterwards, which enables the bridges and installs their
-skills. Run ``vendor/bin/mate tools:inspect <tool-name>`` for the full parameter list of any tool
-below.
+The Composer plugin runs ``mate discover`` afterwards, which enables the extensions and installs
+their skills. Run ``vendor/bin/mate tools:inspect <tool-name>`` for the full parameter list of any
+tool below.
 
 Which Tool for Which Question
 -----------------------------
@@ -36,7 +36,7 @@ Which log files and channels exist?                      ``monolog-list-files``,
 Untrusted Data
 --------------
 
-Both bridges return data that was captured from your application: log messages, URLs, SQL,
+Both extensions return data that was captured from your application: log messages, URLs, SQL,
 request payloads, container metadata. End users and third-party packages control much of that
 text. Every such response is therefore wrapped in an envelope:
 
@@ -59,7 +59,7 @@ instructions. When you parse a response in a script, read the payload from that 
 Multi-Kernel Applications
 -------------------------
 
-Every directory parameter of the bridges takes either a single path or a map of context name to
+Every directory parameter of the extensions takes either a single path or a map of context name to
 path. The map is made for `multi-kernel applications`_ that split cache and logs per ``APP_ID``::
 
     // mate/config.php
@@ -81,10 +81,10 @@ path. The map is made for `multi-kernel applications`_ that split cache and logs
 With a map, results carry the context they came from, and every tool accepts a parameter that
 narrows the lookup to one kernel. The sections below name the field and the parameter per tool.
 
-Symfony Bridge
---------------
+Symfony Extension
+-----------------
 
-The Symfony bridge (``symfony/ai-symfony-mate-extension``) reads the compiled container and the
+The Symfony extension (``symfony/ai-symfony-mate-extension``) reads the compiled container and the
 profiler from disk. The application is never booted.
 
 Container Introspection
@@ -124,7 +124,7 @@ nothing matched.
     $container->parameters()
         ->set('ai_mate_symfony.cache_dir', '%mate.root_dir%/var/cache');
 
-The bridge looks for a ``*DebugContainer.xml`` file in the cache directory itself, then in its
+The extension looks for a ``*DebugContainer.xml`` file in the cache directory itself, then in its
 ``dev``, ``test`` and ``prod`` subdirectories. Kernels with a custom class name are found too.
 
 Profiler
@@ -179,7 +179,7 @@ the collector that matters:
 
 **Collector formatters**
 
-A formatter reduces the raw collector data to what an agent needs for a diagnosis. The bridge
+A formatter reduces the raw collector data to what an agent needs for a diagnosis. The extension
 ships formatters for these collectors:
 
 ===============  ===================================================================
@@ -228,10 +228,10 @@ without a formatter goes through the same kind of key-based redaction.
     $container->parameters()
         ->set('ai_mate_symfony.profiler_dir', '%mate.root_dir%/var/cache/dev/profiler');
 
-Monolog Bridge
---------------
+Monolog Extension
+-----------------
 
-The Monolog bridge (``symfony/ai-monolog-mate-extension``) searches the log files on disk. It reads
+The Monolog extension (``symfony/ai-monolog-mate-extension``) searches the log files on disk. It reads
 the standard Monolog line format and JSON.
 
 ``monolog-search``
@@ -273,7 +273,7 @@ the standard Monolog line format and JSON.
     $ vendor/bin/mate tools:call monolog-tail --limit=20 --channel=security
 
 With several log directories, entries and files carry a ``kernel_context`` field. The name differs
-from the ``context`` of the Symfony bridge on purpose: a log record already has a context of its
+from the ``context`` of the Symfony extension on purpose: a log record already has a context of its
 own.
 
 **Configuration**::

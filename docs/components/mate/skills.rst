@@ -153,7 +153,7 @@ The core package ships two:
     Resolve which dependency versions are installed, through ``composer show`` and
     ``composer.lock``.
 
-The Symfony bridge adds three:
+The Symfony extension adds three:
 
 ``symfony-request-triage``
     Decide which of the other skills a given symptom calls for.
@@ -165,7 +165,7 @@ The Symfony bridge adds three:
 ``symfony-service-inspection``
     Inspect the compiled DI container when the wiring is the suspect, not the code.
 
-The Monolog bridge adds one:
+The Monolog extension adds one:
 
 ``symfony-log-investigation``
     Investigate trends across requests in the Monolog log files, as opposed to one failed request.

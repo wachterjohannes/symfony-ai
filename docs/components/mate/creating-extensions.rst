@@ -155,8 +155,8 @@ not relay it.
 * **Format for reasoning.** Use readable strings over numeric codes, rounded values with
   consistent units, and flat structures.
 * **Split triage from detail.** A tool that lists answers "is this relevant?". A resource the
-  agent drills into answers "what exactly went wrong?". The profiler tools of the Symfony bridge
-  work this way, see :doc:`bridges`.
+  agent drills into answers "what exactly went wrong?". The profiler tools of the Symfony
+  extension work this way, see :doc:`extensions`.
 
 Returning Application Data
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
