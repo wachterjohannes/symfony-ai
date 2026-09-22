@@ -2,8 +2,8 @@ Integration
 ===========
 
 Symfony AI Mate (``vendor/bin/mate``) is a CLI that gives coding agents project-aware tools for a
-PHP application: the compiled container, the profiler and the logs. This page explains how your coding
-agent finds Mate, and how to make sure it runs Mate under the right PHP.
+PHP application: the compiled container, the profiler and the logs. This page explains how your
+coding agent finds Mate, and how to make sure it runs Mate under the right PHP.
 
 There is no server to configure. Mate is a CLI, so any agent that can run a shell command can
 already use it. The integration problem is a different one: **an agent will not use a tool it does

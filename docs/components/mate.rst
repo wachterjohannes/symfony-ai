@@ -316,11 +316,12 @@ PHP extensions of the runtime Mate uses. Everything else comes from extensions:
   and reads the profiler.
 * The **Monolog extension** (``symfony/ai-monolog-mate-extension``) searches the log files.
 
-Both are documented in :doc:`mate/extensions`. A third-party extension is installed the same way:
+Both are documented in :doc:`mate/extensions`. Community extensions, for example for PHPUnit,
+PHPStan or Rector, are listed in `awesome-mate`_ and installed the same way:
 
 .. code-block:: terminal
 
-    $ composer require --dev vendor/some-mate-extension
+    $ composer require --dev matesofmate/phpunit-extension
 
 The Composer plugin then runs ``mate discover``, which enables the extension and installs its
 skills. To write your own extension, see :doc:`mate/creating-extensions`.
@@ -354,3 +355,4 @@ Further Reading
     mate/troubleshooting
 
 .. _`Symfony configuration`: https://symfony.com/doc/current/configuration.html#configuration-based-on-environment-variables
+.. _`awesome-mate`: https://github.com/MatesOfMate/awesome-mate

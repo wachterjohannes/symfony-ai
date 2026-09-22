@@ -275,5 +275,14 @@ Two things decide whether a skill works:
 
 ``vendor/bin/mate skills:validate`` checks both in a project that has your extension installed.
 
+Publishing an Extension
+-----------------------
+
+Publish the package on Packagist like any other Composer package. Then add it to `awesome-mate`_,
+the curated list of Mate extensions, so that others find it. The `MatesOfMate`_ organisation also
+welcomes extensions that should be maintained by the community.
+
 .. _`matesofmate/extension-template`: https://github.com/matesofmate/extension-template
+.. _`awesome-mate`: https://github.com/MatesOfMate/awesome-mate
+.. _`MatesOfMate`: https://github.com/MatesOfMate
 .. _`Agent Skills`: https://agentskills.io

@@ -231,8 +231,8 @@ without a formatter goes through the same kind of key-based redaction.
 Monolog Extension
 -----------------
 
-The Monolog extension (``symfony/ai-monolog-mate-extension``) searches the log files on disk. It reads
-the standard Monolog line format and JSON.
+The Monolog extension (``symfony/ai-monolog-mate-extension``) searches the log files on disk. It
+reads the standard Monolog line format and JSON.
 
 ``monolog-search``
     Search log entries. All parameters are optional. Omit ``term`` to filter without a text match.
@@ -281,4 +281,20 @@ own.
     $container->parameters()
         ->set('ai_mate_monolog.log_dir', '%mate.root_dir%/var/log');
 
+Community Extensions
+--------------------
+
+Extensions for other tools and frameworks are maintained outside the Symfony AI repository.
+`MatesOfMate`_ is the community organisation for Mate extensions. It publishes extensions for
+PHPUnit, PHPStan, Rector and Composer, among others, and hosts `awesome-mate`_, the curated list of
+all known extensions, articles and integrations. Start there when you look for an extension.
+
+A community extension is installed like any other:
+
+.. code-block:: terminal
+
+    $ composer require --dev matesofmate/phpunit-extension
+
 .. _`multi-kernel applications`: https://symfony.com/doc/current/configuration/multiple_kernels.html
+.. _`MatesOfMate`: https://github.com/MatesOfMate
+.. _`awesome-mate`: https://github.com/MatesOfMate/awesome-mate

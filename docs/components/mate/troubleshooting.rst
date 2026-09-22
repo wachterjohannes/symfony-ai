@@ -275,7 +275,8 @@ Clear the Cache
 Getting Help
 ------------
 
-Search the `existing issues`_ first. When you open a new one, include:
+Search the `existing issues`_ first. For a community extension, use the issue tracker of that
+extension. `awesome-mate`_ links them. When you open a new issue, include:
 
 * the PHP version and the Symfony AI Mate version
 * the error message, or the log written with ``MATE_DEBUG=1``
@@ -283,3 +284,4 @@ Search the `existing issues`_ first. When you open a new one, include:
 * your ``mate/config.php`` and ``mate/extensions.php``, without secrets
 
 .. _`existing issues`: https://github.com/symfony/ai/issues
+.. _`awesome-mate`: https://github.com/MatesOfMate/awesome-mate
