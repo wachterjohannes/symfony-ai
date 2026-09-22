@@ -980,3 +980,55 @@ header {
     margin-bottom: 0.25rem;
 }
 
+/* Architecture diagram viewer (generated via archify, see docs/architecture/) */
+.architecture-viewer {
+    display: block;
+    width: 100%;
+    min-height: 400px;
+    border: 1px solid var(--sf-ai-card-border);
+    border-radius: var(--sf-ai-card-radius);
+}
+
+.architecture-cross-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    margin-top: 1rem;
+}
+
+.architecture-cross-links-group {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.architecture-cross-links-label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--sf-ai-text-color);
+    opacity: 0.6;
+    margin-right: 0.25rem;
+}
+
+.architecture-cross-link-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.35rem 0.85rem;
+    border-radius: 999px;
+    border: 1px solid var(--sf-ai-card-border);
+    background: var(--sf-ai-card-bg);
+    color: var(--sf-ai-text-color);
+    font-size: 0.85rem;
+    text-decoration: none;
+    transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.architecture-cross-link-chip:hover {
+    border-color: var(--sf-ai-accent);
+    color: var(--sf-ai-accent);
+}
+

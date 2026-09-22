@@ -1,0 +1,173 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "MCP Bundle",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/symfony/ai",
+      "provider": "github",
+      "revision": "7c3ce859aa500cc3592b25323c842cb419ed5a67"
+    }
+  },
+  "components": [
+    {
+      "id": "your-app",
+      "type": "external",
+      "label": "Your Application",
+      "sublabel": "Symfony app (consumer)",
+      "pos": [20, 16],
+      "size": [180, 48]
+    },
+    {
+      "id": "mcp-sdk",
+      "type": "external",
+      "label": "MCP SDK",
+      "sublabel": "mcp/sdk, official PHP SDK",
+      "pos": [640, 16],
+      "size": [180, 48]
+    },
+    {
+      "id": "mcp-bundle",
+      "type": "backend",
+      "label": "MCP Bundle",
+      "sublabel": "MCP server (official SDK)",
+      "pos": [345, 126],
+      "size": [150, 48],
+      "sources": [
+        {"path": "src/mcp-bundle/README.md"},
+        {"path": "src/mcp-bundle/src/McpBundle.php"}
+      ]
+    },
+    {
+      "id": "server",
+      "type": "backend",
+      "label": "Server",
+      "sublabel": "HTTP + STDIO transport",
+      "pos": [40, 246],
+      "size": [150, 48],
+      "sources": [
+        {"path": "src/mcp-bundle/src/Controller/McpController.php"},
+        {"path": "src/mcp-bundle/src/Command/McpCommand.php"}
+      ]
+    },
+    {
+      "id": "client",
+      "type": "backend",
+      "label": "Client",
+      "sublabel": "connects to remote servers",
+      "pos": [300, 246],
+      "size": [150, 48],
+      "sources": [
+        {"path": "src/mcp-bundle/src/Client/McpClient.php"},
+        {"path": "src/mcp-bundle/src/Client/ServerConnectionInterface.php"}
+      ]
+    },
+    {
+      "id": "apps",
+      "type": "backend",
+      "label": "Apps",
+      "sublabel": "tools/prompts/resources",
+      "pos": [560, 246],
+      "size": [150, 48],
+      "sources": [
+        {"path": "src/mcp-bundle/src/Attribute/AsMcpApp.php"},
+        {"path": "src/mcp-bundle/src/App/McpAppRenderer.php"}
+      ]
+    },
+    {
+      "id": "di",
+      "type": "backend",
+      "label": "DI Wiring",
+      "sublabel": "McpPass, McpAppPass",
+      "pos": [820, 246],
+      "size": [150, 48],
+      "sources": [
+        {"path": "src/mcp-bundle/src/DependencyInjection/McpPass.php"},
+        {"path": "src/mcp-bundle/src/DependencyInjection/McpAppPass.php"}
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "app-to-mcp-bundle",
+      "from": "your-app",
+      "to": "mcp-bundle",
+      "label": "configures",
+      "variant": "emphasis",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "mcp-bundle-to-mcp-sdk",
+      "from": "mcp-bundle",
+      "to": "mcp-sdk",
+      "label": "built on",
+      "variant": "emphasis",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "mcp-bundle-to-server",
+      "from": "mcp-bundle",
+      "to": "server",
+      "label": "exposes app as",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [115, 308]
+    },
+    {
+      "id": "mcp-bundle-to-client",
+      "from": "mcp-bundle",
+      "to": "client",
+      "label": "connects out via",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [375, 308]
+    },
+    {
+      "id": "mcp-bundle-to-apps",
+      "from": "mcp-bundle",
+      "to": "apps",
+      "label": "renders",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [635, 308]
+    },
+    {
+      "id": "mcp-bundle-to-di",
+      "from": "mcp-bundle",
+      "to": "di",
+      "label": "registers via",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [895, 308]
+    }
+  ],
+  "cards": [
+    {
+      "dot": "violet",
+      "title": "Independent",
+      "items": [
+        "No dependency on Platform, Agent, Store or Chat; the only real requirement is the official mcp/sdk",
+        "AI Bundle can optionally reuse an MCP Bundle client connection, see the AI Bundle diagram"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "Both directions",
+      "items": [
+        "Server exposes the app's own tools/prompts/resources over HTTP and STDIO transport",
+        "Client connects out to other MCP servers"
+      ]
+    },
+    {
+      "dot": "slate",
+      "title": "Status",
+      "items": [
+        "Experimental: not covered by Symfony's Backward Compatibility Promise",
+        "Resource templates are implemented but await MCP SDK support"
+      ]
+    }
+  ]
+}

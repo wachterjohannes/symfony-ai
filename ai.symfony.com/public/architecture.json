@@ -1,0 +1,672 @@
+[
+    {
+        "slug": "agent-call",
+        "type": "sequence",
+        "title": "Agent::call() Execution Flow",
+        "artifact": "diagrams/agent-call.html",
+        "nodes": [
+            {
+                "id": "caller",
+                "label": "Caller"
+            },
+            {
+                "id": "agent",
+                "label": "Agent",
+                "target": "agent"
+            },
+            {
+                "id": "input",
+                "label": "Input Processors"
+            },
+            {
+                "id": "runner",
+                "label": "Runner"
+            },
+            {
+                "id": "platform",
+                "label": "Platform",
+                "target": "platform"
+            },
+            {
+                "id": "tools",
+                "label": "Tool Executor"
+            },
+            {
+                "id": "output",
+                "label": "Output Processors"
+            }
+        ],
+        "views": [],
+        "cards": [
+            {
+                "title": "Lazy by design",
+                "items": [
+                    "call() returns an Execution before the model is invoked",
+                    "Nothing runs until it is iterated or getContent()/getResult() is called",
+                    "Input processors only run on that first iteration"
+                ]
+            },
+            {
+                "title": "Bounded tool loop",
+                "items": [
+                    "Each round: model request, optional stream, tool execution",
+                    "Repeats until the model answers without requesting a tool",
+                    "maxToolCalls (default 50) caps rounds, else MaxIterationsExceededException"
+                ]
+            },
+            {
+                "title": "Progress surfaces live",
+                "items": [
+                    "model_request and streamed delta updates bubble up through the Execution",
+                    "The final ResultUpdate is the last value the caller observes",
+                    "Output processors run once, after the loop exits"
+                ]
+            }
+        ],
+        "related": [
+            "agent"
+        ],
+        "requires": [],
+        "usedBy": []
+    },
+    {
+        "slug": "agent",
+        "type": "architecture",
+        "title": "Agent",
+        "artifact": "diagrams/agent.html",
+        "nodes": [
+            {
+                "id": "chat",
+                "label": "Chat",
+                "target": "chat"
+            },
+            {
+                "id": "ai-bundle",
+                "label": "AI Bundle",
+                "target": "ai-bundle"
+            },
+            {
+                "id": "agent",
+                "label": "Agent"
+            },
+            {
+                "id": "input-output",
+                "label": "Input/Output"
+            },
+            {
+                "id": "runner",
+                "label": "Runner",
+                "target": "agent-call"
+            },
+            {
+                "id": "toolbox",
+                "label": "Toolbox"
+            },
+            {
+                "id": "memory",
+                "label": "Memory"
+            },
+            {
+                "id": "multi-agent",
+                "label": "MultiAgent"
+            },
+            {
+                "id": "store",
+                "label": "Store",
+                "target": "store"
+            },
+            {
+                "id": "platform",
+                "label": "Platform",
+                "target": "platform"
+            }
+        ],
+        "views": [
+            {
+                "id": "execution-pipeline",
+                "label": "Execution pipeline"
+            },
+            {
+                "id": "toolbox",
+                "label": "Toolbox"
+            }
+        ],
+        "cards": [
+            {
+                "title": "Orchestration",
+                "items": [
+                    "Agent is the entry point; Runner drives the model/tool-call loop up to maxToolCalls",
+                    "call() returns a lazy Execution before the model is invoked"
+                ]
+            },
+            {
+                "title": "Extensibility",
+                "items": [
+                    "Input/output processors form a middleware-like chain (system prompt, model override, memory)",
+                    "Toolbox executes tool calls the model requested, fault-tolerant"
+                ]
+            },
+            {
+                "title": "Optional features",
+                "items": [
+                    "Memory needs Store only when using the embedding-based provider",
+                    "MultiAgent hands conversations off between specialized agents"
+                ]
+            }
+        ],
+        "related": [
+            "agent-call",
+            "ai-bundle",
+            "chat",
+            "overview",
+            "platform",
+            "store"
+        ],
+        "requires": [
+            "platform",
+            "store"
+        ],
+        "usedBy": [
+            "chat",
+            "ai-bundle"
+        ],
+        "revision": "7c3ce859aa500cc3592b25323c842cb419ed5a67"
+    },
+    {
+        "slug": "ai-bundle",
+        "type": "architecture",
+        "title": "AI Bundle",
+        "artifact": "diagrams/ai-bundle.html",
+        "nodes": [
+            {
+                "id": "platform",
+                "label": "Platform",
+                "target": "platform"
+            },
+            {
+                "id": "agent",
+                "label": "Agent",
+                "target": "agent"
+            },
+            {
+                "id": "store",
+                "label": "Store",
+                "target": "store"
+            },
+            {
+                "id": "mcp-bundle",
+                "label": "MCP Bundle",
+                "target": "mcp-bundle"
+            },
+            {
+                "id": "ai-bundle",
+                "label": "AI Bundle"
+            },
+            {
+                "id": "compiler-passes",
+                "label": "Compiler Passes"
+            },
+            {
+                "id": "security",
+                "label": "Security"
+            },
+            {
+                "id": "profiler",
+                "label": "Profiler"
+            },
+            {
+                "id": "mcp-connection-toolset",
+                "label": "MCP Connection Toolset"
+            }
+        ],
+        "views": [],
+        "cards": [
+            {
+                "title": "Wiring",
+                "items": [
+                    "Only symfony/ai-platform is a hard dependency; Agent, Store and MCP Bundle are all optional, detected via require-dev packages",
+                    "Compiler passes register #[AsTool]/#[AsInputProcessor]/#[AsOutputProcessor] into the Agent's toolbox and processor chain"
+                ]
+            },
+            {
+                "title": "Cross-cutting",
+                "items": [
+                    "#[IsGrantedTool] gates tool execution behind Symfony Security",
+                    "Profiler collects AI interactions and token usage for the debug toolbar"
+                ]
+            },
+            {
+                "title": "MCP integration",
+                "items": [
+                    "ConnectionToolset reuses an existing MCP Bundle client connection instead of opening a second one",
+                    "This is separate from MCP Bundle's own server/client role, see the MCP Bundle diagram"
+                ]
+            }
+        ],
+        "related": [
+            "agent",
+            "overview"
+        ],
+        "requires": [
+            "agent",
+            "platform",
+            "store",
+            "mcp-bundle",
+            "chat"
+        ],
+        "usedBy": [],
+        "revision": "7c3ce859aa500cc3592b25323c842cb419ed5a67"
+    },
+    {
+        "slug": "chat",
+        "type": "architecture",
+        "title": "Chat",
+        "artifact": "diagrams/chat.html",
+        "nodes": [
+            {
+                "id": "agent",
+                "label": "Agent",
+                "target": "agent"
+            },
+            {
+                "id": "platform",
+                "label": "Platform",
+                "target": "platform"
+            },
+            {
+                "id": "chat",
+                "label": "Chat"
+            },
+            {
+                "id": "message-store",
+                "label": "Message Store"
+            },
+            {
+                "id": "in-memory",
+                "label": "In-Memory Store"
+            },
+            {
+                "id": "chat-bridges",
+                "label": "Message Store Bridges"
+            }
+        ],
+        "views": [],
+        "cards": [
+            {
+                "title": "Purpose",
+                "items": [
+                    "Chat wires Agent and Platform together into a conversational loop",
+                    "Component is experimental: BC breaks are possible"
+                ]
+            },
+            {
+                "title": "Message storage",
+                "items": [
+                    "MessageStoreInterface persists conversation history between turns",
+                    "InMemory is the default and is explicitly not a bridge"
+                ]
+            },
+            {
+                "title": "Bridges",
+                "items": [
+                    "9 backends: Cache, Cloudflare, Doctrine, Meilisearch, MongoDB, Pogocache, Redis, Session, SurrealDB"
+                ]
+            }
+        ],
+        "related": [
+            "agent",
+            "overview",
+            "platform"
+        ],
+        "requires": [
+            "agent",
+            "platform"
+        ],
+        "usedBy": [
+            "ai-bundle"
+        ],
+        "revision": "7c3ce859aa500cc3592b25323c842cb419ed5a67"
+    },
+    {
+        "slug": "mcp-bundle",
+        "type": "architecture",
+        "title": "MCP Bundle",
+        "artifact": "diagrams/mcp-bundle.html",
+        "nodes": [
+            {
+                "id": "your-app",
+                "label": "Your Application"
+            },
+            {
+                "id": "mcp-sdk",
+                "label": "MCP SDK"
+            },
+            {
+                "id": "mcp-bundle",
+                "label": "MCP Bundle"
+            },
+            {
+                "id": "server",
+                "label": "Server"
+            },
+            {
+                "id": "client",
+                "label": "Client"
+            },
+            {
+                "id": "apps",
+                "label": "Apps"
+            },
+            {
+                "id": "di",
+                "label": "DI Wiring"
+            }
+        ],
+        "views": [],
+        "cards": [
+            {
+                "title": "Independent",
+                "items": [
+                    "No dependency on Platform, Agent, Store or Chat; the only real requirement is the official mcp/sdk",
+                    "AI Bundle can optionally reuse an MCP Bundle client connection, see the AI Bundle diagram"
+                ]
+            },
+            {
+                "title": "Both directions",
+                "items": [
+                    "Server exposes the app's own tools/prompts/resources over HTTP and STDIO transport",
+                    "Client connects out to other MCP servers"
+                ]
+            },
+            {
+                "title": "Status",
+                "items": [
+                    "Experimental: not covered by Symfony's Backward Compatibility Promise",
+                    "Resource templates are implemented but await MCP SDK support"
+                ]
+            }
+        ],
+        "related": [
+            "ai-bundle",
+            "overview"
+        ],
+        "requires": [],
+        "usedBy": [
+            "ai-bundle"
+        ],
+        "revision": "7c3ce859aa500cc3592b25323c842cb419ed5a67"
+    },
+    {
+        "slug": "overview",
+        "type": "architecture",
+        "title": "Symfony AI - Component Overview",
+        "artifact": "diagrams/overview.html",
+        "nodes": [
+            {
+                "id": "your-app",
+                "label": "Your Application"
+            },
+            {
+                "id": "ai-bundle",
+                "label": "AI Bundle",
+                "target": "ai-bundle"
+            },
+            {
+                "id": "mcp-bundle",
+                "label": "MCP Bundle",
+                "target": "mcp-bundle"
+            },
+            {
+                "id": "mate",
+                "label": "Mate"
+            },
+            {
+                "id": "agent",
+                "label": "Agent",
+                "target": "agent"
+            },
+            {
+                "id": "chat",
+                "label": "Chat",
+                "target": "chat"
+            },
+            {
+                "id": "store",
+                "label": "Store",
+                "target": "store"
+            },
+            {
+                "id": "platform",
+                "label": "Platform",
+                "target": "platform"
+            },
+            {
+                "id": "agent-tools",
+                "label": "Agent Tools",
+                "target": "agent",
+                "targetView": "toolbox"
+            },
+            {
+                "id": "platform-bridges",
+                "label": "Platform Bridges",
+                "target": "platform",
+                "targetFocus": "bridges"
+            },
+            {
+                "id": "store-bridges",
+                "label": "Store Bridges",
+                "target": "store",
+                "targetFocus": "store-bridges"
+            },
+            {
+                "id": "providers",
+                "label": "AI Providers & Stores"
+            }
+        ],
+        "views": [],
+        "cards": [
+            {
+                "title": "Core components",
+                "items": [
+                    "Agent orchestrates model calls and tool execution",
+                    "Platform is the unified interface to AI providers",
+                    "Store abstracts vector database indexing and retrieval"
+                ]
+            },
+            {
+                "title": "Bundles",
+                "items": [
+                    "AI Bundle wires Platform/Agent/Store into a Symfony app",
+                    "MCP Bundle exposes the app's own tools as an MCP server"
+                ]
+            },
+            {
+                "title": "Mate",
+                "items": [
+                    "Standalone CLI coding assistant",
+                    "Does not use MCP and does not integrate with the AI Bundle"
+                ]
+            }
+        ],
+        "related": [],
+        "requires": [],
+        "usedBy": [],
+        "revision": "7c3ce859aa500cc3592b25323c842cb419ed5a67"
+    },
+    {
+        "slug": "platform",
+        "type": "architecture",
+        "title": "Platform",
+        "artifact": "diagrams/platform.html",
+        "nodes": [
+            {
+                "id": "agent",
+                "label": "Agent",
+                "target": "agent"
+            },
+            {
+                "id": "chat",
+                "label": "Chat",
+                "target": "chat"
+            },
+            {
+                "id": "store",
+                "label": "Store",
+                "target": "store"
+            },
+            {
+                "id": "platform",
+                "label": "Platform"
+            },
+            {
+                "id": "contract",
+                "label": "Contract"
+            },
+            {
+                "id": "message",
+                "label": "Message"
+            },
+            {
+                "id": "result",
+                "label": "Result"
+            },
+            {
+                "id": "bridges",
+                "label": "Bridges"
+            },
+            {
+                "id": "providers",
+                "label": "AI Providers"
+            }
+        ],
+        "views": [
+            {
+                "id": "request-pipeline",
+                "label": "Request pipeline"
+            }
+        ],
+        "cards": [
+            {
+                "title": "Entry point",
+                "items": [
+                    "Platform is the single call surface: invoke() takes a Model, a MessageBag or prompt, and options",
+                    "Agent, Chat and Store all require Platform"
+                ]
+            },
+            {
+                "title": "Request pipeline",
+                "items": [
+                    "Contract normalizes messages, tools and options into a provider payload",
+                    "Result converts the raw provider response back into a typed result"
+                ]
+            },
+            {
+                "title": "Testing bridges",
+                "items": [
+                    "Record-and-replay scaffolding in Test/Replay/ pins result converters against real provider response shapes",
+                    "Replay runs in CI without credentials; recording is a manual, local-only step"
+                ]
+            }
+        ],
+        "related": [
+            "agent-call",
+            "agent",
+            "ai-bundle",
+            "chat",
+            "overview",
+            "store"
+        ],
+        "requires": [],
+        "usedBy": [
+            "ai-bundle",
+            "chat",
+            "agent",
+            "store"
+        ],
+        "revision": "7c3ce859aa500cc3592b25323c842cb419ed5a67"
+    },
+    {
+        "slug": "store",
+        "type": "architecture",
+        "title": "Store",
+        "artifact": "diagrams/store.html",
+        "nodes": [
+            {
+                "id": "agent",
+                "label": "Agent",
+                "target": "agent"
+            },
+            {
+                "id": "platform",
+                "label": "Platform",
+                "target": "platform"
+            },
+            {
+                "id": "document",
+                "label": "Document"
+            },
+            {
+                "id": "vectorizer",
+                "label": "Vectorizer"
+            },
+            {
+                "id": "indexer",
+                "label": "Indexer"
+            },
+            {
+                "id": "store",
+                "label": "Store"
+            },
+            {
+                "id": "store-bridges",
+                "label": "Store Bridges"
+            },
+            {
+                "id": "providers",
+                "label": "Vector Databases"
+            }
+        ],
+        "views": [
+            {
+                "id": "indexing-pipeline",
+                "label": "Indexing pipeline"
+            }
+        ],
+        "cards": [
+            {
+                "title": "Core abstraction",
+                "items": [
+                    "StoreInterface defines add() and query(); ManagedStoreInterface adds setup()/drop() lifecycle",
+                    "Retriever is a thin convenience layer over query()"
+                ]
+            },
+            {
+                "title": "Indexing",
+                "items": [
+                    "Document holds TextDocument input; Vectorizer converts it to a VectorDocument using Platform",
+                    "Indexer runs the batch pipeline and writes the result into Store"
+                ]
+            },
+            {
+                "title": "Bridges",
+                "items": [
+                    "24 vector store backends behind one interface: databases, cloud search, self-hosted, local"
+                ]
+            }
+        ],
+        "related": [
+            "agent",
+            "ai-bundle",
+            "overview",
+            "platform"
+        ],
+        "requires": [
+            "platform"
+        ],
+        "usedBy": [
+            "ai-bundle",
+            "agent"
+        ],
+        "revision": "7c3ce859aa500cc3592b25323c842cb419ed5a67"
+    }
+]

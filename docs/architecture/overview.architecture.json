@@ -1,0 +1,279 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Symfony AI - Component Overview",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/symfony/ai",
+      "provider": "github",
+      "revision": "7c3ce859aa500cc3592b25323c842cb419ed5a67"
+    }
+  },
+  "components": [
+    {
+      "id": "your-app",
+      "type": "external",
+      "label": "Your Application",
+      "sublabel": "Symfony app (consumer)",
+      "pos": [520, 16],
+      "size": [180, 48]
+    },
+    {
+      "id": "ai-bundle",
+      "type": "backend",
+      "label": "AI Bundle",
+      "sublabel": "Symfony integration",
+      "pos": [140, 106],
+      "size": [150, 48],
+      "sources": [
+        {"path": "src/ai-bundle/AGENTS.md"},
+        {"path": "src/ai-bundle/src/AiBundle.php"}
+      ]
+    },
+    {
+      "id": "mcp-bundle",
+      "type": "backend",
+      "label": "MCP Bundle",
+      "sublabel": "MCP server (official SDK)",
+      "pos": [535, 106],
+      "size": [150, 48],
+      "sources": [
+        {"path": "src/mcp-bundle/README.md"},
+        {"path": "src/mcp-bundle/src/McpBundle.php"}
+      ]
+    },
+    {
+      "id": "mate",
+      "type": "backend",
+      "label": "Mate",
+      "sublabel": "standalone assistant",
+      "pos": [900, 106],
+      "size": [150, 48],
+      "tag": "standalone, no bundle",
+      "sources": [
+        {"path": "src/mate/AGENTS.md"}
+      ]
+    },
+    {
+      "id": "agent",
+      "type": "backend",
+      "label": "Agent",
+      "sublabel": "orchestration & tool loop",
+      "pos": [140, 196],
+      "size": [150, 48],
+      "sources": [
+        {"path": "src/agent/AGENTS.md"},
+        {"path": "src/agent/src/Agent.php"},
+        {"path": "src/agent/src/Execution/Runner.php"}
+      ]
+    },
+    {
+      "id": "chat",
+      "type": "backend",
+      "label": "Chat",
+      "sublabel": "conversation glue",
+      "pos": [520, 196],
+      "size": [150, 48],
+      "sources": [
+        {"path": "src/chat/AGENTS.md"},
+        {"path": "src/chat/src/Chat.php"}
+      ]
+    },
+    {
+      "id": "store",
+      "type": "backend",
+      "label": "Store",
+      "sublabel": "vector storage & retrieval",
+      "pos": [900, 196],
+      "size": [150, 48],
+      "sources": [
+        {"path": "src/store/AGENTS.md"},
+        {"path": "src/store/src/StoreInterface.php"}
+      ]
+    },
+    {
+      "id": "platform",
+      "type": "backend",
+      "label": "Platform",
+      "sublabel": "unified model access",
+      "pos": [520, 286],
+      "size": [150, 48],
+      "sources": [
+        {"path": "src/platform/AGENTS.md"},
+        {"path": "src/platform/src/PlatformInterface.php"}
+      ]
+    },
+    {
+      "id": "agent-tools",
+      "type": "backend",
+      "label": "Agent Tools",
+      "sublabel": "14 built-in tools",
+      "pos": [140, 376],
+      "size": [150, 48],
+      "sources": [
+        {"path": "src/agent/src/Bridge/Wikipedia/Wikipedia.php"},
+        {"path": "src/agent/src/Toolbox/Toolbox.php"}
+      ]
+    },
+    {
+      "id": "platform-bridges",
+      "type": "backend",
+      "label": "Platform Bridges",
+      "sublabel": "37 providers",
+      "pos": [520, 376],
+      "size": [150, 48],
+      "sources": [
+        {"path": "src/platform/src/Bridge/OpenAi/Gpt.php"}
+      ]
+    },
+    {
+      "id": "store-bridges",
+      "type": "backend",
+      "label": "Store Bridges",
+      "sublabel": "24 vector stores",
+      "pos": [900, 376],
+      "size": [150, 48],
+      "sources": [
+        {"path": "src/store/src/Bridge/Pinecone/Store.php"}
+      ]
+    },
+    {
+      "id": "providers",
+      "type": "cloud",
+      "label": "AI Providers & Stores",
+      "sublabel": "OpenAI, Anthropic, more",
+      "pos": [510, 511],
+      "size": [190, 48]
+    }
+  ],
+  "connections": [
+    {
+      "id": "app-to-ai-bundle",
+      "from": "your-app",
+      "to": "ai-bundle",
+      "label": "configures",
+      "variant": "emphasis"
+    },
+    {
+      "id": "app-to-mcp-bundle",
+      "from": "your-app",
+      "to": "mcp-bundle",
+      "label": "exposes as MCP server",
+      "labelAt": [610, 82]
+    },
+    {
+      "id": "ai-bundle-to-agent",
+      "from": "ai-bundle",
+      "to": "agent",
+      "label": "integrates (optional)",
+      "variant": "dashed",
+      "labelAt": [148, 168]
+    },
+    {
+      "id": "ai-bundle-to-chat",
+      "from": "ai-bundle",
+      "to": "chat",
+      "label": "integrates (optional)",
+      "variant": "dashed"
+    },
+    {
+      "id": "ai-bundle-to-store",
+      "from": "ai-bundle",
+      "to": "store",
+      "label": "integrates (optional)",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "agent-to-platform",
+      "from": "agent",
+      "to": "platform",
+      "label": "requires",
+      "variant": "emphasis"
+    },
+    {
+      "id": "chat-to-agent",
+      "from": "chat",
+      "to": "agent",
+      "label": "requires",
+      "labelDy": 14
+    },
+    {
+      "id": "chat-to-platform",
+      "from": "chat",
+      "to": "platform",
+      "label": "requires",
+      "labelAt": [595, 258]
+    },
+    {
+      "id": "store-to-platform",
+      "from": "store",
+      "to": "platform",
+      "label": "requires"
+    },
+    {
+      "id": "agent-to-agent-tools",
+      "from": "agent",
+      "to": "agent-tools",
+      "label": "executes",
+      "labelAt": [215, 258]
+    },
+    {
+      "id": "platform-to-platform-bridges",
+      "from": "platform",
+      "to": "platform-bridges",
+      "label": "implemented by",
+      "labelAt": [595, 348]
+    },
+    {
+      "id": "store-to-store-bridges",
+      "from": "store",
+      "to": "store-bridges",
+      "label": "implemented by",
+      "labelAt": [975, 258]
+    },
+    {
+      "id": "platform-bridges-to-providers",
+      "from": "platform-bridges",
+      "to": "providers",
+      "label": "calls",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "store-bridges-to-providers",
+      "from": "store-bridges",
+      "to": "providers",
+      "label": "calls"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "violet",
+      "title": "Core components",
+      "items": [
+        "Agent orchestrates model calls and tool execution",
+        "Platform is the unified interface to AI providers",
+        "Store abstracts vector database indexing and retrieval"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "Bundles",
+      "items": [
+        "AI Bundle wires Platform/Agent/Store into a Symfony app",
+        "MCP Bundle exposes the app's own tools as an MCP server"
+      ]
+    },
+    {
+      "dot": "slate",
+      "title": "Mate",
+      "items": [
+        "Standalone CLI coding assistant",
+        "Does not use MCP and does not integrate with the AI Bundle"
+      ]
+    }
+  ]
+}

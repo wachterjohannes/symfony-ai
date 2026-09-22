@@ -1,0 +1,49 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Architecture — Symfony AI{% endblock %}
+
+{% set groups = [{label: 'Explore', items: explore}] %}
+
+{% block body %}
+    {{ include('_header.html.twig') }}
+
+    <main>
+        <nav class="container py-2" aria-label="breadcrumb">
+            <ol class="cookbook-breadcrumb">
+                <li><a href="{{ path('homepage') }}">Home</a></li>
+                <li aria-current="page">Architecture</li>
+            </ol>
+        </nav>
+
+        <section class="cookbook-article-header">
+            <div class="container">
+                <div class="row">
+                    <div class="col-lg-8 mx-auto">
+                        <h1 class="ff-title fw-bold mb-3">Architecture</h1>
+                        <p class="text-muted fs-5 mb-0">An explorable overview of how the Symfony AI components fit together. Click a node in the diagram for source-verified details, or use "Explore" below it to open a component's own diagram. New here? Start with <a href="{{ firstStop.url }}">{{ firstStop.title }}</a>, then <a href="{{ secondStop.url }}">{{ secondStop.title }}</a>.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <hr class="section-divider">
+
+        <section class="architecture-diagram-section py-3">
+            <div class="container-fluid px-3 px-lg-4" data-controller="architecture-viewer">
+                <iframe
+                    data-architecture-viewer-target="frame"
+                    src="{{ asset(diagram.artifact) }}"
+                    title="{{ diagram.title }} diagram"
+                    loading="lazy"
+                    class="architecture-viewer"
+                ></iframe>
+
+                {{ include('architecture/_cross_links.html.twig') }}
+
+                <p class="architecture-json-link mt-3 mb-0">
+                    <a href="{{ asset('architecture.json') }}">View as JSON</a>
+                </p>
+            </div>
+        </section>
+    </main>
+{% endblock %}

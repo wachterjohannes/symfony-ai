@@ -1,0 +1,140 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Chat",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/symfony/ai",
+      "provider": "github",
+      "revision": "7c3ce859aa500cc3592b25323c842cb419ed5a67"
+    }
+  },
+  "components": [
+    {
+      "id": "agent",
+      "type": "backend",
+      "label": "Agent",
+      "sublabel": "tool orchestration & tool loop",
+      "pos": [140, 16],
+      "size": [150, 48],
+      "sources": [{"path": "src/agent/AGENTS.md"}]
+    },
+    {
+      "id": "platform",
+      "type": "backend",
+      "label": "Platform",
+      "sublabel": "unified model access",
+      "pos": [520, 16],
+      "size": [150, 48],
+      "sources": [{"path": "src/platform/AGENTS.md"}]
+    },
+    {
+      "id": "chat",
+      "type": "backend",
+      "label": "Chat",
+      "sublabel": "conversation glue",
+      "pos": [330, 106],
+      "size": [150, 48],
+      "sources": [
+        {"path": "src/chat/AGENTS.md"},
+        {"path": "src/chat/src/Chat.php"},
+        {"path": "src/chat/src/ChatInterface.php"}
+      ]
+    },
+    {
+      "id": "message-store",
+      "type": "backend",
+      "label": "Message Store",
+      "sublabel": "MessageStoreInterface contract",
+      "pos": [330, 196],
+      "size": [150, 48],
+      "sources": [
+        {"path": "src/chat/src/MessageStoreInterface.php"},
+        {"path": "src/chat/src/ManagedStoreInterface.php"}
+      ]
+    },
+    {
+      "id": "in-memory",
+      "type": "backend",
+      "label": "In-Memory Store",
+      "sublabel": "default, not a bridge",
+      "pos": [140, 286],
+      "size": [150, 48],
+      "sources": [{"path": "src/chat/src/InMemory/Store.php"}]
+    },
+    {
+      "id": "chat-bridges",
+      "type": "backend",
+      "label": "Message Store Bridges",
+      "sublabel": "9 backends",
+      "pos": [520, 286],
+      "size": [150, 48],
+      "sources": [{"path": "src/chat/src/Bridge/Redis/MessageStore.php"}]
+    }
+  ],
+  "connections": [
+    {
+      "id": "chat-to-agent",
+      "from": "chat",
+      "to": "agent",
+      "label": "requires",
+      "variant": "emphasis",
+      "labelAt": [310, 78]
+    },
+    {
+      "id": "chat-to-platform",
+      "from": "chat",
+      "to": "platform",
+      "label": "requires",
+      "labelAt": [500, 78]
+    },
+    {
+      "id": "chat-to-message-store",
+      "from": "chat",
+      "to": "message-store",
+      "label": "persists via",
+      "variant": "emphasis",
+      "labelAt": [405, 168]
+    },
+    {
+      "id": "message-store-to-in-memory",
+      "from": "message-store",
+      "to": "in-memory",
+      "label": "implemented by",
+      "labelDy": 24
+    },
+    {
+      "id": "message-store-to-chat-bridges",
+      "from": "message-store",
+      "to": "chat-bridges",
+      "label": "implemented by",
+      "labelDy": 24
+    }
+  ],
+  "cards": [
+    {
+      "dot": "violet",
+      "title": "Purpose",
+      "items": [
+        "Chat wires Agent and Platform together into a conversational loop",
+        "Component is experimental: BC breaks are possible"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "Message storage",
+      "items": [
+        "MessageStoreInterface persists conversation history between turns",
+        "InMemory is the default and is explicitly not a bridge"
+      ]
+    },
+    {
+      "dot": "slate",
+      "title": "Bridges",
+      "items": [
+        "9 backends: Cache, Cloudflare, Doctrine, Meilisearch, MongoDB, Pogocache, Redis, Session, SurrealDB"
+      ]
+    }
+  ]
+}

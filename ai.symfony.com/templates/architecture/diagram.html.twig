@@ -1,0 +1,54 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ diagram.title }} — Architecture — Symfony AI{% endblock %}
+
+{% block body %}
+    {{ include('_header.html.twig') }}
+
+    <main>
+        <nav class="container py-2" aria-label="breadcrumb">
+            <ol class="cookbook-breadcrumb">
+                <li><a href="{{ path('homepage') }}">Home</a></li>
+                <li><a href="{{ path('architecture') }}">Architecture</a></li>
+                <li aria-current="page">{{ diagram.title }}</li>
+            </ol>
+        </nav>
+
+        <section class="cookbook-article-header">
+            <div class="container">
+                <div class="row">
+                    <div class="col-lg-8 mx-auto">
+                        <h1 class="ff-title fw-bold mb-3">{{ diagram.title }}</h1>
+                        {% if docUrl %}
+                            <p class="mb-0">
+                                <a href="{{ docUrl }}" target="_blank" rel="noopener">Read the {{ diagram.title }} docs <span aria-hidden="true">&#8599;</span></a>
+                            </p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <hr class="section-divider">
+
+        <section class="architecture-diagram-section py-3">
+            <div class="container-fluid px-3 px-lg-4" data-controller="architecture-viewer">
+                <iframe
+                    data-architecture-viewer-target="frame"
+                    src="{{ asset(diagram.artifact) }}{{ fragment }}"
+                    title="{{ diagram.title }} diagram"
+                    loading="lazy"
+                    class="architecture-viewer"
+                ></iframe>
+
+                {{ include('architecture/_cross_links.html.twig') }}
+
+                <p class="mt-3 mb-0">
+                    <a href="{{ path('architecture') }}"><span aria-hidden="true">&larr;</span> Architecture overview</a>
+                    &nbsp;&middot;&nbsp;
+                    <a href="{{ asset('architecture.json') }}">View as JSON</a>
+                </p>
+            </div>
+        </section>
+    </main>
+{% endblock %}
