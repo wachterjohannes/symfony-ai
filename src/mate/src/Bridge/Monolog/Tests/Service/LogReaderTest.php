@@ -98,6 +98,10 @@ final class LogReaderTest extends TestCase
 
     public function testTail()
     {
+        // A checkout gives both fixtures the same mtime, so which one is "newest" would
+        // otherwise depend on LogReader's tie-break rule rather than this test's intent.
+        touch($this->fixturesDir.'/sample.json.log', time() + 60);
+
         $result = $this->reader->tail(3);
 
         // tail() reads only the newest file of the context (sample.json.log, 5 entries),
