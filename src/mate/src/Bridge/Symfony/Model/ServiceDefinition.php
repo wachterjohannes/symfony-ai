@@ -24,6 +24,7 @@ class ServiceDefinition
      * @param string[]                         $calls
      * @param ServiceTag[]                     $tags
      * @param array{0: string|null, 1: string} $constructor
+     * @param list<string>                     $arguments   service IDs referenced as constructor arguments
      */
     public function __construct(
         private readonly string $id,
@@ -32,6 +33,7 @@ class ServiceDefinition
         private readonly array $calls,
         private readonly array $tags,
         private readonly array $constructor,
+        private readonly array $arguments = [],
     ) {
     }
 
@@ -75,5 +77,13 @@ class ServiceDefinition
     public function getConstructor(): array
     {
         return $this->constructor;
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function getArguments(): array
+    {
+        return $this->arguments;
     }
 }
