@@ -96,7 +96,8 @@
             {
                 "id": "runner",
                 "label": "Runner",
-                "target": "agent-call"
+                "target": "agent-call",
+                "targetFocus": "runner"
             },
             {
                 "id": "toolbox",
@@ -328,6 +329,80 @@
         "revision": "7c3ce859aa500cc3592b25323c842cb419ed5a67"
     },
     {
+        "slug": "mate",
+        "type": "architecture",
+        "title": "Mate",
+        "artifact": "diagrams/mate.html",
+        "nodes": [
+            {
+                "id": "coding-agent",
+                "label": "Coding Agent"
+            },
+            {
+                "id": "cli",
+                "label": "CLI"
+            },
+            {
+                "id": "agent-instructions",
+                "label": "Agent Instructions"
+            },
+            {
+                "id": "skills",
+                "label": "Skills"
+            },
+            {
+                "id": "extension-discovery",
+                "label": "Extension Discovery"
+            },
+            {
+                "id": "bridges",
+                "label": "Bridges"
+            },
+            {
+                "id": "extensions",
+                "label": "Extensions"
+            },
+            {
+                "id": "capability-discovery",
+                "label": "Capability Discovery"
+            },
+            {
+                "id": "invocation",
+                "label": "Invocation"
+            }
+        ],
+        "views": [],
+        "cards": [
+            {
+                "title": "Discovery & wiring",
+                "items": [
+                    "Extension Discovery reads composer.json's extra.ai-mate key to find installed extensions",
+                    "Capability Discovery reflects #[MateTool]/#[MateResource] methods into callable definitions"
+                ]
+            },
+            {
+                "title": "Extensibility",
+                "items": [
+                    "Bridges (Symfony, Monolog) are first-party packages built on the same extension contract",
+                    "Extensions and bridges can each ship their own Agent Skill, installed under mate- prefixed folders"
+                ]
+            },
+            {
+                "title": "Standalone",
+                "items": [
+                    "Does not use MCP and does not integrate with the AI Bundle",
+                    "Talks to coding agents only through the CLI and its generated instruction files"
+                ]
+            }
+        ],
+        "related": [
+            "overview"
+        ],
+        "requires": [],
+        "usedBy": [],
+        "revision": "7c3ce859aa500cc3592b25323c842cb419ed5a67"
+    },
+    {
         "slug": "mcp-bundle",
         "type": "architecture",
         "title": "MCP Bundle",
@@ -417,8 +492,13 @@
                 "target": "mcp-bundle"
             },
             {
+                "id": "coding-agent",
+                "label": "Coding Agent"
+            },
+            {
                 "id": "mate",
-                "label": "Mate"
+                "label": "Mate",
+                "target": "mate"
             },
             {
                 "id": "agent",

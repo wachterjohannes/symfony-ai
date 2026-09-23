@@ -9,28 +9,28 @@
                 </p>
 
                 <div class="d-flex flex-column gap-1">
-                    <a href="https://symfony.com/doc/current/ai/components/platform.html" class="component-link">
+                    <a href="{{ path('architecture_diagram', {slug: 'platform'}) }}" class="component-link">
                         <span class="component-dot component-dot-platform"></span>
                         <div>
                             <strong class="ff-title">Platform</strong>
                             <span class="text-muted small d-block">Unified interface to AI providers</span>
                         </div>
                     </a>
-                    <a href="https://symfony.com/doc/current/ai/components/store.html" class="component-link">
+                    <a href="{{ path('architecture_diagram', {slug: 'store'}) }}" class="component-link">
                         <span class="component-dot component-dot-store"></span>
                         <div>
                             <strong class="ff-title">Store</strong>
                             <span class="text-muted small d-block">Vector database abstraction</span>
                         </div>
                     </a>
-                    <a href="https://symfony.com/doc/current/ai/components/agent.html" class="component-link">
+                    <a href="{{ path('architecture_diagram', {slug: 'agent'}) }}" class="component-link">
                         <span class="component-dot component-dot-agent"></span>
                         <div>
                             <strong class="ff-title">Agent</strong>
                             <span class="text-muted small d-block">Framework for AI agents with tools</span>
                         </div>
                     </a>
-                    <a href="https://symfony.com/doc/current/ai/bundles/ai-bundle.html" class="component-link">
+                    <a href="{{ path('architecture_diagram', {slug: 'ai-bundle'}) }}" class="component-link">
                         <span class="component-dot component-dot-bundle"></span>
                         <div>
                             <strong class="ff-title">AI Bundle</strong>

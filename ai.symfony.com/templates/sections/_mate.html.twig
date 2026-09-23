@@ -24,10 +24,16 @@ $ vendor/bin/mate tools:list</code></pre>
                     can help you debug and understand your app in real time.
                 </p>
 
-                <a href="https://symfony.com/doc/current/ai/components/mate.html" class="btn btn-dark px-3 d-flex align-items-center d-inline-flex">
-                    <span>Mate docs</span>
-                    {{ ux_icon('tabler:arrow-up-right', {width: 20, height: 20, class: 'ms-2'}) }}
-                </a>
+                <div class="d-flex align-items-center flex-wrap gap-3">
+                    <a href="https://symfony.com/doc/current/ai/components/mate.html" class="btn btn-dark px-3 d-flex align-items-center d-inline-flex">
+                        <span>Mate docs</span>
+                        {{ ux_icon('tabler:arrow-up-right', {width: 20, height: 20, class: 'ms-2'}) }}
+                    </a>
+
+                    <a href="{{ path('architecture_diagram', {slug: 'mate'}) }}" class="d-inline-flex align-items-center gap-1 fw-semibold">
+                        Explore the architecture <span aria-hidden="true">&rarr;</span>
+                    </a>
+                </div>
             </div>
         </div>
     </div>

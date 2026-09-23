@@ -6,6 +6,8 @@
     {{ include('_header.html.twig') }}
 
     <main>
+        {{ include('architecture/_rail.html.twig', {variant: 'mobile'}) }}
+
         <nav class="container py-2" aria-label="breadcrumb">
             <ol class="cookbook-breadcrumb">
                 <li><a href="{{ path('homepage') }}">Home</a></li>
@@ -14,40 +16,54 @@
             </ol>
         </nav>
 
-        <section class="cookbook-article-header">
-            <div class="container">
-                <div class="row">
-                    <div class="col-lg-8 mx-auto">
-                        <h1 class="ff-title fw-bold mb-3">{{ diagram.title }}</h1>
-                        {% if docUrl %}
-                            <p class="mb-0">
-                                <a href="{{ docUrl }}" target="_blank" rel="noopener">Read the {{ diagram.title }} docs <span aria-hidden="true">&#8599;</span></a>
-                            </p>
-                        {% endif %}
-                    </div>
-                </div>
+        <section class="architecture-page-head">
+            <div class="container-fluid px-3 px-lg-4">
+                <h1 class="ff-title fw-bold mb-2">{{ diagram.title }}</h1>
+                {% if summary %}
+                    <p class="architecture-page-summary mb-2">{{ summary }}.</p>
+                {% endif %}
+                <p class="architecture-page-links mb-0">
+                    {% if docUrl %}
+                        <a href="{{ docUrl }}" target="_blank" rel="noopener">Read the docs <span aria-hidden="true">&#8599;</span></a>
+                        <span aria-hidden="true"> &middot; </span>
+                    {% endif %}
+                    <a href="{{ asset('architecture.json') }}">View as JSON</a>
+                </p>
             </div>
         </section>
 
-        <hr class="section-divider">
-
-        <section class="architecture-diagram-section py-3">
+        <section class="architecture-diagram-section pb-4">
             <div class="container-fluid px-3 px-lg-4" data-controller="architecture-viewer">
-                <iframe
-                    data-architecture-viewer-target="frame"
-                    src="{{ asset(diagram.artifact) }}{{ fragment }}"
-                    title="{{ diagram.title }} diagram"
-                    loading="lazy"
-                    class="architecture-viewer"
-                ></iframe>
+                <div class="architecture-layout">
+                    <div class="architecture-rail-column">
+                        {{ include('architecture/_rail.html.twig') }}
+                    </div>
 
-                {{ include('architecture/_cross_links.html.twig') }}
+                    <div class="architecture-main-column">
+                        <iframe
+                            data-architecture-viewer-target="frame"
+                            src="{{ asset(diagram.artifact) }}{{ fragment }}"
+                            title="{{ diagram.title }} diagram"
+                            loading="lazy"
+                            class="architecture-viewer"
+                        ></iframe>
 
-                <p class="mt-3 mb-0">
-                    <a href="{{ path('architecture') }}"><span aria-hidden="true">&larr;</span> Architecture overview</a>
-                    &nbsp;&middot;&nbsp;
-                    <a href="{{ asset('architecture.json') }}">View as JSON</a>
-                </p>
+                        {% if diagram.cards|length > 0 %}
+                            <div class="architecture-cards">
+                                {% for card in diagram.cards %}
+                                    <section class="architecture-card">
+                                        <h2 class="architecture-card-heading">{{ card.title }}</h2>
+                                        <ul class="architecture-card-list">
+                                            {% for entry in card.items %}
+                                                <li>{{ entry }}</li>
+                                            {% endfor %}
+                                        </ul>
+                                    </section>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
             </div>
         </section>
     </main>

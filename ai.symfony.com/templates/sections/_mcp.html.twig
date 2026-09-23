@@ -9,7 +9,7 @@
                     clients that connect to existing MCP servers.
                 </p>
 
-                <div class="d-flex flex-wrap gap-2">
+                <div class="d-flex flex-wrap align-items-center gap-2">
                     <a href="https://symfony.com/doc/current/ai/bundles/mcp-bundle.html" class="btn btn-dark px-3 d-flex align-items-center">
                         <span>MCP Bundle docs</span>
                         {{ ux_icon('tabler:arrow-up-right', {width: 20, height: 20, class: 'ms-2'}) }}
@@ -17,6 +17,9 @@
                     <a href="https://php.sdk.modelcontextprotocol.io" class="btn btn-outline-secondary px-3 d-flex align-items-center">
                         <span>Official SDK docs</span>
                         {{ ux_icon('tabler:arrow-up-right', {width: 20, height: 20, class: 'ms-2'}) }}
+                    </a>
+                    <a href="{{ path('architecture_diagram', {slug: 'mcp-bundle'}) }}" class="d-inline-flex align-items-center gap-1 fw-semibold">
+                        Explore the architecture <span aria-hidden="true">&rarr;</span>
                     </a>
                 </div>
             </div>

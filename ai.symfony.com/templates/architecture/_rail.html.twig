@@ -1,0 +1,62 @@
+{# variant: 'sidebar' (the sticky desktop column), 'mobile' (the sticky bar plus
+   its offcanvas, below 992px), 'offcanvas' (the list inside that offcanvas). #}
+{% set variant = variant|default('sidebar') %}
+
+{% if 'mobile' == variant %}
+    <div class="architecture-mobile-bar d-lg-none">
+        <button
+            class="architecture-mobile-bar-button"
+            type="button"
+            data-bs-toggle="offcanvas"
+            data-bs-target="#architectureRail"
+            aria-controls="architectureRail"
+        >
+            <span class="architecture-mobile-bar-title">Architecture <span aria-hidden="true">&middot;</span> {{ rail.currentTitle }}</span>
+            <span class="architecture-mobile-bar-meta">
+                {{ rail.currentPosition }} of {{ rail.total }}
+                <span class="architecture-mobile-bar-chevron" aria-hidden="true">&#9662;</span>
+            </span>
+        </button>
+    </div>
+
+    <div class="offcanvas offcanvas-end architecture-offcanvas" tabindex="-1" id="architectureRail" aria-labelledby="architectureRailLabel">
+        <div class="offcanvas-header">
+            <h2 class="offcanvas-title h6 mb-0" id="architectureRailLabel">All diagrams</h2>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+        </div>
+        <div class="offcanvas-body">
+            {{ include('architecture/_rail.html.twig', {variant: 'offcanvas', rail: rail}, with_context = false) }}
+        </div>
+    </div>
+{% else %}
+    <nav class="architecture-rail architecture-rail-{{ variant }}" aria-label="{{ 'sidebar' == variant ? 'Architecture diagrams' : 'All architecture diagrams' }}">
+        {% for group in rail.groups %}
+            <h2 class="architecture-rail-heading">{{ group.label }}</h2>
+            <ul class="architecture-rail-list">
+                {% for item in group.items %}
+                    <li>
+                        <a
+                            class="architecture-rail-item{% if item.isCurrent %} is-current{% endif %}{% if item.isNeighbour %} is-neighbour{% endif %}"
+                            href="{{ item.url }}"
+                            {%- if item.isCurrent %} aria-current="page"{% endif %}
+                        >
+                            <span class="architecture-rail-name">
+                                {%- if item.isNeighbour %}<span class="architecture-rail-dot" aria-hidden="true"></span>{% endif -%}
+                                {{ item.title }}
+                                {%- if item.isNeighbour %}<span class="visually-hidden">, connects to {{ rail.currentTitle }}</span>{% endif -%}
+                            </span>
+                            <span class="architecture-rail-summary">{{ item.summary }}</span>
+                        </a>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endfor %}
+
+        {% if rail.hasNeighbours %}
+            <p class="architecture-rail-legend">
+                <span class="architecture-rail-dot" aria-hidden="true"></span>
+                connects to {{ rail.currentTitle }}
+            </p>
+        {% endif %}
+    </nav>
+{% endif %}

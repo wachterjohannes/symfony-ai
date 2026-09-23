@@ -44,13 +44,20 @@
       ]
     },
     {
+      "id": "coding-agent",
+      "type": "external",
+      "label": "Coding Agent",
+      "sublabel": "Claude Code, Codex, ...",
+      "pos": [900, 16],
+      "size": [150, 48]
+    },
+    {
       "id": "mate",
       "type": "backend",
       "label": "Mate",
       "sublabel": "standalone assistant",
       "pos": [900, 106],
       "size": [150, 48],
-      "tag": "standalone, no bundle",
       "sources": [
         {"path": "src/mate/AGENTS.md"}
       ]
@@ -161,6 +168,16 @@
       "to": "mcp-bundle",
       "label": "exposes as MCP server",
       "labelAt": [610, 82]
+    },
+    {
+      "id": "coding-agent-to-mate",
+      "from": "coding-agent",
+      "to": "mate",
+      "label": "invokes",
+      "variant": "emphasis",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [922, 78]
     },
     {
       "id": "ai-bundle-to-agent",

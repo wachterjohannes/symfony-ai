@@ -5041,7 +5041,36 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
       svg [data-node-id], svg [data-edge-from], svg [data-detail], svg [data-detail-anchor], svg [data-legend-hit], svg { transition: none !important; }
     }
   </style>
-</head>
+<script>
+(function () {
+  // A cross-origin parent makes reading window.top throw, and that
+  // only ever happens when the document is framed.
+  var framed = true;
+  try { framed = window.top !== window.self; } catch (_) {}
+  if (framed) document.documentElement.setAttribute('data-sf-ai-framed', 'true');
+})();
+</script>
+<style>
+  html[data-sf-ai-framed] .cards,
+  html[data-sf-ai-framed] .container > .header,
+  html[data-sf-ai-framed] #btn-theme { display: none !important; }
+
+  /* .toolbar is archify's own fixed-position overlay (top:1rem;
+     right:1rem), independent of frame width. It only clears the
+     diagram by accident, when the frame is wide enough that the
+     canvas doesn't reach the frame's actual top-right corner.
+     The persistent rail narrows that frame to ~1100px on desktop,
+     which is close enough to several diagrams' own canvas width
+     that their top-right content (e.g. the overview's "Coding
+     Agent" node) now renders directly under it. Reserving a clear
+     band at the top of the diagram itself, rather than trying to
+     reposition archify's own fixed toolbar, fixes this at any
+     frame width without depending on how wide the rail happens
+     to be. 4.5rem clears a 44px-tall toolbar plus its 1rem offset
+     and margin, measured live at 1440x900.
+  */
+  html[data-sf-ai-framed] .diagram-container { padding-top: 4.5rem !important; }
+</style></head>
 <body>
   <!-- Toolbar: theme, live visual style, trace motion, presentation stage, and export.
        Motion appears only for trace-enabled artifacts and has no shortcut;
@@ -5229,18 +5258,19 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         <!-- Connection paths (before components for correct z-order) -->
         <path data-edge-from="your-app" data-edge-to="ai-bundle" data-edge-label="configures" data-edge-key="0" data-edge-id="app-to-ai-bundle" data-composition-points="520,40;405,40;405,123;290,123" d="M 520 40 L 413 40 Q 405 40 405 48 L 405 115 Q 405 123 397 123 L 290 123" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
         <path data-edge-from="your-app" data-edge-to="mcp-bundle" data-edge-label="exposes as MCP server" data-edge-key="1" data-edge-id="app-to-mcp-bundle" data-composition-points="610,64;610,106" d="M 610 64 L 610 106" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
-        <path data-edge-from="ai-bundle" data-edge-to="agent" data-edge-label="integrates (optional)" data-edge-key="2" data-edge-id="ai-bundle-to-agent" data-composition-points="215,154;215,196" d="M 215 154 L 215 196" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
-        <path data-edge-from="ai-bundle" data-edge-to="chat" data-edge-label="integrates (optional)" data-edge-key="3" data-edge-id="ai-bundle-to-chat" data-composition-points="290,137;405,137;405,213;520,213" d="M 290 137 L 397 137 Q 405 137 405 145 L 405 205 Q 405 213 413 213 L 520 213" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
-        <path data-edge-from="ai-bundle" data-edge-to="store" data-edge-label="integrates (optional)" data-edge-key="4" data-edge-id="ai-bundle-to-store" data-composition-points="215,154;215,175;975,175;975,196" d="M 215 154 L 215 167 Q 215 175 223 175 L 967 175 Q 975 175 975 183 L 975 196" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
-        <path data-edge-from="agent" data-edge-to="platform" data-edge-label="requires" data-edge-key="5" data-edge-id="agent-to-platform" data-composition-points="290,227;405,227;405,310;520,310" d="M 290 227 L 397 227 Q 405 227 405 235 L 405 302 Q 405 310 413 310 L 520 310" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
-        <path data-edge-from="chat" data-edge-to="agent" data-edge-label="requires" data-edge-key="6" data-edge-id="chat-to-agent" data-composition-points="520,227;496,227;496,243;314,243;314,213;290,213" d="M 520 227 L 504 227 Q 496 227 496 235 L 496 235 Q 496 243 488 243 L 322 243 Q 314 243 314 235 L 314 221 Q 314 213 306 213 L 290 213" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
-        <path data-edge-from="chat" data-edge-to="platform" data-edge-label="requires" data-edge-key="7" data-edge-id="chat-to-platform" data-composition-points="595,244;595,286" d="M 595 244 L 595 286" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
-        <path data-edge-from="store" data-edge-to="platform" data-edge-label="requires" data-edge-key="8" data-edge-id="store-to-platform" data-composition-points="900,220;785,220;785,310;670,310" d="M 900 220 L 793 220 Q 785 220 785 228 L 785 302 Q 785 310 777 310 L 670 310" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
-        <path data-edge-from="agent" data-edge-to="agent-tools" data-edge-label="executes" data-edge-key="9" data-edge-id="agent-to-agent-tools" data-composition-points="215,244;215,376" d="M 215 244 L 215 376" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
-        <path data-edge-from="platform" data-edge-to="platform-bridges" data-edge-label="implemented by" data-edge-key="10" data-edge-id="platform-to-platform-bridges" data-composition-points="595,334;595,376" d="M 595 334 L 595 376" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
-        <path data-edge-from="store" data-edge-to="store-bridges" data-edge-label="implemented by" data-edge-key="11" data-edge-id="store-to-store-bridges" data-composition-points="975,244;975,376" d="M 975 244 L 975 376" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
-        <path data-edge-from="platform-bridges" data-edge-to="providers" data-edge-label="calls" data-edge-key="12" data-edge-id="platform-bridges-to-providers" data-composition-points="595,424;595,448;621,448;621,487;605,487;605,511" d="M 595 424 L 595 440 Q 595 448 603 448 L 613 448 Q 621 448 621 456 L 621 479 Q 621 487 613 487 L 613 487 Q 605 487 605 495 L 605 511" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
-        <path data-edge-from="store-bridges" data-edge-to="providers" data-edge-label="calls" data-edge-key="13" data-edge-id="store-bridges-to-providers" data-composition-points="900,400;800,400;800,535;700,535" d="M 900 400 L 808 400 Q 800 400 800 408 L 800 527 Q 800 535 792 535 L 700 535" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="coding-agent" data-edge-to="mate" data-edge-label="invokes" data-edge-key="2" data-edge-id="coding-agent-to-mate" data-composition-points="975,64;975,106" d="M 975 64 L 975 106" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <path data-edge-from="ai-bundle" data-edge-to="agent" data-edge-label="integrates (optional)" data-edge-key="3" data-edge-id="ai-bundle-to-agent" data-composition-points="215,154;215,196" d="M 215 154 L 215 196" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
+        <path data-edge-from="ai-bundle" data-edge-to="chat" data-edge-label="integrates (optional)" data-edge-key="4" data-edge-id="ai-bundle-to-chat" data-composition-points="290,137;405,137;405,213;520,213" d="M 290 137 L 397 137 Q 405 137 405 145 L 405 205 Q 405 213 413 213 L 520 213" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
+        <path data-edge-from="ai-bundle" data-edge-to="store" data-edge-label="integrates (optional)" data-edge-key="5" data-edge-id="ai-bundle-to-store" data-composition-points="215,154;215,175;975,175;975,196" d="M 215 154 L 215 167 Q 215 175 223 175 L 967 175 Q 975 175 975 183 L 975 196" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
+        <path data-edge-from="agent" data-edge-to="platform" data-edge-label="requires" data-edge-key="6" data-edge-id="agent-to-platform" data-composition-points="290,227;405,227;405,310;520,310" d="M 290 227 L 397 227 Q 405 227 405 235 L 405 302 Q 405 310 413 310 L 520 310" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <path data-edge-from="chat" data-edge-to="agent" data-edge-label="requires" data-edge-key="7" data-edge-id="chat-to-agent" data-composition-points="520,227;496,227;496,243;314,243;314,213;290,213" d="M 520 227 L 504 227 Q 496 227 496 235 L 496 235 Q 496 243 488 243 L 322 243 Q 314 243 314 235 L 314 221 Q 314 213 306 213 L 290 213" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="chat" data-edge-to="platform" data-edge-label="requires" data-edge-key="8" data-edge-id="chat-to-platform" data-composition-points="595,244;595,286" d="M 595 244 L 595 286" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="store" data-edge-to="platform" data-edge-label="requires" data-edge-key="9" data-edge-id="store-to-platform" data-composition-points="900,220;785,220;785,310;670,310" d="M 900 220 L 793 220 Q 785 220 785 228 L 785 302 Q 785 310 777 310 L 670 310" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="agent" data-edge-to="agent-tools" data-edge-label="executes" data-edge-key="10" data-edge-id="agent-to-agent-tools" data-composition-points="215,244;215,376" d="M 215 244 L 215 376" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="platform" data-edge-to="platform-bridges" data-edge-label="implemented by" data-edge-key="11" data-edge-id="platform-to-platform-bridges" data-composition-points="595,334;595,376" d="M 595 334 L 595 376" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="store" data-edge-to="store-bridges" data-edge-label="implemented by" data-edge-key="12" data-edge-id="store-to-store-bridges" data-composition-points="975,244;975,376" d="M 975 244 L 975 376" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="platform-bridges" data-edge-to="providers" data-edge-label="calls" data-edge-key="13" data-edge-id="platform-bridges-to-providers" data-composition-points="595,424;595,448;621,448;621,487;605,487;605,511" d="M 595 424 L 595 440 Q 595 448 603 448 L 613 448 Q 621 448 621 456 L 621 479 Q 621 487 613 487 L 613 487 Q 605 487 605 495 L 605 511" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="store-bridges" data-edge-to="providers" data-edge-label="calls" data-edge-key="14" data-edge-id="store-bridges-to-providers" data-composition-points="900,400;800,400;800,535;700,535" d="M 900 400 L 808 400 Q 800 400 800 408 L 800 527 Q 800 535 792 535 L 700 535" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
 
         <!-- Components -->
         <g id="node-your-app" data-node-id="your-app" data-node-label="Your Application" tabindex="0" role="button" aria-label="Focus Your Application, Symfony app (consumer), Architecture component" aria-pressed="false" data-node-kind="external" data-node-sublabel="Symfony app (consumer)" data-node-context="Architecture component">
@@ -5277,8 +5307,20 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         <text data-detail="context" x="610" y="144" class="t-muted" font-size="9" text-anchor="middle">MCP server (official SDK)</text>
         </g>
 
-        <g id="node-mate" data-node-id="mate" data-node-label="Mate" tabindex="0" role="button" aria-label="Focus Mate, standalone assistant, Architecture component" aria-pressed="false" data-node-kind="backend" data-node-sublabel="standalone assistant" data-node-tag="standalone, no bundle" data-node-context="Architecture component">
-          <title>Mate · standalone assistant · Architecture component · standalone, no bundle</title>
+        <g id="node-coding-agent" data-node-id="coding-agent" data-node-label="Coding Agent" tabindex="0" role="button" aria-label="Focus Coding Agent, Claude Code, Codex, ..., Architecture component" aria-pressed="false" data-node-kind="external" data-node-sublabel="Claude Code, Codex, ..." data-node-context="Architecture component">
+          <title>Coding Agent · Claude Code, Codex, ... · Architecture component</title>
+          <rect x="900" y="16" width="150" height="48" rx="6" class="c-mask"/>
+          <rect x="900" y="16" width="150" height="48" rx="6" class="c-external" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="external" class="semantic-sigil s-external" transform="translate(906 22) scale(0.6875)">
+            <rect x="2.5" y="5" width="8.5" height="8" rx="1.5"/>
+            <path d="M8 2.5h5.5V8M13.5 2.5 7.5 8.5"/>
+          </g>
+          <text data-node-label="" data-detail-anchor="" x="975" y="38" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Coding Agent</text>
+        <text data-detail="context" x="975" y="54" class="t-muted" font-size="9" text-anchor="middle">Claude Code, Codex, ...</text>
+        </g>
+
+        <g id="node-mate" data-node-id="mate" data-node-label="Mate" tabindex="0" role="button" aria-label="Focus Mate, standalone assistant, Architecture component" aria-pressed="false" data-node-kind="backend" data-node-sublabel="standalone assistant" data-node-context="Architecture component">
+          <title>Mate · standalone assistant · Architecture component</title>
           <rect x="900" y="106" width="150" height="48" rx="6" class="c-mask"/>
           <rect x="900" y="106" width="150" height="48" rx="6" class="c-backend" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(906 112) scale(0.6875)">
@@ -5286,7 +5328,6 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
           </g>
           <text data-node-label="" data-detail-anchor="" x="975" y="128" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Mate</text>
         <text data-detail="context" x="975" y="144" class="t-muted" font-size="9" text-anchor="middle">standalone assistant</text>
-        <text data-detail="fine" x="975" y="146" class="t-backend" font-size="7" text-anchor="middle">standalone, no bundle</text>
         </g>
 
         <g id="node-agent" data-node-id="agent" data-node-label="Agent" tabindex="0" role="button" aria-label="Focus Agent, orchestration &amp; tool loop, Architecture component" aria-pressed="false" data-node-kind="backend" data-node-sublabel="orchestration &amp; tool loop" data-node-context="Architecture component">
@@ -5386,51 +5427,55 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
           <rect x="554.6" y="72" width="110.8" height="14" rx="3" class="c-mask"/>
           <text x="610" y="82" class="t-muted" font-size="8" text-anchor="middle">exposes as MCP server</text>
         </g>
-        <g data-detail="context" data-edge-from="ai-bundle" data-edge-to="agent" data-edge-label="integrates (optional)" data-edge-key="2" data-edge-id="ai-bundle-to-agent">
+        <g data-detail="context" data-edge-from="coding-agent" data-edge-to="mate" data-edge-label="invokes" data-edge-key="2" data-edge-id="coding-agent-to-mate">
+          <rect x="900.2" y="68" width="43.6" height="14" rx="3" class="c-mask"/>
+          <text x="922" y="78" class="t-backend" font-size="8" text-anchor="middle">invokes</text>
+        </g>
+        <g data-detail="context" data-edge-from="ai-bundle" data-edge-to="agent" data-edge-label="integrates (optional)" data-edge-key="3" data-edge-id="ai-bundle-to-agent">
           <rect x="92.6" y="158" width="110.8" height="14" rx="3" class="c-mask"/>
           <text x="148" y="168" class="t-messagebus" font-size="8" text-anchor="middle">integrates (optional)</text>
         </g>
-        <g data-detail="context" data-edge-from="ai-bundle" data-edge-to="chat" data-edge-label="integrates (optional)" data-edge-key="3" data-edge-id="ai-bundle-to-chat">
+        <g data-detail="context" data-edge-from="ai-bundle" data-edge-to="chat" data-edge-label="integrates (optional)" data-edge-key="4" data-edge-id="ai-bundle-to-chat">
           <rect x="349.6" y="155" width="110.8" height="14" rx="3" class="c-mask"/>
           <text x="405" y="165" class="t-messagebus" font-size="8" text-anchor="middle">integrates (optional)</text>
         </g>
-        <g data-detail="context" data-edge-from="ai-bundle" data-edge-to="store" data-edge-label="integrates (optional)" data-edge-key="4" data-edge-id="ai-bundle-to-store">
+        <g data-detail="context" data-edge-from="ai-bundle" data-edge-to="store" data-edge-label="integrates (optional)" data-edge-key="5" data-edge-id="ai-bundle-to-store">
           <rect x="539.6" y="155" width="110.8" height="14" rx="3" class="c-mask"/>
           <text x="595" y="165" class="t-messagebus" font-size="8" text-anchor="middle">integrates (optional)</text>
         </g>
-        <g data-detail="context" data-edge-from="agent" data-edge-to="platform" data-edge-label="requires" data-edge-key="5" data-edge-id="agent-to-platform">
+        <g data-detail="context" data-edge-from="agent" data-edge-to="platform" data-edge-label="requires" data-edge-key="6" data-edge-id="agent-to-platform">
           <rect x="380.8" y="248.5" width="48.4" height="14" rx="3" class="c-mask"/>
           <text x="405" y="258.5" class="t-backend" font-size="8" text-anchor="middle">requires</text>
         </g>
-        <g data-detail="context" data-edge-from="chat" data-edge-to="agent" data-edge-label="requires" data-edge-key="6" data-edge-id="chat-to-agent">
+        <g data-detail="context" data-edge-from="chat" data-edge-to="agent" data-edge-label="requires" data-edge-key="7" data-edge-id="chat-to-agent">
           <rect x="471.8" y="229" width="48.4" height="14" rx="3" class="c-mask"/>
           <text x="496" y="239" class="t-muted" font-size="8" text-anchor="middle">requires</text>
         </g>
-        <g data-detail="context" data-edge-from="chat" data-edge-to="platform" data-edge-label="requires" data-edge-key="7" data-edge-id="chat-to-platform">
+        <g data-detail="context" data-edge-from="chat" data-edge-to="platform" data-edge-label="requires" data-edge-key="8" data-edge-id="chat-to-platform">
           <rect x="570.8" y="248" width="48.4" height="14" rx="3" class="c-mask"/>
           <text x="595" y="258" class="t-muted" font-size="8" text-anchor="middle">requires</text>
         </g>
-        <g data-detail="context" data-edge-from="store" data-edge-to="platform" data-edge-label="requires" data-edge-key="8" data-edge-id="store-to-platform">
+        <g data-detail="context" data-edge-from="store" data-edge-to="platform" data-edge-label="requires" data-edge-key="9" data-edge-id="store-to-platform">
           <rect x="760.8" y="245" width="48.4" height="14" rx="3" class="c-mask"/>
           <text x="785" y="255" class="t-muted" font-size="8" text-anchor="middle">requires</text>
         </g>
-        <g data-detail="context" data-edge-from="agent" data-edge-to="agent-tools" data-edge-label="executes" data-edge-key="9" data-edge-id="agent-to-agent-tools">
+        <g data-detail="context" data-edge-from="agent" data-edge-to="agent-tools" data-edge-label="executes" data-edge-key="10" data-edge-id="agent-to-agent-tools">
           <rect x="190.8" y="248" width="48.4" height="14" rx="3" class="c-mask"/>
           <text x="215" y="258" class="t-muted" font-size="8" text-anchor="middle">executes</text>
         </g>
-        <g data-detail="context" data-edge-from="platform" data-edge-to="platform-bridges" data-edge-label="implemented by" data-edge-key="10" data-edge-id="platform-to-platform-bridges">
+        <g data-detail="context" data-edge-from="platform" data-edge-to="platform-bridges" data-edge-label="implemented by" data-edge-key="11" data-edge-id="platform-to-platform-bridges">
           <rect x="556.4" y="338" width="77.2" height="14" rx="3" class="c-mask"/>
           <text x="595" y="348" class="t-muted" font-size="8" text-anchor="middle">implemented by</text>
         </g>
-        <g data-detail="context" data-edge-from="store" data-edge-to="store-bridges" data-edge-label="implemented by" data-edge-key="11" data-edge-id="store-to-store-bridges">
+        <g data-detail="context" data-edge-from="store" data-edge-to="store-bridges" data-edge-label="implemented by" data-edge-key="12" data-edge-id="store-to-store-bridges">
           <rect x="936.4" y="248" width="77.2" height="14" rx="3" class="c-mask"/>
           <text x="975" y="258" class="t-muted" font-size="8" text-anchor="middle">implemented by</text>
         </g>
-        <g data-detail="context" data-edge-from="platform-bridges" data-edge-to="providers" data-edge-label="calls" data-edge-key="12" data-edge-id="platform-bridges-to-providers">
+        <g data-detail="context" data-edge-from="platform-bridges" data-edge-to="providers" data-edge-label="calls" data-edge-key="13" data-edge-id="platform-bridges-to-providers">
           <rect x="591" y="428" width="34" height="14" rx="3" class="c-mask"/>
           <text x="608" y="438" class="t-muted" font-size="8" text-anchor="middle">calls</text>
         </g>
-        <g data-detail="context" data-edge-from="store-bridges" data-edge-to="providers" data-edge-label="calls" data-edge-key="13" data-edge-id="store-bridges-to-providers">
+        <g data-detail="context" data-edge-from="store-bridges" data-edge-to="providers" data-edge-label="calls" data-edge-key="14" data-edge-id="store-bridges-to-providers">
           <rect x="783" y="447.5" width="34" height="14" rx="3" class="c-mask"/>
           <text x="800" y="457.5" class="t-muted" font-size="8" text-anchor="middle">calls</text>
         </g>
@@ -15103,36 +15148,234 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
       }
     });
   </script>
+<style>
+  /* The toolbar is a fixed-width row of ~8 buttons; on narrow viewports
+     it can be wider than the diagram itself, and archify's own
+     overflow-x:auto scroll on that row has no visible affordance, so
+     the zoom controls can sit off-screen with nothing to suggest
+     scrolling. Wrapping onto a second line keeps every control on
+     screen without needing to touch archify's own layout logic. */
+  @media (max-width: 480px) {
+    .diagram-nav {
+      flex-wrap: wrap !important;
+      overflow: visible !important;
+      justify-content: flex-end !important;
+      row-gap: 2px !important;
+    }
+
+    /* The toolbar (theme, style, motion, Present, Export) is a
+       second, separate row with the same problem and a worse
+       symptom: below 720px archify gives it width:max-content and
+       justify-content:flex-end, so once its content is wider than
+       the viewport the overflow goes off the *left* edge, where
+       nothing can scroll it back. Measured at 400px, its first
+       button sat at x=-45. Dropping max-content lets it wrap. */
+    .toolbar {
+      flex-wrap: wrap !important;
+      width: auto !important;
+      max-width: 100% !important;
+      justify-content: flex-end !important;
+      row-gap: 4px !important;
+    }
+  }
+</style>
 <script>
 (() => {
-  const targets = {"ai-bundle":{"url":"/architecture/ai-bundle","label":"AI Bundle"},"mcp-bundle":{"url":"/architecture/mcp-bundle","label":"MCP Bundle"},"agent":{"url":"/architecture/agent","label":"Agent"},"chat":{"url":"/architecture/chat","label":"Chat"},"store":{"url":"/architecture/store","label":"Store"},"platform":{"url":"/architecture/platform","label":"Platform"},"agent-tools":{"url":"/architecture/agent?view=toolbox","label":"Agent"},"platform-bridges":{"url":"/architecture/platform?focus=bridges","label":"Platform"},"store-bridges":{"url":"/architecture/store?focus=store-bridges","label":"Store"}};
+  const ownUrl = "/architecture";
+  const targets = {"ai-bundle":{"url":"/architecture/ai-bundle","label":"AI Bundle"},"mcp-bundle":{"url":"/architecture/mcp-bundle","label":"MCP Bundle"},"mate":{"url":"/architecture/mate","label":"Mate"},"agent":{"url":"/architecture/agent","label":"Agent"},"chat":{"url":"/architecture/chat","label":"Chat"},"store":{"url":"/architecture/store","label":"Store"},"platform":{"url":"/architecture/platform","label":"Platform"},"agent-tools":{"url":"/architecture/agent?view=toolbox","label":"Agent"},"platform-bridges":{"url":"/architecture/platform?focus=bridges","label":"Platform"},"store-bridges":{"url":"/architecture/store?focus=store-bridges","label":"Store"}};
   const idEl = document.getElementById('focus-id');
   const meta = document.getElementById('focus-passport-meta');
-  if (!idEl || !meta || !meta.parentNode) return;
+  const passportCard = document.getElementById('focus-chip');
+  const copyBtn = document.getElementById('btn-focus-copy');
 
-  const link = document.createElement('a');
-  link.className = 'sf-ai-passport-link';
-  link.rel = 'noopener';
-  link.style.cssText = 'display:none;margin:0.35rem 0 0.6rem;font-weight:600;color:var(--arrow-emphasis,#0969da);text-decoration:underline;cursor:pointer;';
-  meta.insertAdjacentElement('afterend', link);
+  // ---- "Open <title> diagram" passport link -----------------------
+  if (idEl && meta && meta.parentNode && Object.keys(targets).length > 0) {
+    const link = document.createElement('a');
+    link.className = 'sf-ai-passport-link';
+    link.rel = 'noopener';
+    link.style.cssText = 'display:none;margin:0.35rem 0 0.6rem;font-weight:600;color:var(--arrow-emphasis,#0969da);text-decoration:underline;cursor:pointer;';
+    meta.insertAdjacentElement('afterend', link);
 
-  const update = () => {
-    const info = targets[idEl.textContent.trim()];
-    if (!info) {
-      link.style.display = 'none';
-      return;
+    const updateLink = () => {
+      const info = targets[idEl.textContent.trim()];
+      if (!info) {
+        link.style.display = 'none';
+        return;
+      }
+      link.href = info.url;
+      link.textContent = 'Open ' + info.label + ' diagram →';
+      link.style.display = 'block';
+    };
+    link.addEventListener('click', (event) => {
+      event.preventDefault();
+      window.top.location.href = link.href;
+    });
+
+    new MutationObserver(updateLink).observe(idEl, {childList: true, characterData: true, subtree: true});
+    updateLink();
+  }
+
+  // ---- Fix: "Copy link" must copy a real site URL ------------------
+  // archify's own handler copies location.href (the bare, chrome-less
+  // /diagrams/<slug>.html artifact URL) with a #focus= hash. Swap it
+  // for the site's own ?focus= deep link, which actually has a way
+  // back (header, breadcrumb, Explore chips).
+  if (copyBtn && idEl && window.Archify && window.Archify.focus
+      && typeof window.Archify.focus.copyLink === 'function') {
+    copyBtn.removeEventListener('click', window.Archify.focus.copyLink);
+
+    const fallbackCopy = (text) => {
+      const field = document.createElement('textarea');
+      field.value = text;
+      field.setAttribute('readonly', '');
+      field.style.position = 'fixed';
+      field.style.opacity = '0';
+      document.body.appendChild(field);
+      field.select();
+      let copied = false;
+      try { copied = document.execCommand('copy'); } catch (_) {}
+      field.remove();
+      return copied;
+    };
+
+    copyBtn.addEventListener('click', () => {
+      const nodeId = idEl.textContent.trim();
+      if (!nodeId) return;
+
+      let url;
+      try { url = new URL(ownUrl, window.top.location.origin); }
+      catch (_) { url = new URL(ownUrl, window.location.origin); }
+      url.searchParams.set('focus', nodeId);
+      const value = url.toString();
+
+      const finish = (copied) => {
+        copyBtn.textContent = copied ? 'Copied' : 'Copy failed';
+        copyBtn.setAttribute('aria-label', copied
+          ? 'Focused node link copied'
+          : 'Could not copy focused node link');
+        window.setTimeout(() => {
+          copyBtn.textContent = 'Copy link';
+          copyBtn.setAttribute('aria-label', 'Copy link to focused node');
+        }, 1600);
+      };
+
+      const copy = navigator.clipboard && typeof navigator.clipboard.writeText === 'function'
+        ? navigator.clipboard.writeText(value).then(() => true).catch(() => fallbackCopy(value))
+        : Promise.resolve(fallbackCopy(value));
+      copy.then(finish);
+    });
+  }
+
+  // ---- Fix: move keyboard/AT focus onto the passport when it opens -
+  // #focus-chip is role="region" with no tabindex and no aria-live, so
+  // opening it (a click, or a ?focus= deep link on arrival) leaves
+  // focus on the node and the panel undiscoverable by keyboard/AT
+  // without a long linear search through the rest of the diagram.
+  if (passportCard) {
+    if (!passportCard.hasAttribute('tabindex')) {
+      passportCard.setAttribute('tabindex', '-1');
     }
-    link.href = info.url;
-    link.textContent = 'Open ' + info.label + ' diagram →';
-    link.style.display = 'block';
-  };
-  link.addEventListener('click', (event) => {
-    event.preventDefault();
-    window.top.location.href = link.href;
+    passportCard.setAttribute('aria-live', 'polite');
+
+    const focusPassport = () => window.requestAnimationFrame(() => {
+      try { passportCard.focus({preventScroll: false}); }
+      catch (_) { passportCard.focus(); }
+    });
+
+    let wasHidden = passportCard.hidden;
+    new MutationObserver(() => {
+      const isHidden = passportCard.hidden;
+      if (wasHidden && !isHidden) focusPassport();
+      wasHidden = isHidden;
+    }).observe(passportCard, {attributes: true, attributeFilter: ['hidden']});
+
+    // A `?focus=` deep link is resolved by archify's own bootstrap
+    // before this script runs, so the panel can already be open by
+    // the time `wasHidden` above is captured: that first open never
+    // fires the observer above, it only catches later transitions.
+    if (!wasHidden) focusPassport();
+  }
+
+  // ---- Fix: remove dead Tab stops ----------------------------------
+  // The root <svg role="img"> and its "Direct relationship explorer"
+  // / "Semantic legend" wrapper <g role="group"|"toolbar"> elements
+  // report tabIndex -1 (the default for an element with no explicit
+  // tabindex), but Chromium still lands sequential Tab focus on them;
+  // only an explicit tabindex="-1" reliably excludes them.
+  const svgRoot = document.querySelector('svg[role="img"]');
+  if (svgRoot) svgRoot.setAttribute('tabindex', '-1');
+  document.querySelectorAll('svg g[role="group"], svg g[role="toolbar"]').forEach((group) => {
+    group.setAttribute('tabindex', '-1');
   });
 
-  new MutationObserver(update).observe(idEl, {childList: true, characterData: true, subtree: true});
-  update();
+  // ---- Fix: two controls that overstate their own reach -----------
+  // "MAP" and the node finder are the most search-shaped controls
+  // in the feature, so a reader who cannot find something reaches
+  // for them first. Both only ever see the one diagram in this
+  // frame, and the site now has nine, so the reader concludes the
+  // content does not exist. Rename them after what they do.
+  // archify re-applies both labels from its own i18n table every
+  // time the panels open or close, so patching that table is what
+  // makes the rename stick; the DOM pass below only covers the
+  // labels that are already rendered.
+  const labels = {
+    'viewer.nav.radar': 'Open the minimap of this diagram',
+    'viewer.nav.radar.title': 'Minimap of this diagram (M)',
+    'viewer.nav.radar.short': 'MINIMAP',
+    'viewer.radar.title': 'Minimap of this diagram',
+    'viewer.radar.close': 'Close the minimap of this diagram',
+    'viewer.radar.openFull': 'Open the full minimap of this diagram',
+    'viewer.radar.open': 'Expand',
+    'viewer.radar.focus': 'Focus {label} from the minimap',
+    'viewer.nav.find': 'Find a node in this diagram',
+    'viewer.nav.find.title': 'Find a node in this diagram (/)',
+    'viewer.finder.title': 'Find a node in this diagram',
+  };
+
+  if (window.archifyI18nData && window.archifyI18nData.messages) {
+    Object.assign(window.archifyI18nData.messages, labels);
+  }
+
+  const setText = (id, text) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = text;
+  };
+  const setLabel = (id, text) => {
+    const el = document.getElementById(id);
+    if (el) el.setAttribute('aria-label', text);
+  };
+
+  // The node finder's button holds an icon, not a text label, so
+  // only its accessible name and tooltip change.
+  setText('btn-overview-map', labels['viewer.nav.radar.short']);
+  setLabel('btn-overview-map', labels['viewer.nav.radar']);
+  setLabel('btn-node-finder', labels['viewer.nav.find']);
+  setText('overview-map-title', labels['viewer.radar.title']);
+  setText('node-finder-title', labels['viewer.finder.title']);
+  setText('overview-map-expand', labels['viewer.radar.open']);
+  setLabel('overview-map-expand', labels['viewer.radar.openFull']);
+  setLabel('overview-map-close', labels['viewer.radar.close']);
+
+  const mapBtn = document.getElementById('btn-overview-map');
+  if (mapBtn) mapBtn.title = labels['viewer.nav.radar.title'];
+  const findBtn = document.getElementById('btn-node-finder');
+  if (findBtn) findBtn.title = labels['viewer.nav.find.title'];
+
+  // ---- Fix: theme sync without reloading the iframe ----------------
+  // The parent page sets ?theme= only once, on the iframe's initial
+  // load (a later reload would destroy zoom/focus/passport state), so
+  // it posts a message instead when the site theme changes afterwards.
+  window.addEventListener('message', (event) => {
+    if (event.origin !== window.location.origin) return;
+    const data = event.data;
+    if (!data || data.type !== 'sf-ai-set-theme') return;
+    const desired = 'dark' === data.theme ? 'dark' : 'light';
+    const current = document.documentElement.getAttribute('data-theme');
+    if (current !== desired && window.Archify && window.Archify.theme
+        && typeof window.Archify.theme.toggle === 'function') {
+      window.Archify.theme.toggle();
+    }
+  });
 })();
 </script></body>
 </html>
