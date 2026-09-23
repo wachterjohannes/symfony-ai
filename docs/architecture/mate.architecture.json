@@ -1,0 +1,306 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Mate",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/symfony/ai",
+      "provider": "github",
+      "revision": "7c3ce859aa500cc3592b25323c842cb419ed5a67"
+    }
+  },
+  "components": [
+    {
+      "id": "coding-agent",
+      "type": "external",
+      "label": "Coding Agent",
+      "sublabel": "Claude Code, Codex, ...",
+      "pos": [
+        40,
+        16
+      ],
+      "size": [
+        150,
+        48
+      ]
+    },
+    {
+      "id": "cli",
+      "type": "backend",
+      "label": "CLI",
+      "sublabel": "bin/mate + DI wiring",
+      "pos": [
+        460,
+        16
+      ],
+      "size": [
+        150,
+        48
+      ],
+      "sources": [
+        {
+          "path": "src/mate/bin/mate"
+        },
+        {
+          "path": "src/mate/src/App.php"
+        },
+        {
+          "path": "src/mate/src/Container/ContainerFactory.php"
+        }
+      ]
+    },
+    {
+      "id": "agent-instructions",
+      "type": "backend",
+      "label": "Agent Instructions",
+      "sublabel": "materializes docs for agents",
+      "pos": [
+        140,
+        106
+      ],
+      "size": [
+        150,
+        48
+      ],
+      "sources": [
+        {
+          "path": "src/mate/src/Agent/AgentInstructionsMaterializer.php"
+        },
+        {
+          "path": "src/mate/src/Agent/AgentInstructionsAggregator.php"
+        }
+      ]
+    },
+    {
+      "id": "skills",
+      "type": "backend",
+      "label": "Skills",
+      "sublabel": "installs Agent Skills",
+      "pos": [
+        520,
+        106
+      ],
+      "size": [
+        150,
+        48
+      ],
+      "sources": [
+        {
+          "path": "src/mate/src/Skill/SkillInstaller.php"
+        },
+        {
+          "path": "src/mate/src/Skill/SkillManager.php"
+        }
+      ]
+    },
+    {
+      "id": "extension-discovery",
+      "type": "backend",
+      "label": "Extension Discovery",
+      "sublabel": "reads composer extra.ai-mate",
+      "pos": [
+        900,
+        106
+      ],
+      "size": [
+        150,
+        48
+      ],
+      "sources": [
+        {
+          "path": "src/mate/src/Discovery/ComposerExtensionDiscovery.php"
+        },
+        {
+          "path": "src/mate/composer-plugin/src/MatePlugin.php"
+        }
+      ]
+    },
+    {
+      "id": "bridges",
+      "type": "backend",
+      "label": "Bridges",
+      "sublabel": "Symfony, Monolog",
+      "pos": [
+        900,
+        196
+      ],
+      "size": [
+        150,
+        48
+      ],
+      "sources": [
+        {
+          "path": "src/mate/src/Bridge/Symfony/README.md"
+        },
+        {
+          "path": "src/mate/src/Bridge/Monolog/README.md"
+        }
+      ]
+    },
+    {
+      "id": "extensions",
+      "type": "external",
+      "label": "Extensions",
+      "sublabel": "3rd-party composer packages",
+      "pos": [
+        520,
+        196
+      ],
+      "size": [
+        150,
+        48
+      ]
+    },
+    {
+      "id": "capability-discovery",
+      "type": "backend",
+      "label": "Capability Discovery",
+      "sublabel": "reflects #[MateTool] methods",
+      "pos": [
+        900,
+        286
+      ],
+      "size": [
+        150,
+        48
+      ],
+      "sources": [
+        {
+          "path": "src/mate/src/Discovery/ReflectionDiscoverer.php"
+        },
+        {
+          "path": "src/mate/src/Discovery/SchemaGenerator.php"
+        },
+        {
+          "path": "src/mate/src/Discovery/CapabilityRegistry.php"
+        }
+      ]
+    },
+    {
+      "id": "invocation",
+      "type": "backend",
+      "label": "Invocation",
+      "sublabel": "resolves & calls handlers",
+      "pos": [
+        900,
+        376
+      ],
+      "size": [
+        150,
+        48
+      ],
+      "sources": [
+        {
+          "path": "src/mate/src/Invocation/ToolInvoker.php"
+        },
+        {
+          "path": "src/mate/src/Invocation/ResourceReader.php"
+        },
+        {
+          "path": "src/mate/src/Invocation/HandlerInvoker.php"
+        }
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "coding-agent-to-cli",
+      "from": "coding-agent",
+      "to": "cli",
+      "label": "invokes",
+      "variant": "emphasis"
+    },
+    {
+      "id": "agent-instructions-to-coding-agent",
+      "from": "agent-instructions",
+      "to": "coding-agent",
+      "label": "informs (optional)",
+      "variant": "dashed",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "cli-to-agent-instructions",
+      "from": "cli",
+      "to": "agent-instructions",
+      "label": "materializes via"
+    },
+    {
+      "id": "cli-to-extension-discovery",
+      "from": "cli",
+      "to": "extension-discovery",
+      "label": "discovers via"
+    },
+    {
+      "id": "extension-discovery-to-bridges",
+      "from": "extension-discovery",
+      "to": "bridges",
+      "label": "discovers",
+      "labelDy": 24
+    },
+    {
+      "id": "extension-discovery-to-extensions",
+      "from": "extension-discovery",
+      "to": "extensions",
+      "label": "discovers (optional)",
+      "variant": "dashed"
+    },
+    {
+      "id": "bridges-to-capability-discovery",
+      "from": "bridges",
+      "to": "capability-discovery",
+      "label": "contributes tools to",
+      "labelDy": 24
+    },
+    {
+      "id": "extensions-to-capability-discovery",
+      "from": "extensions",
+      "to": "capability-discovery",
+      "label": "contributes tools to (optional)",
+      "variant": "dashed"
+    },
+    {
+      "id": "capability-discovery-to-invocation",
+      "from": "capability-discovery",
+      "to": "invocation",
+      "label": "resolves handlers for",
+      "variant": "emphasis",
+      "labelDy": 24
+    },
+    {
+      "id": "cli-to-skills",
+      "from": "cli",
+      "to": "skills",
+      "label": "installs via",
+      "fromSide": "bottom",
+      "toSide": "top"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "violet",
+      "title": "Discovery & wiring",
+      "items": [
+        "Extension Discovery reads composer.json's extra.ai-mate key to find installed extensions",
+        "Capability Discovery reflects #[MateTool]/#[MateResource] methods into callable definitions"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "Extensibility",
+      "items": [
+        "Bridges (Symfony, Monolog) are first-party packages built on the same extension contract",
+        "Extensions and bridges can each ship their own Agent Skill, installed under mate- prefixed folders"
+      ]
+    },
+    {
+      "dot": "slate",
+      "title": "Standalone",
+      "items": [
+        "Does not use MCP and does not integrate with the AI Bundle",
+        "Talks to coding agents only through the CLI and its generated instruction files"
+      ]
+    }
+  ]
+}

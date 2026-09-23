@@ -7,7 +7,7 @@
 The Symfony AI homepage highlights the project's key value proposition: **Build AI-powered applications with PHP** using Symfony components. Three hero messages frame the project: "Build AI-powered applications with PHP" (agents, tool calling, RAG, and multi-modal support), "Integrate AI with the Symfony Framework" (configure agents, platforms, and stores with familiar YAML configuration), and "Build MCP Servers & Clients with PHP" (expose tools to AI agents or connect to any MCP server). It covers:
 
 ### Component Architecture
-A set of decoupled PHP components for AI integrations. Each works independently without the full framework; the foundation layer abstracts away third-party specifics. The architecture has four layers: AI Bundle (Symfony framework integration) at the top, Agent in the middle, a foundation layer (Platform, Store, Tools), and third-party integration bridges at the bottom (platform bridges, store bridges, agent tools).
+A set of decoupled PHP components for AI integrations. Each works independently without the full framework; the foundation layer abstracts away third-party specifics. The architecture has four layers: AI Bundle (Symfony framework integration) at the top, Agent in the middle, a foundation layer (Platform, Store, Tools), and third-party integration bridges at the bottom (platform bridges, store bridges, agent tools). Explorable diagrams: [ai.symfony.com/architecture](https://ai.symfony.com/architecture). Machine-readable manifest (nodes, edges, source file references per component): [ai.symfony.com/architecture.json](https://ai.symfony.com/architecture.json).
 
 ### Features
 - **Model Inference**: Send prompts to any AI model with a single method call; switch providers without changing code

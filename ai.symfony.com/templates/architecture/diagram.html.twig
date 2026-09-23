@@ -1,0 +1,70 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ diagram.title }} — Architecture — Symfony AI{% endblock %}
+
+{% block body %}
+    {{ include('_header.html.twig') }}
+
+    <main>
+        {{ include('architecture/_rail.html.twig', {variant: 'mobile'}) }}
+
+        <nav class="container py-2" aria-label="breadcrumb">
+            <ol class="cookbook-breadcrumb">
+                <li><a href="{{ path('homepage') }}">Home</a></li>
+                <li><a href="{{ path('architecture') }}">Architecture</a></li>
+                <li aria-current="page">{{ diagram.title }}</li>
+            </ol>
+        </nav>
+
+        <section class="architecture-page-head">
+            <div class="container-fluid px-3 px-lg-4">
+                <h1 class="ff-title fw-bold mb-2">{{ diagram.title }}</h1>
+                {% if summary %}
+                    <p class="architecture-page-summary mb-2">{{ summary }}.</p>
+                {% endif %}
+                <p class="architecture-page-links mb-0">
+                    {% if docUrl %}
+                        <a href="{{ docUrl }}" target="_blank" rel="noopener">Read the docs <span aria-hidden="true">&#8599;</span></a>
+                        <span aria-hidden="true"> &middot; </span>
+                    {% endif %}
+                    <a href="{{ asset('architecture.json') }}">View as JSON</a>
+                </p>
+            </div>
+        </section>
+
+        <section class="architecture-diagram-section pb-4">
+            <div class="container-fluid px-3 px-lg-4" data-controller="architecture-viewer">
+                <div class="architecture-layout">
+                    <div class="architecture-rail-column">
+                        {{ include('architecture/_rail.html.twig') }}
+                    </div>
+
+                    <div class="architecture-main-column">
+                        <iframe
+                            data-architecture-viewer-target="frame"
+                            src="{{ asset(diagram.artifact) }}{{ fragment }}"
+                            title="{{ diagram.title }} diagram"
+                            loading="lazy"
+                            class="architecture-viewer"
+                        ></iframe>
+
+                        {% if diagram.cards|length > 0 %}
+                            <div class="architecture-cards">
+                                {% for card in diagram.cards %}
+                                    <section class="architecture-card">
+                                        <h2 class="architecture-card-heading">{{ card.title }}</h2>
+                                        <ul class="architecture-card-list">
+                                            {% for entry in card.items %}
+                                                <li>{{ entry }}</li>
+                                            {% endfor %}
+                                        </ul>
+                                    </section>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+{% endblock %}
