@@ -43,8 +43,8 @@ Setup
     * adds new extensions to ``mate/extensions.php``, enabled by default
     * keeps the enabled or disabled state of extensions it already knows
     * installs the skills of every enabled extension (see :doc:`skills`)
-    * rewrites ``mate/AGENT_INSTRUCTIONS.md``, the managed block in ``AGENTS.md`` and the
-      ``@AGENTS.md`` import in ``CLAUDE.md``
+    * rewrites the managed block in ``AGENTS.md`` and the ``@AGENTS.md`` import in
+      ``CLAUDE.md``
 
     **Options:**
 
@@ -250,8 +250,8 @@ Debugging
         $ vendor/bin/mate debug:capabilities --extension=_custom
 
 ``mate debug:extensions``
-    Show the discovered extensions with their scan directories, include files and instructions
-    file. Use it to find out why an extension provides no capabilities.
+    Show the discovered extensions with their scan directories and include files. Use it to find
+    out why an extension provides no capabilities.
 
     **Status indicators:**
 

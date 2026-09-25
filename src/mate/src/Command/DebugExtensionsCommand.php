@@ -245,9 +245,7 @@ HELP
         }
 
         if (isset($data['instructions'])) {
-            $io->text(\sprintf('  Agent instructions: <fg=cyan>%s</>', $data['instructions']));
-        } else {
-            $io->text('  <fg=gray>No agent instructions</>');
+            $io->text(\sprintf('  Agent instructions: <fg=yellow>%s</> (deprecated and ignored, ship a skill instead)', $data['instructions']));
         }
 
         $io->newLine();

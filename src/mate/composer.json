@@ -76,7 +76,6 @@
             "scan-dirs": [
                 "src/Capability"
             ],
-            "instructions": "INSTRUCTIONS.md",
             "skills": [
                 "skills"
             ]

@@ -208,9 +208,8 @@ vendor/bin/mate init
 vendor/bin/mate discover
 ```
 
-`mate init` writes the instructions your agent reads (`mate/AGENT_INSTRUCTIONS.md` plus a managed
-block in `AGENTS.md`, imported by `CLAUDE.md`) and installs the skills into `.agents/skills/`, with
-a mirror in `.claude/skills/`. No client-specific configuration file is involved.
+`mate init` writes the instructions your agent reads (a managed block in `AGENTS.md`, imported by
+`CLAUDE.md`) and installs the skills into `.agents/skills/`, with a mirror in `.claude/skills/`. No client-specific configuration file is involved.
 
 ### Running Tools
 
