@@ -130,19 +130,12 @@ A Dependency Is Not Injected
 
        $services->alias(MyInterface::class, MyImplementation::class);
 
-The Instructions of an Extension Are Missing
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Check that the file named by ``extra.ai-mate.instructions`` exists. The path is relative to the
-package root. ``vendor/bin/mate debug:extensions`` prints an ``Agent instructions`` line for every
-extension that has one. With ``--format=json`` the key is ``agent_instructions``.
-
 Instructions or Skills Are Stale
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: terminal
 
-    $ vendor/bin/mate discover        # refresh extensions, instructions and skills
+    $ vendor/bin/mate discover        # refresh extensions, the AGENTS.md block and skills
     $ vendor/bin/mate skills:validate # check the generated folders against the recorded state
 
 ``skills:validate`` reports hand-edited content, missing folders and sources that changed since the

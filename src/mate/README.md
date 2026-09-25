@@ -14,7 +14,7 @@ vendor/bin/mate init
 composer dump-autoload
 ```
 
-Point your coding agent at the CLI (see the generated `mate/AGENT_INSTRUCTIONS.md`):
+Point your coding agent at the CLI (see the managed block `mate init` writes into `AGENTS.md`):
 
 ```bash
 vendor/bin/mate tools:list                          # list available tools

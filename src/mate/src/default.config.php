@@ -11,7 +11,6 @@
 
 use Psr\Container\ContainerInterface as PsrContainerInterface;
 use Psr\Log\LoggerInterface;
-use Symfony\AI\Mate\Agent\AgentInstructionsAggregator;
 use Symfony\AI\Mate\Agent\AgentInstructionsMaterializer;
 use Symfony\AI\Mate\Command\ClearCacheCommand;
 use Symfony\AI\Mate\Command\DebugCapabilitiesCommand;
@@ -128,7 +127,6 @@ return static function (ContainerConfigurator $container): void {
         ->set(ToolInvoker::class)
         ->set(ResourceReader::class)
 
-        ->set(AgentInstructionsAggregator::class)
         ->set(AgentInstructionsMaterializer::class)
         ->set(ExtensionConfigSynchronizer::class)
 

@@ -46,7 +46,6 @@ Scan these locations for documentation files:
 - `CONTRIBUTING.md` - Contributing guide
 - `src/*/README.md` - Component READMEs (platform, agent, store, chat, mate, ai-bundle, mcp-bundle)
 - `src/*/src/Bridge/*/README.md` - Bridge READMEs (e.g. `src/platform/src/Bridge/HuggingFace/README.md`, `src/store/src/Bridge/Qdrant/README.md`, `src/agent/src/Bridge/Tavily/README.md`, `src/chat/src/Bridge/Doctrine/README.md`)
-- `src/mate/INSTRUCTIONS.md` and `src/mate/src/Bridge/*/INSTRUCTIONS.md` - Mate extension instructions
 - `examples/README.md` and `examples/*/README.md` - Example-suite READMEs
 - `demo/README.md` - Demo application README
 
@@ -55,7 +54,7 @@ Explicitly exclude the following from scans:
 - Anything under `vendor/`, `node_modules/`, `.git/`, `.symfony-docs/`, or `**/cache/`
 - `fixtures/**` and `**/tests/**/Fixtures/**` (test data, not documentation)
 - `.github/**` templates and `.claude/**` (harness configuration, not project docs)
-- `CLAUDE.md`, `AGENTS.md`, `AGENT_INSTRUCTIONS.md` (assistant instructions, not user-facing docs)
+- `CLAUDE.md`, `AGENTS.md` (assistant instructions, not user-facing docs)
 - `ai.symfony.com/public/**` (generated artifacts)
 
 ## How to Work
