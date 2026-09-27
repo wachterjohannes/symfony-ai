@@ -1,6 +1,11 @@
 CHANGELOG
 =========
 
+0.15
+----
+
+ * Add `total`, `returned`, `limit` and `has_more` to `symfony-profiler-list`, ahead of the `profiles`, plus a note with the `--limit` that lists everything when `has_more` is true: the list silently returned the newest 20 profiles, so an agent averaging over them took a page for all requests. `limit=0` returns the counts only; a negative `limit` is treated as `0`
+
 0.14
 ----
 
