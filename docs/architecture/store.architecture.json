@@ -1,0 +1,192 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Store",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/symfony/ai",
+      "provider": "github",
+      "revision": "7c3ce859aa500cc3592b25323c842cb419ed5a67"
+    },
+    "views": [
+      {
+        "id": "indexing-pipeline",
+        "label": "Indexing pipeline",
+        "focus": ["document", "vectorizer", "indexer", "store"],
+        "note": "How a TextDocument becomes an embedded VectorDocument and lands in a vector store."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "agent",
+      "type": "backend",
+      "label": "Agent",
+      "sublabel": "uses Store via Memory (optional)",
+      "pos": [40, 16],
+      "size": [150, 48],
+      "sources": [{"path": "src/agent/AGENTS.md"}]
+    },
+    {
+      "id": "platform",
+      "type": "backend",
+      "label": "Platform",
+      "sublabel": "unified model access",
+      "pos": [700, 16],
+      "size": [150, 48],
+      "sources": [{"path": "src/platform/AGENTS.md"}]
+    },
+    {
+      "id": "document",
+      "type": "backend",
+      "label": "Document",
+      "sublabel": "TextDocument",
+      "pos": [40, 126],
+      "size": [150, 48],
+      "sources": [
+        {"path": "src/store/src/Document/TextDocument.php"},
+        {"path": "src/store/src/Document/VectorDocument.php"}
+      ]
+    },
+    {
+      "id": "vectorizer",
+      "type": "backend",
+      "label": "Vectorizer",
+      "sublabel": "embeds via Platform",
+      "pos": [280, 126],
+      "size": [150, 48],
+      "sources": [
+        {"path": "src/store/src/Document/Vectorizer.php"},
+        {"path": "src/store/src/Document/VectorizerInterface.php"}
+      ]
+    },
+    {
+      "id": "indexer",
+      "type": "backend",
+      "label": "Indexer",
+      "sublabel": "batch document pipeline",
+      "pos": [520, 126],
+      "size": [150, 48],
+      "sources": [
+        {"path": "src/store/src/IndexerInterface.php"},
+        {"path": "src/store/src/Indexer/DocumentIndexer.php"}
+      ]
+    },
+    {
+      "id": "store",
+      "type": "backend",
+      "label": "Store",
+      "sublabel": "vector storage & retrieval",
+      "pos": [700, 126],
+      "size": [150, 48],
+      "sources": [
+        {"path": "src/store/AGENTS.md"},
+        {"path": "src/store/src/StoreInterface.php"},
+        {"path": "src/store/src/Retriever.php"}
+      ]
+    },
+    {
+      "id": "store-bridges",
+      "type": "backend",
+      "label": "Store Bridges",
+      "sublabel": "24 vector stores",
+      "pos": [700, 246],
+      "size": [150, 48],
+      "sources": [{"path": "src/store/src/Bridge/Pinecone/Store.php"}]
+    },
+    {
+      "id": "providers",
+      "type": "cloud",
+      "label": "Vector Databases",
+      "sublabel": "Pinecone, Qdrant, more",
+      "pos": [700, 356],
+      "size": [190, 48]
+    }
+  ],
+  "connections": [
+    {
+      "id": "document-to-vectorizer",
+      "from": "document",
+      "to": "vectorizer",
+      "label": "embeds via"
+    },
+    {
+      "id": "vectorizer-to-indexer",
+      "from": "vectorizer",
+      "to": "indexer",
+      "label": "feeds"
+    },
+    {
+      "id": "indexer-to-store",
+      "from": "indexer",
+      "to": "store",
+      "label": "writes to",
+      "variant": "emphasis",
+      "labelAt": [685, 188]
+    },
+    {
+      "id": "agent-to-store",
+      "from": "agent",
+      "to": "store",
+      "label": "recalls via (optional)",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [400, 84]
+    },
+    {
+      "id": "store-to-platform",
+      "from": "store",
+      "to": "platform",
+      "label": "requires",
+      "variant": "emphasis",
+      "fromSide": "top",
+      "toSide": "bottom",
+      "labelAt": [850, 78]
+    },
+    {
+      "id": "store-to-store-bridges",
+      "from": "store",
+      "to": "store-bridges",
+      "label": "implemented by",
+      "variant": "emphasis",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [775, 200]
+    },
+    {
+      "id": "store-bridges-to-providers",
+      "from": "store-bridges",
+      "to": "providers",
+      "label": "calls",
+      "fromSide": "bottom",
+      "toSide": "top"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "violet",
+      "title": "Core abstraction",
+      "items": [
+        "StoreInterface defines add() and query(); ManagedStoreInterface adds setup()/drop() lifecycle",
+        "Retriever is a thin convenience layer over query()"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "Indexing",
+      "items": [
+        "Document holds TextDocument input; Vectorizer converts it to a VectorDocument using Platform",
+        "Indexer runs the batch pipeline and writes the result into Store"
+      ]
+    },
+    {
+      "dot": "slate",
+      "title": "Bridges",
+      "items": [
+        "24 vector store backends behind one interface: databases, cloud search, self-hosted, local"
+      ]
+    }
+  ]
+}

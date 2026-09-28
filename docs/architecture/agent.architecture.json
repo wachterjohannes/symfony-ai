@@ -1,0 +1,335 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Agent",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/symfony/ai",
+      "provider": "github",
+      "revision": "7c3ce859aa500cc3592b25323c842cb419ed5a67"
+    },
+    "views": [
+      {
+        "id": "execution-pipeline",
+        "label": "Execution pipeline",
+        "focus": [
+          "agent",
+          "input-output",
+          "runner",
+          "platform"
+        ],
+        "note": "Input processors run, Runner drives the model/tool-call loop through Platform, output processors run on the way back."
+      },
+      {
+        "id": "toolbox",
+        "label": "Toolbox",
+        "focus": [
+          "agent",
+          "toolbox",
+          "runner"
+        ],
+        "note": "How Runner calls back into Toolbox to execute tool calls the model requested."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "chat",
+      "type": "backend",
+      "label": "Chat",
+      "sublabel": "requires Agent",
+      "pos": [
+        140,
+        16
+      ],
+      "size": [
+        150,
+        48
+      ],
+      "sources": [
+        {
+          "path": "src/chat/AGENTS.md"
+        }
+      ]
+    },
+    {
+      "id": "ai-bundle",
+      "type": "backend",
+      "label": "AI Bundle",
+      "sublabel": "integrates (optional)",
+      "pos": [
+        520,
+        16
+      ],
+      "size": [
+        150,
+        48
+      ],
+      "sources": [
+        {
+          "path": "src/ai-bundle/AGENTS.md"
+        }
+      ]
+    },
+    {
+      "id": "agent",
+      "type": "backend",
+      "label": "Agent",
+      "sublabel": "orchestration & tool loop",
+      "pos": [
+        520,
+        106
+      ],
+      "size": [
+        150,
+        48
+      ],
+      "sources": [
+        {
+          "path": "src/agent/AGENTS.md"
+        },
+        {
+          "path": "src/agent/src/Agent.php"
+        },
+        {
+          "path": "src/agent/src/AgentInterface.php"
+        }
+      ]
+    },
+    {
+      "id": "input-output",
+      "type": "backend",
+      "label": "Input/Output",
+      "sublabel": "processor pipeline",
+      "pos": [
+        140,
+        196
+      ],
+      "size": [
+        150,
+        48
+      ],
+      "sources": [
+        {
+          "path": "src/agent/src/InputProcessorInterface.php"
+        },
+        {
+          "path": "src/agent/src/OutputProcessorInterface.php"
+        }
+      ]
+    },
+    {
+      "id": "runner",
+      "type": "backend",
+      "label": "Runner",
+      "sublabel": "model & tool-call loop",
+      "pos": [
+        520,
+        196
+      ],
+      "size": [
+        150,
+        48
+      ],
+      "sources": [
+        {
+          "path": "src/agent/src/Execution/Runner.php"
+        }
+      ]
+    },
+    {
+      "id": "toolbox",
+      "type": "backend",
+      "label": "Toolbox",
+      "sublabel": "function calling",
+      "pos": [
+        900,
+        196
+      ],
+      "size": [
+        150,
+        48
+      ],
+      "sources": [
+        {
+          "path": "src/agent/src/Toolbox/Toolbox.php"
+        }
+      ]
+    },
+    {
+      "id": "memory",
+      "type": "backend",
+      "label": "Memory",
+      "sublabel": "conversation memory",
+      "pos": [
+        330,
+        286
+      ],
+      "size": [
+        150,
+        48
+      ],
+      "sources": [
+        {
+          "path": "src/agent/src/Memory/Memory.php"
+        },
+        {
+          "path": "src/agent/src/Memory/MemoryInputProcessor.php"
+        }
+      ]
+    },
+    {
+      "id": "multi-agent",
+      "type": "backend",
+      "label": "MultiAgent",
+      "sublabel": "handoff between agents",
+      "pos": [
+        710,
+        286
+      ],
+      "size": [
+        150,
+        48
+      ],
+      "sources": [
+        {
+          "path": "src/agent/src/MultiAgent/MultiAgent.php"
+        }
+      ]
+    },
+    {
+      "id": "store",
+      "type": "backend",
+      "label": "Store",
+      "sublabel": "optional, for embeddings",
+      "pos": [
+        330,
+        376
+      ],
+      "size": [
+        150,
+        48
+      ],
+      "sources": [
+        {
+          "path": "src/store/AGENTS.md"
+        }
+      ]
+    },
+    {
+      "id": "platform",
+      "type": "backend",
+      "label": "Platform",
+      "sublabel": "unified model access",
+      "pos": [
+        520,
+        376
+      ],
+      "size": [
+        150,
+        48
+      ],
+      "sources": [
+        {
+          "path": "src/platform/AGENTS.md"
+        }
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "chat-to-agent",
+      "from": "chat",
+      "to": "agent",
+      "label": "requires",
+      "variant": "emphasis"
+    },
+    {
+      "id": "ai-bundle-to-agent",
+      "from": "ai-bundle",
+      "to": "agent",
+      "label": "integrates (optional)",
+      "variant": "dashed",
+      "labelDy": 24
+    },
+    {
+      "id": "agent-to-input-output",
+      "from": "agent",
+      "to": "input-output",
+      "label": "processes via"
+    },
+    {
+      "id": "agent-to-runner",
+      "from": "agent",
+      "to": "runner",
+      "label": "delegates to",
+      "variant": "emphasis",
+      "labelDy": 24
+    },
+    {
+      "id": "agent-to-toolbox",
+      "from": "agent",
+      "to": "toolbox",
+      "label": "executes tools via"
+    },
+    {
+      "id": "agent-to-memory",
+      "from": "agent",
+      "to": "memory",
+      "label": "recalls via (optional)",
+      "variant": "dashed",
+      "labelDy": 44
+    },
+    {
+      "id": "agent-to-multi-agent",
+      "from": "agent",
+      "to": "multi-agent",
+      "label": "composes via (optional)",
+      "variant": "dashed",
+      "labelDy": 44
+    },
+    {
+      "id": "memory-to-store",
+      "from": "memory",
+      "to": "store",
+      "label": "embeds via (optional)",
+      "variant": "dashed",
+      "labelDy": 24
+    },
+    {
+      "id": "runner-to-platform",
+      "from": "runner",
+      "to": "platform",
+      "label": "calls",
+      "variant": "emphasis",
+      "labelDy": 24
+    }
+  ],
+  "cards": [
+    {
+      "dot": "violet",
+      "title": "Orchestration",
+      "items": [
+        "Agent is the entry point; Runner drives the model/tool-call loop up to maxToolCalls",
+        "call() returns a lazy Execution before the model is invoked"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "Extensibility",
+      "items": [
+        "Input/output processors form a middleware-like chain (system prompt, model override, memory)",
+        "Toolbox executes tool calls the model requested, fault-tolerant"
+      ]
+    },
+    {
+      "dot": "slate",
+      "title": "Optional features",
+      "items": [
+        "Memory needs Store only when using the embedding-based provider",
+        "MultiAgent hands conversations off between specialized agents"
+      ]
+    }
+  ]
+}

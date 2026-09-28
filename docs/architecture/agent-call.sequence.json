@@ -1,0 +1,264 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "Agent::call() Execution Flow",
+    "output": "ai.symfony.com/public/diagrams/agent-call.html",
+    "viewBox": [
+      1300,
+      1000
+    ],
+    "column_fit": "spread",
+    "quality_profile": "showcase"
+  },
+  "participants": [
+    {
+      "id": "caller",
+      "type": "external",
+      "label": "Caller"
+    },
+    {
+      "id": "agent",
+      "type": "backend",
+      "label": "Agent"
+    },
+    {
+      "id": "input",
+      "type": "backend",
+      "label": "Input Processors"
+    },
+    {
+      "id": "runner",
+      "type": "backend",
+      "label": "Runner"
+    },
+    {
+      "id": "platform",
+      "type": "cloud",
+      "label": "Platform"
+    },
+    {
+      "id": "tools",
+      "type": "backend",
+      "label": "Tool Executor"
+    },
+    {
+      "id": "output",
+      "type": "backend",
+      "label": "Output Processors"
+    }
+  ],
+  "segments": [
+    {
+      "from": 150,
+      "to": 270,
+      "label": "Synchronous call, returns before the model runs"
+    },
+    {
+      "from": 282,
+      "to": 380,
+      "label": "First iteration (e.g. getContent()) triggers the lazy factory"
+    },
+    {
+      "from": 392,
+      "to": 720,
+      "label": "Tool-calling round, repeats until the model answers without a tool call (max maxToolCalls, default 50, else MaxIterationsExceededException)"
+    },
+    {
+      "from": 732,
+      "to": 890,
+      "label": "Loop exits, output processors run"
+    }
+  ],
+  "messages": [
+    {
+      "from": "caller",
+      "to": "agent",
+      "y": 180,
+      "label": "call(input, options)",
+      "variant": "emphasis"
+    },
+    {
+      "from": "agent",
+      "to": "caller",
+      "y": 222,
+      "label": "Execution (lazy)",
+      "variant": "return",
+      "note": "returned synchronously, before any processing runs"
+    },
+    {
+      "from": "caller",
+      "to": "agent",
+      "y": 286,
+      "label": "iterate the Execution",
+      "note": "getContent()/getResult() or foreach, triggers the factory"
+    },
+    {
+      "from": "agent",
+      "to": "input",
+      "y": 328,
+      "label": "processInput(request)",
+      "note": "once per processor, in order"
+    },
+    {
+      "from": "input",
+      "to": "agent",
+      "y": 370,
+      "label": "modified request",
+      "variant": "return"
+    },
+    {
+      "from": "agent",
+      "to": "runner",
+      "y": 412,
+      "label": "run(model, messages, options, cancellation)"
+    },
+    {
+      "from": "runner",
+      "to": "caller",
+      "y": 442,
+      "label": "Progress(\"model_request\")",
+      "variant": "dashed",
+      "note": "bubbles up through the iterated Execution"
+    },
+    {
+      "from": "runner",
+      "to": "platform",
+      "y": 472,
+      "label": "invoke(model, messages, options)"
+    },
+    {
+      "from": "platform",
+      "to": "runner",
+      "y": 514,
+      "label": "deferred result",
+      "variant": "return"
+    },
+    {
+      "from": "runner",
+      "to": "caller",
+      "y": 544,
+      "label": "Progress(\"delta\") \u00d7 N",
+      "variant": "dashed",
+      "note": "only when the result streams"
+    },
+    {
+      "from": "runner",
+      "to": "tools",
+      "y": 586,
+      "label": "execute(toolCalls)",
+      "note": "only when the model requested tools"
+    },
+    {
+      "from": "tools",
+      "to": "runner",
+      "y": 628,
+      "label": "tool results",
+      "variant": "return"
+    },
+    {
+      "from": "runner",
+      "to": "platform",
+      "y": 684,
+      "label": "next round with updated messages",
+      "variant": "dashed",
+      "note": "repeats from Progress(model_request) until the model answers without a tool call"
+    },
+    {
+      "from": "runner",
+      "to": "agent",
+      "y": 754,
+      "label": "ResultUpdate(result)",
+      "variant": "return",
+      "note": "loop exited: model responded without requesting a tool"
+    },
+    {
+      "from": "agent",
+      "to": "output",
+      "y": 796,
+      "label": "processOutput(output)"
+    },
+    {
+      "from": "output",
+      "to": "agent",
+      "y": 838,
+      "label": "modified result",
+      "variant": "return"
+    },
+    {
+      "from": "agent",
+      "to": "caller",
+      "y": 878,
+      "label": "final ResultUpdate(...)",
+      "variant": "return",
+      "note": "last value observed while iterating the Execution"
+    }
+  ],
+  "activations": [
+    {
+      "participant": "agent",
+      "from": 174,
+      "to": 894,
+      "type": "backend"
+    },
+    {
+      "participant": "input",
+      "from": 322,
+      "to": 376,
+      "type": "backend"
+    },
+    {
+      "participant": "runner",
+      "from": 406,
+      "to": 760,
+      "type": "backend"
+    },
+    {
+      "participant": "platform",
+      "from": 466,
+      "to": 520,
+      "type": "cloud"
+    },
+    {
+      "participant": "tools",
+      "from": 580,
+      "to": 634,
+      "type": "backend"
+    },
+    {
+      "participant": "output",
+      "from": 790,
+      "to": 844,
+      "type": "backend"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Lazy by design",
+      "items": [
+        "call() returns an Execution before the model is invoked",
+        "Nothing runs until it is iterated or getContent()/getResult() is called",
+        "Input processors only run on that first iteration"
+      ]
+    },
+    {
+      "dot": "orange",
+      "title": "Bounded tool loop",
+      "items": [
+        "Each round: model request, optional stream, tool execution",
+        "Repeats until the model answers without requesting a tool",
+        "maxToolCalls (default 50) caps rounds, else MaxIterationsExceededException"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Progress surfaces live",
+      "items": [
+        "model_request and streamed delta updates bubble up through the Execution",
+        "The final ResultUpdate is the last value the caller observes",
+        "Output processors run once, after the loop exits"
+      ]
+    }
+  ]
+}
