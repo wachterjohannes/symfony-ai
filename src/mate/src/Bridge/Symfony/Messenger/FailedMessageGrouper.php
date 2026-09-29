@@ -105,15 +105,16 @@ final class FailedMessageGrouper
     }
 
     /**
-     * The message with its variable parts (quoted values, paths, numbers) blanked, so
-     * `Price "12,50" is invalid` and `Price "9,63" is invalid` fall into one group.
+     * The message with its variable parts (quoted values, paths, ids) blanked, so
+     * `Price "12,50" is invalid` and `Price "9,63" is invalid` fall into one group. Numbers of up
+     * to three digits (status and exit codes) are kept: "HTTP 500" and "HTTP 404" are different causes.
      */
     public function pattern(string $message): string
     {
         $message = preg_replace('/"[^"]*"|\'[^\']*\'/', '"…"', $message) ?? $message;
         $message = preg_replace('~(/[\w.\-]+)+~', '/…', $message) ?? $message;
 
-        return preg_replace('/\d+/', 'N', $message) ?? $message;
+        return preg_replace('/\d+[.,]\d+|\d{4,}|(?<=[A-Za-z_-])\d+|\d+(?=[A-Za-z_-])/', 'N', $message) ?? $message;
     }
 
     /**
@@ -170,9 +171,18 @@ final class FailedMessageGrouper
         return [] === $dates ? 0.0 : max($dates);
     }
 
+    /**
+     * Outside vendor/, judged below the project directory when the file is in it, so a project
+     * checked out under a path containing "vendor" still has application frames.
+     */
     private function isApp(string $file): bool
     {
-        return !str_contains($file, '/vendor/') && !str_starts_with($file, '[internal');
+        if (str_starts_with($file, '[internal')) {
+            return false;
+        }
+        $relative = $this->relative($file);
+
+        return $relative === $file ? 1 !== preg_match('~[\\\\/]vendor[\\\\/]~', $file) : 1 !== preg_match('~^vendor[\\\\/]~', $relative);
     }
 
     private function relative(string $file): string

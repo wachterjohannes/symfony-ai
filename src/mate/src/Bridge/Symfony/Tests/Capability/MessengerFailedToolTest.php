@@ -15,8 +15,11 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\AI\Mate\Bridge\Symfony\Capability\MessengerFailedTool;
 use Symfony\AI\Mate\Bridge\Symfony\Exception\ContainerNotDumpedException;
+use Symfony\AI\Mate\Bridge\Symfony\Messenger\DoctrineTransportReader;
 use Symfony\AI\Mate\Bridge\Symfony\Tests\Fixtures\Messenger\FailingHandler;
 use Symfony\AI\Mate\Bridge\Symfony\Tests\Fixtures\Messenger\ImportPrice;
+use Symfony\AI\Mate\Bridge\Symfony\Tests\Fixtures\Messenger\PrioritizedImport;
+use Symfony\AI\Mate\Bridge\Symfony\Tests\Fixtures\Messenger\Priority;
 use Symfony\AI\Mate\Encoding\ResponseEncoder;
 use Symfony\AI\Mate\Exception\InvalidArgumentException;
 use Symfony\Component\Messenger\Envelope;
@@ -137,7 +140,7 @@ final class MessengerFailedToolTest extends TestCase
         $this->container();
         $rows = [];
         for ($i = 1; $i <= 25; ++$i) {
-            $rows[] = $this->php(FailingHandler::fail(\sprintf('Order %d failed: %s', $i, str_repeat('x', 400))));
+            $rows[] = $this->php(FailingHandler::fail(\sprintf('Order %d failed: %s', 1000 + $i, str_repeat('x', 400))));
         }
         $this->database($rows);
 
@@ -378,6 +381,174 @@ final class MessengerFailedToolTest extends TestCase
         $this->assertStringContainsString('Doctrine connection "reporting", which is not in the container', $this->call()['transports'][0]['error']);
     }
 
+    public function testFindsFailureTransportsDumpedAsOneAndEmptyString()
+    {
+        // symfony/dependency-injection 7.3.0 dumps bool tag attributes as "1" and "".
+        $this->container(bool: ['1', '']);
+        $this->database([$this->php(FailingHandler::fail('Timeout'))]);
+
+        $this->assertSame(['failed'], array_column($this->call()['transports'], 'transport'));
+    }
+
+    public function testAppEnvFromDotenvLocalPicksThatContainerAndItsEnvFile()
+    {
+        mkdir($this->projectDir.'/prod');
+        file_put_contents($this->projectDir.'/.env.local', "APP_ENV=prod\n");
+        file_put_contents($this->projectDir.'/.env.prod', "DATABASE_URL=\"sqlite:///%kernel.project_dir%/prod/data.db\"\n");
+        $this->container([['name' => 'failed', 'dsn' => 'doctrine://default?queue_name=failed', 'failure' => true]], env: 'prod');
+        $this->container([['name' => 'dev_only', 'dsn' => 'doctrine://default', 'failure' => true]]);
+        $this->database([$this->php(FailingHandler::fail('Timeout')), $this->php(FailingHandler::fail('Timeout'))], 'prod/data.db');
+
+        $transport = $this->call()['transports'][0];
+
+        $this->assertSame('failed', $transport['transport']);
+        $this->assertSame(2, $transport['message_count']);
+    }
+
+    public function testReadsDotenvLocalPhp()
+    {
+        unlink($this->projectDir.'/.env');
+        mkdir($this->projectDir.'/dumped');
+        file_put_contents($this->projectDir.'/.env.local.php', "<?php return ['APP_ENV' => 'dev', 'DATABASE_URL' => 'sqlite:///%kernel.project_dir%/dumped/data.db'];\n");
+        $this->container();
+        $this->database([$this->php(FailingHandler::fail('Timeout'))], 'dumped/data.db');
+
+        $this->assertSame(1, $this->call()['transports'][0]['message_count']);
+    }
+
+    public function testResolvesVariableReferencesAcrossDotenvFiles()
+    {
+        mkdir($this->projectDir.'/shared');
+        file_put_contents($this->projectDir.'/.env', "DB_DIR=shared\n", \FILE_APPEND);
+        file_put_contents($this->projectDir.'/.env.local', "DATABASE_URL=\"sqlite:///%kernel.project_dir%/\${DB_DIR}/data.db\"\n");
+        $this->container();
+        $this->database([$this->php(FailingHandler::fail('Timeout'))], 'shared/data.db');
+
+        $this->assertSame(1, $this->call()['transports'][0]['message_count']);
+    }
+
+    public function testDotenvSyntaxErrorIsReported()
+    {
+        file_put_contents($this->projectDir.'/.env.local', "DATABASE_URL=\"unterminated\n");
+        $this->container();
+
+        $error = $this->call()['transports'][0]['error'];
+
+        $this->assertStringContainsString('The .env files could not be loaded', $error);
+        $this->assertStringContainsString('.env.local', $error);
+    }
+
+    public function testDoesNotLeakDotenvValuesIntoTheProcess()
+    {
+        file_put_contents($this->projectDir.'/.env', "MATE_TEST_ONLY_VAR=1\n", \FILE_APPEND);
+        $this->container();
+        $this->database([]);
+
+        $this->call();
+
+        $this->assertArrayNotHasKey('MATE_TEST_ONLY_VAR', $_SERVER);
+        $this->assertArrayNotHasKey('MATE_TEST_ONLY_VAR', $_ENV);
+        $this->assertFalse(getenv('MATE_TEST_ONLY_VAR'));
+    }
+
+    public function testReadsASchemaQualifiedTable()
+    {
+        $this->container([['name' => 'failed', 'dsn' => 'doctrine://default?queue_name=failed&table_name=main.messenger_messages', 'failure' => true]]);
+        $this->database([$this->php(FailingHandler::fail('Timeout'))]);
+
+        $transport = $this->call()['transports'][0];
+
+        $this->assertSame('main.messenger_messages (queue_name=failed)', $transport['storage']);
+        $this->assertSame(1, $transport['message_count']);
+    }
+
+    public function testSkipsMessagesAboveTheRowLimitUnread()
+    {
+        $this->container();
+        $small = $this->php(FailingHandler::fail('Timeout'));
+        $this->database([$small, $this->php(FailingHandler::fail(str_repeat('y', 50000)))]);
+        $limit = \strlen($small['body']) + \strlen($small['headers']) + 2048;
+
+        $transport = $this->call(reader: new DoctrineTransportReader(rowBytes: $limit))['transports'][0];
+
+        $this->assertSame(1, $transport['scanned']);
+        $this->assertSame(1, $transport['groups'][0]['count']);
+        $this->assertSame('2', $transport['undecodable']['messages'][0]['id']);
+        $this->assertStringContainsString(\sprintf('above the %d KB this tool reads per message', intdiv($limit, 1024)), $transport['undecodable']['messages'][0]['reason']);
+    }
+
+    public function testStopsAtTheByteBudget()
+    {
+        $this->container();
+        $row = $this->php(FailingHandler::fail('Timeout'));
+        $this->database([$row, $row, $row, $row]);
+        $size = \strlen($row['body']) + \strlen($row['headers']);
+
+        $transport = $this->call(reader: new DoctrineTransportReader(budgetBytes: 2 * $size + 1))['transports'][0];
+
+        $this->assertSame(4, $transport['message_count']);
+        $this->assertSame(2, $transport['scanned']);
+        $this->assertTrue($transport['scan_truncated']);
+        $this->assertStringContainsString('budget', $transport['scan_truncated_reason']);
+        $this->assertSame(['3', '4'], $transport['groups'][0]['ids']);
+    }
+
+    public function testReadsThroughTheSqlite3Driver()
+    {
+        if (!class_exists(\SQLite3::class)) {
+            $this->markTestSkipped('ext-sqlite3 is not installed.');
+        }
+        $this->container(connection: ['driver' => 'sqlite3', 'path' => '%kernel.project_dir%/var/data.db']);
+        $this->database([$this->php(FailingHandler::fail('Timeout'))]);
+
+        $this->assertSame(1, $this->call()['transports'][0]['message_count']);
+    }
+
+    public function testPassesDriverOptionsThrough()
+    {
+        // PDO::ATTR_TIMEOUT
+        $this->container(driverOptions: ['2' => '%env(DB_TIMEOUT)%']);
+        file_put_contents($this->projectDir.'/.env', "DB_TIMEOUT=5\n", \FILE_APPEND);
+        $this->database([$this->php(FailingHandler::fail('Timeout'))]);
+
+        $this->assertSame(1, $this->call()['transports'][0]['message_count']);
+    }
+
+    public function testParametersDerivedFromTheCompiledProjectDirPointIntoTheProject()
+    {
+        $this->container(connection: ['driver' => 'pdo_sqlite', 'path' => '%app.data_dir%/data.db'], parameters: ['app.data_dir' => '/srv/compiled-elsewhere/var']);
+        $this->database([$this->php(FailingHandler::fail('Timeout'))]);
+
+        $this->assertSame(1, $this->call()['transports'][0]['message_count']);
+    }
+
+    public function testSeveralKernelContextsNeedAContext()
+    {
+        $this->container();
+        $this->database([$this->php(FailingHandler::fail('Timeout'))]);
+        $tool = $this->tool(cacheDir: ['admin' => $this->projectDir.'/var/cache', 'website' => $this->projectDir.'/var/cache-website']);
+
+        $decoded = ResponseEncoder::decode($tool->failed(context: 'admin'));
+        $this->assertIsArray($decoded);
+        $this->assertSame(1, $decoded['untrusted_data']['transports'][0]['message_count']);
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Several kernel contexts are configured; pass "context" (one of "admin", "website").');
+        $tool->failed();
+    }
+
+    public function testReadsMessagesCarryingEnums()
+    {
+        $this->container();
+        $encoded = (new PhpSerializer())->encode(new Envelope(new PrioritizedImport(Priority::High, [Priority::Low, Priority::High]), [ErrorDetailsStamp::create(FailingHandler::fail('Timeout'))]));
+        $this->database([['body' => $encoded['body'], 'headers' => '[]']]);
+
+        $transport = $this->call()['transports'][0];
+
+        $this->assertSame(0, $transport['undecodable']['count']);
+        $this->assertSame([PrioritizedImport::class], $transport['groups'][0]['message_classes']);
+    }
+
     public function testPayloadIsWrappedAsUntrustedData()
     {
         $this->container();
@@ -393,18 +564,21 @@ final class MessengerFailedToolTest extends TestCase
     /**
      * @return array<string, mixed>
      */
-    private function call(?string $transport = null, ?int $group = null): array
+    private function call(?string $transport = null, ?int $group = null, ?DoctrineTransportReader $reader = null): array
     {
-        $decoded = ResponseEncoder::decode($this->tool()->failed($transport, $group));
+        $decoded = ResponseEncoder::decode($this->tool($reader)->failed($transport, $group));
         $this->assertIsArray($decoded);
         $this->assertIsArray($decoded['untrusted_data']);
 
         return $decoded['untrusted_data'];
     }
 
-    private function tool(): MessengerFailedTool
+    /**
+     * @param string|array<string, string>|null $cacheDir
+     */
+    private function tool(?DoctrineTransportReader $reader = null, string|array|null $cacheDir = null): MessengerFailedTool
     {
-        return new MessengerFailedTool($this->projectDir, $this->projectDir.'/var/cache');
+        return new MessengerFailedTool($this->projectDir, $cacheDir ?? $this->projectDir.'/var/cache', doctrine: $reader ?? new DoctrineTransportReader());
     }
 
     /**
@@ -412,8 +586,11 @@ final class MessengerFailedToolTest extends TestCase
      *
      * @param list<array{name: string, dsn: string, failure: bool, options?: array<string, string>}> $transports
      * @param array<string, string>                                                                  $connection
+     * @param array{0: string, 1: string}                                                            $bool          how the dumper writes true and false tag attributes
+     * @param array<string, string>                                                                  $parameters
+     * @param array<int|string, string>                                                              $driverOptions
      */
-    private function container(array $transports = [self::ASYNC, self::FAILED], array $connection = ['url' => '%env(resolve:DATABASE_URL)%', 'driver' => 'pdo_mysql', 'host' => 'localhost']): void
+    private function container(array $transports = [self::ASYNC, self::FAILED], array $connection = ['url' => '%env(resolve:DATABASE_URL)%', 'driver' => 'pdo_mysql', 'host' => 'localhost'], string $env = 'dev', array $bool = ['true', 'false'], array $parameters = [], array $driverOptions = []): void
     {
         $services = '';
         foreach ($transports as $t) {
@@ -423,21 +600,31 @@ final class MessengerFailedToolTest extends TestCase
             }
             $services .= \sprintf(
                 '<service id="messenger.transport.%1$s" class="Symfony\Component\Messenger\Transport\TransportInterface"><tag name="messenger.receiver" alias="%1$s" is_failure_transport="%2$s"/><argument>%3$s</argument><argument type="collection">%4$s</argument><argument type="service" id="messenger.default_serializer"/></service>',
-                $t['name'], $t['failure'] ? 'true' : 'false', htmlspecialchars($t['dsn']), $options,
+                $t['name'], $t['failure'] ? $bool[0] : $bool[1], htmlspecialchars($t['dsn']), $options,
             );
         }
         $params = '';
         foreach ($connection + ['port' => 'null'] as $key => $value) {
             $params .= \sprintf('<argument key="%s">%s</argument>', $key, htmlspecialchars($value));
         }
-        $services .= \sprintf('<service id="doctrine.dbal.default_connection" class="Doctrine\DBAL\Connection" public="true"><argument type="collection">%s<argument key="driverOptions" type="collection"/></argument></service>', $params);
+        $options = '';
+        foreach ($driverOptions as $key => $value) {
+            $options .= \sprintf('<argument key="%s">%s</argument>', $key, htmlspecialchars($value));
+        }
+        $services .= \sprintf('<service id="doctrine.dbal.default_connection" class="Doctrine\DBAL\Connection" public="true"><argument type="collection">%s<argument key="driverOptions" type="collection">%s</argument></argument></service>', $params, $options);
+        $extra = '';
+        foreach ($parameters as $key => $value) {
+            $extra .= \sprintf('<parameter key="%s">%s</parameter>', $key, htmlspecialchars($value));
+        }
 
-        file_put_contents($this->projectDir.'/var/cache/dev/App_KernelDevDebugContainer.xml', <<<XML
+        @mkdir($this->projectDir.'/var/cache/'.$env, 0777, true);
+        file_put_contents(\sprintf('%s/var/cache/%s/App_Kernel%sDebugContainer.xml', $this->projectDir, $env, ucfirst($env)), <<<XML
             <?xml version="1.0" encoding="utf-8"?>
             <container xmlns="http://symfony.com/schema/dic/services">
               <parameters>
                 <parameter key="kernel.project_dir">/srv/compiled-elsewhere</parameter>
-                <parameter key="kernel.environment">dev</parameter>
+                <parameter key="kernel.environment">{$env}</parameter>
+                {$extra}
               </parameters>
               <services>{$services}</services>
             </container>
