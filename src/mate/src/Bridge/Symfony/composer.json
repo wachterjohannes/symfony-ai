@@ -81,7 +81,6 @@
             "includes": [
                 "config/config.php"
             ],
-            "instructions": "INSTRUCTIONS.md",
             "skills": [
                 "skills"
             ]

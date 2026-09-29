@@ -12,17 +12,13 @@ not know exists.**
 How Agents Find Mate
 --------------------
 
-``mate init`` and ``mate discover`` write three files:
-
-``mate/AGENT_INSTRUCTIONS.md``
-    The aggregated instructions of every enabled extension: which tools exist and when to reach for
-    them. The whole file is rewritten on every ``discover``, so do not edit it. Put your own notes
-    into ``AGENTS.md`` outside the markers described below.
+``mate init`` and ``mate discover`` write two managed blocks:
 
 A managed block in ``AGENTS.md``
-    A summary that points at the CLI, delimited by ``<!-- BEGIN AI_MATE_INSTRUCTIONS -->`` and
-    ``<!-- END AI_MATE_INSTRUCTIONS -->``. Mate rewrites only what is between those markers.
-    Anything else in your ``AGENTS.md`` is preserved.
+    A short summary that points at the CLI, delimited by ``<!-- BEGIN AI_MATE_INSTRUCTIONS -->``
+    and ``<!-- END AI_MATE_INSTRUCTIONS -->``: how to invoke Mate, where it comes from, how to
+    discover its tools and which extensions are installed. Mate rewrites only what is between
+    those markers. Anything else in your ``AGENTS.md`` is preserved, so put your own notes there.
 
 A managed block in ``CLAUDE.md``
     An ``@AGENTS.md`` import, delimited by ``<!-- BEGIN AI_MATE_AGENTS_IMPORT -->`` and
@@ -30,7 +26,14 @@ A managed block in ``CLAUDE.md``
     never see ``AGENTS.md``.
 
 On top of that, ``mate discover`` installs the Agent Skills of every enabled extension into
-``.agents/skills/`` and mirrors them into ``.claude/skills/``. See :doc:`skills`.
+``.agents/skills/`` and mirrors them into ``.claude/skills/``. The skills carry the detailed
+guidance: which tool to use for which task, and how to read its output. See :doc:`skills`.
+
+.. note::
+
+    Mate versions before 0.15 also generated ``mate/AGENT_INSTRUCTIONS.md``. Agents with skills
+    installed did not read it, so it is no longer written. ``mate discover`` leaves an existing
+    copy alone and prints a note that you can delete it.
 
 Run ``vendor/bin/mate discover`` whenever you add or remove an extension. With the Composer plugin
 this happens automatically after ``composer install`` and ``composer update``.
@@ -64,14 +67,13 @@ GitHub Copilot, Cursor, OpenCode
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 These read ``AGENTS.md`` and, where supported, ``.agents/skills/``. If your agent uses a different
-instruction file, import ``AGENTS.md`` from it the way ``CLAUDE.md`` does, or point the agent at
-``mate/AGENT_INSTRUCTIONS.md``.
+instruction file, import ``AGENTS.md`` from it the way ``CLAUDE.md`` does.
 
 JetBrains AI Assistant
 ~~~~~~~~~~~~~~~~~~~~~~
 
-Add the contents of ``mate/AGENT_INSTRUCTIONS.md`` to the project instructions, and allow the
-assistant to run ``vendor/bin/mate``.
+Add the managed block of ``AGENTS.md`` to the project instructions, and allow the assistant to run
+``vendor/bin/mate``.
 
 .. _mate-choosing-the-interpreter:
 
@@ -102,9 +104,8 @@ reports on something that is not the application under test.
     ;
 
 ``mate.invocation``
-    The full command the agent must use, wrapper included. It is written into
-    ``mate/AGENT_INSTRUCTIONS.md`` and the managed ``AGENTS.md`` block, so the prefix ends up where
-    the agent reads it.
+    The full command the agent must use, wrapper included. It is written into the managed
+    ``AGENTS.md`` block, so the prefix ends up where the agent reads it.
 
     When a ``.ddev/`` directory is present, ``mate init`` proposes ``ddev exec vendor/bin/mate``.
     Answering with a wrapper alone is enough: ``symfony php`` is recorded as

@@ -1,6 +1,14 @@
 CHANGELOG
 =========
 
+0.15
+----
+
+ * Stop generating `mate/AGENT_INSTRUCTIONS.md` in `mate init` and `mate discover`, and drop the pointer to it from the managed `AGENTS.md` block; the guidance it carried now lives in the skills. An existing copy is left alone and `discover` prints a note that it can be deleted
+ * Deprecate the `extra.ai-mate.instructions` composer.json key; it is ignored, `discover` points it out for the root project and `debug:extensions` flags it for every extension
+ * Remove `Agent\AgentInstructionsAggregator`, `AgentInstructionsMaterializer::synchronizeFromCurrentInstructionsFile()` and the `instructions_file_updated` key of the materialization result
+ * Move the tool guidance of the core, Symfony and Monolog `INSTRUCTIONS.md` files into their skills and remove the files
+
 0.14
 ----
 

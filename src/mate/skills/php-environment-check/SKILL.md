@@ -7,6 +7,8 @@ description: Check the PHP runtime with server-info, its version, OS, and loaded
 
 `server-info` takes no arguments and returns `php_version`, `operating_system`, `operating_system_family`, and `extensions` (the extensions loaded for this runtime). Calling it is trivial; the judgment is knowing when a failure is the runtime, not the code, and reading the result against what a feature needs.
 
+Prefer it over `php -v`, `php -m` and `uname -s`: one call answers all three, and it reports the interpreter Mate itself runs under, which a bare `php` on the host may not be.
+
 `server-info` accepts `--format`: `json` to parse the result, `toon` (when `helgesverre/toon` is installed) for the smallest context footprint. The loaded-extension list is long, so pass `--format=json` when you only need to test for one extension.
 
 ## When to reach for it

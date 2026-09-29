@@ -185,9 +185,8 @@ final class SkillReferenceIntegrityTest extends TestCase
 
     /**
      * The other direction of the drift guard: a tool nobody documents is a tool nobody
-     * finds. Adding a capability without mentioning it in a skill or in the extension
-     * instructions leaves agents on the long path they already know, which is exactly the
-     * failure this component exists to remove.
+     * finds. Adding a capability without mentioning it in a skill leaves agents on the long
+     * path they already know, which is exactly the failure this component exists to remove.
      */
     public function testEveryToolIsMentionedInGuidance()
     {
@@ -195,11 +194,6 @@ final class SkillReferenceIntegrityTest extends TestCase
 
         $finder = (new Finder())->files()->in(self::SKILLS_DIRS)->name('SKILL.md');
         foreach ($finder as $file) {
-            $documented .= $file->getContents();
-        }
-
-        $instructions = (new Finder())->files()->in(self::SRC_DIR)->name('INSTRUCTIONS.md');
-        foreach ($instructions as $file) {
             $documented .= $file->getContents();
         }
 
@@ -213,7 +207,7 @@ final class SkillReferenceIntegrityTest extends TestCase
         $undocumented = array_values(array_diff($undocumented, self::TOOLS_WITHOUT_GUIDANCE));
 
         $this->assertSame([], $undocumented, \sprintf(
-            'These tools exist but no SKILL.md or INSTRUCTIONS.md mentions them: %s. Add a line where an agent would look, or list the tool in TOOLS_WITHOUT_GUIDANCE with a reason.',
+            'These tools exist but no SKILL.md mentions them: %s. Add a line to the skill of the package that declares the tool, or list the tool in TOOLS_WITHOUT_GUIDANCE with a reason.',
             implode(', ', $undocumented)
         ));
     }

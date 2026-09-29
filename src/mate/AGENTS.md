@@ -83,7 +83,7 @@ machine-readable output.
 
 ## Agent Instructions Materialization
 
-Running `bin/mate discover` generates `mate/AGENT_INSTRUCTIONS.md` with extension-specific instructions and maintains a managed block in `AGENTS.md` with a summary of installed extensions. AI agents should read these files to learn about the available `mate` tools rather than relying on hardcoded tool lists.
+Running `bin/mate init` or `bin/mate discover` maintains a managed block in `AGENTS.md` (invocation, provenance, discovery commands, installed extensions) and a `CLAUDE.md` that imports it. Tool guidance lives in the skills each extension ships; there is no separate instructions file, and the `extra.ai-mate.instructions` key is deprecated and ignored. Every tool must be covered by a skill (`SkillReferenceIntegrityTest` enforces it).
 
 ## Configuration
 

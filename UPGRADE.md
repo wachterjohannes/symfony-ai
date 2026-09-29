@@ -1,3 +1,34 @@
+UPGRADE FROM 0.14 to 0.15
+=========================
+
+Mate
+----
+
+ * `mate init` and `mate discover` no longer write `mate/AGENT_INSTRUCTIONS.md`, and the managed
+   block in `AGENTS.md` no longer points at it. The tool guidance lives in the skills that
+   `discover` installs into `.agents/skills/` and `.claude/skills/`. An existing file is left in
+   place and is no longer updated; delete it, and drop any reference to it from your own agent
+   instructions.
+
+ * The `extra.ai-mate.instructions` key in `composer.json` is deprecated and ignored. Move the
+   content of your `INSTRUCTIONS.md` into the skill of the tools it describes and ship that skill
+   through `extra.ai-mate.skills`:
+
+   ```diff
+    "extra": {
+        "ai-mate": {
+            "scan-dirs": ["src"],
+   -        "instructions": "INSTRUCTIONS.md"
+   +        "skills": ["skills"]
+        }
+    }
+   ```
+
+ * `Agent\AgentInstructionsAggregator` was removed. `Agent\AgentInstructionsMaterializer` no longer
+   takes an aggregator in its constructor, `synchronizeFromCurrentInstructionsFile()` was replaced by
+   `materializeForExtensions()` without arguments, and its result no longer has an
+   `instructions_file_updated` key.
+
 UPGRADE FROM 0.13 to 0.14
 =========================
 

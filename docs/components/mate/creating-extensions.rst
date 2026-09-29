@@ -5,8 +5,8 @@ Symfony AI Mate (``vendor/bin/mate``) is a CLI that gives coding agents project-
 PHP application: the compiled container, the profiler and the logs.
 
 A Mate extension is a Composer package that declares itself through an ``extra.ai-mate`` section
-in its ``composer.json``, similar to a PHPStan extension. It can ship tools, resources, agent
-instructions and skills.
+in its ``composer.json``, similar to a PHPStan extension. It can ship tools, resources and
+skills.
 
 .. tip::
 
@@ -29,14 +29,13 @@ Quick Start
         "extra": {
             "ai-mate": {
                 "scan-dirs": ["src"],
-                "instructions": "INSTRUCTIONS.md"
+                "skills": ["skills"]
             }
         }
     }
 
-The ``extra.ai-mate`` section is what makes the package an extension. Create the
-``INSTRUCTIONS.md`` file next to ``composer.json``. `Writing Agent Instructions`_ explains what
-belongs in it.
+The ``extra.ai-mate`` section is what makes the package an extension. Create the ``skills``
+directory next to ``composer.json``. `Shipping Skills`_ explains what belongs in it.
 
 2. Create Capabilities
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -196,11 +195,6 @@ are relative to the package root.
     List of PHP service configuration files in the Symfony DI format. Environment variables are
     available through ``%env()%``.
 
-``instructions``
-    Path to a Markdown file with instructions for coding agents, by convention
-    ``INSTRUCTIONS.md``. The content is aggregated into the generated
-    ``mate/AGENT_INSTRUCTIONS.md`` of the project.
-
 ``skills``
     List of directories that hold `Agent Skills`_. A single string is accepted as well. By
     convention one ``skills`` directory.
@@ -209,6 +203,11 @@ are relative to the package root.
     Default ``true``. Set it to ``false`` to keep the package out of discovery. Use it for
     applications and internal tooling packages that use Mate but are no extension. ``mate init``
     writes it into an application.
+
+``instructions``
+    Deprecated since 0.15 and ignored. It pointed at an ``INSTRUCTIONS.md`` file that was
+    aggregated into ``mate/AGENT_INSTRUCTIONS.md``, which Mate no longer generates. Move that
+    guidance into the skill of the tools it describes.
 
 A complete example:
 
@@ -219,42 +218,16 @@ A complete example:
             "ai-mate": {
                 "scan-dirs": ["src"],
                 "includes": ["config/services.php"],
-                "instructions": "INSTRUCTIONS.md",
                 "skills": ["skills"]
             }
         }
     }
 
-Writing Agent Instructions
---------------------------
-
-The instructions tell an agent when to use your tools. A good ``INSTRUCTIONS.md``:
-
-1. **Maps existing commands to your tools.** Show which tool replaces which CLI operation.
-2. **States the benefit.** Explain why the tool beats the alternative.
-3. **Is short.** Every line costs context in every session.
-
-.. code-block:: markdown
-
-    ## My Extension
-
-    Use the Mate tools instead of the CLI for better results:
-
-    | Instead of...              | Use                                                    |
-    |----------------------------|--------------------------------------------------------|
-    | `my-cli command`           | `vendor/bin/mate tools:call my-tool`                   |
-    | `my-cli search "term"`     | `vendor/bin/mate tools:call my-search --term="term"`   |
-
-    ### Benefits
-    - Structured output that AI can parse
-    - Better error handling and context
-    - Integrated with project configuration
-
 Shipping Skills
 ---------------
 
-Instructions say that a tool exists. A skill describes a whole task: which tools to use, in what
-order, and how to read the results. Each immediate subdirectory of a skills directory is one skill
+Skills are how your tools reach an agent. A skill describes a whole task: which tools to use, in
+what order, and how to read the results. Each immediate subdirectory of a skills directory is one skill
 and must contain a ``SKILL.md`` file::
 
     skills/
@@ -272,6 +245,10 @@ Two things decide whether a skill works:
   the skill does and when it applies.
 * **The links.** The whole skill directory is copied, and nothing outside of it. A Markdown link
   in ``SKILL.md`` must therefore point at a file inside the skill directory.
+
+Every tool of the extension should be covered by a skill. If a tool replaces a command the agent
+already knows, such as ``bin/console debug:container`` or ``tail`` on a log file, say so in the
+skill: an agent keeps to the familiar command unless it learns why the tool is better.
 
 ``vendor/bin/mate skills:validate`` checks both in a project that has your extension installed.
 

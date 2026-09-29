@@ -22,10 +22,13 @@ use Psr\Log\LoggerInterface;
  *     "ai-mate": {
  *       "scan-dirs": ["src"],
  *       "includes": ["config/config.php"],
- *       "instructions": "INSTRUCTIONS.md"
+ *       "skills": ["skills"]
  *     }
  *   }
  * }
+ *
+ * The "instructions" key is deprecated and no longer read by any consumer; it is still collected
+ * so `discover` and `debug:extensions` can point it out.
  *
  * @phpstan-type ExtensionData array{
  *     dirs: string[],
@@ -373,7 +376,7 @@ final class ComposerExtensionDiscovery
     }
 
     /**
-     * Extract instructions path from package extra config.
+     * Extract the deprecated instructions path from package extra config.
      *
      * Uses "instructions" from extra.ai-mate config, e.g.:
      * "extra": { "ai-mate": { "instructions": "INSTRUCTIONS.md" } }

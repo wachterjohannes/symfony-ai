@@ -13,7 +13,6 @@ namespace Symfony\AI\Mate\Tests\Command;
 
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
-use Symfony\AI\Mate\Agent\AgentInstructionsAggregator;
 use Symfony\AI\Mate\Agent\AgentInstructionsMaterializer;
 use Symfony\AI\Mate\Command\InitCommand;
 use Symfony\AI\Mate\Runtime\InvocationPhpVersionProbe;
@@ -52,7 +51,7 @@ final class InitCommandTest extends TestCase
         $this->assertFileExists($this->tempDir.'/mate/extensions.php');
         $this->assertFileExists($this->tempDir.'/mate/config.php');
         $this->assertFileExists($this->tempDir.'/mate/.env');
-        $this->assertFileExists($this->tempDir.'/mate/AGENT_INSTRUCTIONS.md');
+        $this->assertFileDoesNotExist($this->tempDir.'/mate/AGENT_INSTRUCTIONS.md');
         $this->assertFileExists($this->tempDir.'/AGENTS.md');
 
         $content = file_get_contents($this->tempDir.'/mate/extensions.php');
@@ -87,7 +86,8 @@ final class InitCommandTest extends TestCase
         $this->assertStringContainsString('extensions.php', $output);
         $this->assertStringContainsString('config.php', $output);
         $this->assertStringContainsString('composer dump-autoload', $output);
-        $this->assertStringContainsString('tools:call', $output);
+        $this->assertStringContainsString('vendor/bin/mate discover', $output);
+        $this->assertStringContainsString('Point your coding agent at AGENTS.md', $output);
         $this->assertStringContainsString('Summary', $output);
         $this->assertStringContainsString('Created', $output);
     }
@@ -230,10 +230,6 @@ final class InitCommandTest extends TestCase
         $this->assertStringContainsString('ddev exec vendor/bin/mate', $display);
     }
 
-    /**
-     * The managed AGENTS.md block promises one command; the file it points at must not name
-     * another one until `discover` happens to run.
-     */
     public function testWritesTheAgentInvocationIntoTheGeneratedInstructions()
     {
         $command = $this->createCommand();
@@ -241,11 +237,6 @@ final class InitCommandTest extends TestCase
 
         $tester->setInputs(['ddev exec vendor/bin/mate']);
         $tester->execute([]);
-
-        $instructions = file_get_contents($this->tempDir.'/mate/AGENT_INSTRUCTIONS.md');
-        $this->assertIsString($instructions);
-        $this->assertStringNotContainsString('##MATE_INVOCATION##', $instructions);
-        $this->assertStringContainsString('ddev exec vendor/bin/mate tools:list', $instructions);
 
         $agents = file_get_contents($this->tempDir.'/AGENTS.md');
         $this->assertIsString($agents);
@@ -268,9 +259,9 @@ final class InitCommandTest extends TestCase
         $this->assertIsString($config);
         $this->assertStringContainsString("'symfony php vendor/bin/mate'", $config);
 
-        $instructions = file_get_contents($this->tempDir.'/mate/AGENT_INSTRUCTIONS.md');
-        $this->assertIsString($instructions);
-        $this->assertStringContainsString('symfony php vendor/bin/mate tools:list', $instructions);
+        $agents = file_get_contents($this->tempDir.'/AGENTS.md');
+        $this->assertIsString($agents);
+        $this->assertStringContainsString('`symfony php vendor/bin/mate tools:list`', $agents);
     }
 
     public function testKeepsAnInvocationThatAlreadyNamesTheBinary()
@@ -300,7 +291,7 @@ final class InitCommandTest extends TestCase
         $tester = new CommandTester($command);
 
         // One "no" per scaffolded file. No invocation prompt: the config stays as it is.
-        $tester->setInputs(['no', 'no', 'no', 'no', 'no']);
+        $tester->setInputs(['no', 'no', 'no', 'no']);
         $tester->execute([]);
 
         $agents = file_get_contents($this->tempDir.'/AGENTS.md');
@@ -325,7 +316,7 @@ final class InitCommandTest extends TestCase
         $command = $this->createCommand(null, 'vendor/bin/mate', null);
         $tester = new CommandTester($command);
 
-        $tester->setInputs(['no', 'no', 'no', 'no', 'no']);
+        $tester->setInputs(['no', 'no', 'no', 'no']);
         $tester->execute([]);
 
         $agents = file_get_contents($this->tempDir.'/AGENTS.md');
@@ -340,7 +331,7 @@ final class InitCommandTest extends TestCase
         $command = $this->createCommand(null, 'vendor/bin/mate', '8.3');
         $tester = new CommandTester($command);
 
-        $tester->setInputs(['no', 'no', 'no', 'no', 'no']);
+        $tester->setInputs(['no', 'no', 'no', 'no']);
         $tester->execute([]);
 
         $agents = file_get_contents($this->tempDir.'/AGENTS.md');
@@ -355,7 +346,7 @@ final class InitCommandTest extends TestCase
         $command = $this->createCommand(null, 'ddev exec vendor/bin/mate');
         $tester = new CommandTester($command);
 
-        $tester->setInputs(['no', 'no', 'no', 'no', 'no']);
+        $tester->setInputs(['no', 'no', 'no', 'no']);
         $tester->execute([]);
 
         $this->assertStringNotContainsString('Which command should your coding agent use', $tester->getDisplay());
@@ -369,7 +360,7 @@ final class InitCommandTest extends TestCase
         $tester = new CommandTester($command);
 
         // extensions.php: no, config.php: yes, then the invocation, then the remaining files.
-        $tester->setInputs(['no', 'yes', 'symfony php', 'no', 'no', 'no']);
+        $tester->setInputs(['no', 'yes', 'symfony php', 'no', 'no']);
         $tester->execute([]);
 
         $config = file_get_contents($this->tempDir.'/mate/config.php');
@@ -382,24 +373,23 @@ final class InitCommandTest extends TestCase
     }
 
     /**
-     * The instructions carry the invocation too, so replacing them while keeping the config must
-     * not fall back to the template default either.
+     * Projects initialized by an older version still have the file. It is theirs now: `init`
+     * neither asks about it nor touches it.
      */
-    public function testReplacingOnlyTheInstructionsKeepsTheConfiguredInvocation()
+    public function testLeavesALegacyInstructionsFileAlone()
     {
-        $this->scaffoldInitializedProject('ddev exec vendor/bin/mate');
+        $this->scaffoldInitializedProject('vendor/bin/mate');
+        file_put_contents($this->tempDir.'/mate/AGENT_INSTRUCTIONS.md', "# Edited by hand\n");
 
-        $command = $this->createCommand(null, 'ddev exec vendor/bin/mate');
+        $command = $this->createCommand(null, 'vendor/bin/mate');
         $tester = new CommandTester($command);
 
-        // Everything declined except AGENT_INSTRUCTIONS.md, the last of the five.
-        $tester->setInputs(['no', 'no', 'no', 'no', 'yes']);
+        $tester->setInputs(['no', 'no', 'no', 'no']);
         $tester->execute([]);
 
-        $instructions = file_get_contents($this->tempDir.'/mate/AGENT_INSTRUCTIONS.md');
-        $this->assertIsString($instructions);
-        $this->assertStringNotContainsString('##MATE_INVOCATION##', $instructions);
-        $this->assertStringContainsString('ddev exec vendor/bin/mate tools:list', $instructions);
+        $this->assertSame(Command::SUCCESS, $tester->getStatusCode());
+        $this->assertSame("# Edited by hand\n", file_get_contents($this->tempDir.'/mate/AGENT_INSTRUCTIONS.md'));
+        $this->assertStringNotContainsString('AGENT_INSTRUCTIONS.md', $tester->getDisplay());
     }
 
     public function testDefaultsTheInvocationToThePlainBinary()
@@ -504,9 +494,7 @@ final class InitCommandTest extends TestCase
         string $invocation = 'vendor/bin/mate',
         ?string $pinnedPhpVersion = null,
     ): InitCommand {
-        $logger = new NullLogger();
-        $aggregator = new AgentInstructionsAggregator($this->tempDir, [], $logger);
-        $materializer = new AgentInstructionsMaterializer($this->tempDir, $aggregator, $logger, $invocation, $pinnedPhpVersion);
+        $materializer = new AgentInstructionsMaterializer($this->tempDir, new NullLogger(), $invocation, $pinnedPhpVersion);
 
         $probe = $phpVersionProbe ?? new InvocationPhpVersionProbe(null, static fn (array $command): ?string => null);
 
@@ -523,7 +511,6 @@ final class InitCommandTest extends TestCase
         file_put_contents($this->tempDir.'/mate/extensions.php', '<?php return [];');
         file_put_contents($this->tempDir.'/mate/.env', '');
         file_put_contents($this->tempDir.'/mate/.gitignore', '');
-        file_put_contents($this->tempDir.'/mate/AGENT_INSTRUCTIONS.md', 'Run `'.$invocation.' tools:list`.');
     }
 
     private function removeDirectory(string $dir): void

@@ -29,7 +29,9 @@ use Symfony\Component\Console\Style\SymfonyStyle;
  *
  * Scans for packages with extra.ai-mate configuration
  * and generates/updates mate/extensions.php with discovered extensions.
- * Also refreshes AGENT instruction artifacts for coding agents.
+ * Also refreshes the managed Mate block in AGENTS.md and the CLAUDE.md import for coding agents.
+ *
+ * @phpstan-import-type ExtensionData from ComposerExtensionDiscovery
  *
  * @author Johannes Wachter <johannes@sulu.io>
  * @author Tobias Nyholm <tobias.nyholm@gmail.com>
@@ -102,6 +104,7 @@ class DiscoverCommand extends Command
                 if (isset($skillInstallResult)) {
                     $this->displayComposerSkillSummary($io, $skillInstallResult);
                 }
+                $this->displayLegacyInstructionsNotes($io, $rootProjectExtension, true);
             } else {
                 $io->warning([
                     'No Mate extensions found.',
@@ -111,6 +114,7 @@ class DiscoverCommand extends Command
                 if (isset($skillInstallResult)) {
                     $this->displaySkillSummary($io, $skillInstallResult);
                 }
+                $this->displayLegacyInstructionsNotes($io, $rootProjectExtension);
                 $io->note('Run "composer require vendor/package" to install Mate extensions.');
             }
 
@@ -144,6 +148,7 @@ class DiscoverCommand extends Command
         if ($composerMode) {
             $this->displayComposerSummary($io, $count, $newPackages, $removedPackages);
             $this->displayComposerSkillSummary($io, $skillInstallResult);
+            $this->displayLegacyInstructionsNotes($io, $rootProjectExtension, true);
 
             return Command::SUCCESS;
         }
@@ -178,6 +183,8 @@ class DiscoverCommand extends Command
         $this->displayInstructionsStatus($io, $materializationResult);
 
         $this->displaySkillSummary($io, $skillInstallResult);
+
+        $this->displayLegacyInstructionsNotes($io, $rootProjectExtension);
 
         $io->comment([
             'Next steps:',
@@ -265,16 +272,31 @@ class DiscoverCommand extends Command
     }
 
     /**
-     * @param array{instructions_file_updated: bool, agents_file_updated: bool, claude_file_updated: bool} $materializationResult
+     * Points out what older versions left behind: nothing is deleted, the project owns these files.
+     *
+     * @param ExtensionData $rootProjectExtension
+     */
+    private function displayLegacyInstructionsNotes(SymfonyStyle $io, array $rootProjectExtension, bool $composerMode = false): void
+    {
+        // The compact Composer output is written without line breaks.
+        if ($composerMode && ($this->instructionsMaterializer->hasLegacyInstructionsFile() || isset($rootProjectExtension['instructions']))) {
+            $io->newLine();
+        }
+
+        if ($this->instructionsMaterializer->hasLegacyInstructionsFile()) {
+            $io->writeln(\sprintf('<comment>Note:</comment> %s is no longer generated or read by Mate (the skills carry that guidance now); you can delete it.', AgentInstructionsMaterializer::LEGACY_INSTRUCTIONS_FILE));
+        }
+
+        if (isset($rootProjectExtension['instructions'])) {
+            $io->writeln(\sprintf('<comment>Note:</comment> "extra.ai-mate.instructions" in composer.json is deprecated and ignored; move the content of %s into a skill.', $rootProjectExtension['instructions']));
+        }
+    }
+
+    /**
+     * @param array{agents_file_updated: bool, claude_file_updated: bool} $materializationResult
      */
     private function displayInstructionsStatus(SymfonyStyle $io, array $materializationResult): void
     {
-        if ($materializationResult['instructions_file_updated']) {
-            $io->text('Updated <info>mate/AGENT_INSTRUCTIONS.md</info>.');
-        } else {
-            $io->warning('Failed to update mate/AGENT_INSTRUCTIONS.md.');
-        }
-
         if ($materializationResult['agents_file_updated']) {
             $io->text('Updated <info>AGENTS.md</info> managed instructions block.');
         } else {

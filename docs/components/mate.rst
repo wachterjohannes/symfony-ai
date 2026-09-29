@@ -53,8 +53,8 @@ details. The command then creates:
 * ``mate/extensions.php``, the list of extensions that ``mate discover`` fills
 * ``mate/.env`` and ``mate/.gitignore``
 * ``mate/src/`` for your own tools
-* ``mate/AGENT_INSTRUCTIONS.md``, a managed block in ``AGENTS.md``, and a ``CLAUDE.md`` that
-  imports ``AGENTS.md`` so Claude Code picks the instructions up
+* a managed block in ``AGENTS.md``, and a ``CLAUDE.md`` that imports ``AGENTS.md`` so Claude
+  Code picks the instructions up
 
 It also adds this to your ``composer.json``:
 
@@ -100,8 +100,8 @@ Keeping Mate Up to Date
 
 ``symfony/ai-mate`` installs the Composer plugin ``symfony/ai-mate-composer-plugin``. Once
 ``mate/extensions.php`` exists, Composer runs ``vendor/bin/mate discover --composer`` after every
-``composer install`` and ``composer update``. New extensions, their instructions and their skills
-arrive without a manual step.
+``composer install`` and ``composer update``. New extensions and their skills arrive without a
+manual step.
 
 Before ``mate init`` the plugin changes nothing. It only prints a hint to run ``init``.
 
@@ -332,9 +332,9 @@ Security
 Mate runs locally, with the permissions of the user who starts it. Two things deserve attention:
 
 **Extensions are code.** Every installed package with an ``extra.ai-mate`` section is discovered
-and enabled by default. Its tools run on your machine, and its instructions and skills are read by
-your agent. Review ``mate/extensions.php`` after installing packages, and commit it together with
-the generated skill folders so that changes show up in code review.
+and enabled by default. Its tools run on your machine, and its skills are read by your agent.
+Review ``mate/extensions.php`` after installing packages, and commit it together with the
+generated skill folders so that changes show up in code review.
 
 **Tool output is data.** Logs, profiles and container metadata contain text that end users and
 third-party packages control. Both extensions mark such output as untrusted and redact known

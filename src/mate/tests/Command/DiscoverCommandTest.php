@@ -13,7 +13,6 @@ namespace Symfony\AI\Mate\Tests\Command;
 
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
-use Symfony\AI\Mate\Agent\AgentInstructionsAggregator;
 use Symfony\AI\Mate\Agent\AgentInstructionsMaterializer;
 use Symfony\AI\Mate\Command\DiscoverCommand;
 use Symfony\AI\Mate\Discovery\ComposerExtensionDiscovery;
@@ -69,7 +68,7 @@ final class DiscoverCommandTest extends TestCase
             $this->assertIsArray($extensions['vendor/package-b']);
             $this->assertTrue($extensions['vendor/package-a']['enabled']);
             $this->assertTrue($extensions['vendor/package-b']['enabled']);
-            $this->assertFileExists($tempDir.'/mate/AGENT_INSTRUCTIONS.md');
+            $this->assertFileDoesNotExist($tempDir.'/mate/AGENT_INSTRUCTIONS.md');
             $this->assertFileExists($tempDir.'/AGENTS.md');
 
             $agentsContent = file_get_contents($tempDir.'/AGENTS.md');
@@ -81,7 +80,8 @@ final class DiscoverCommandTest extends TestCase
             $this->assertStringContainsString('Discovered 2 Extension', $output);
             $this->assertStringContainsString('vendor/package-a', $output);
             $this->assertStringContainsString('vendor/package-b', $output);
-            $this->assertStringContainsString('Updated mate/AGENT_INSTRUCTIONS.md', $output);
+            $this->assertStringContainsString('Updated AGENTS.md managed instructions block', $output);
+            $this->assertStringNotContainsString('AGENT_INSTRUCTIONS.md', $output);
         } finally {
             $this->removeDirectory($tempDir);
         }
@@ -196,7 +196,7 @@ PHP
             $this->assertIsArray($extensions);
             $this->assertArrayHasKey('vendor/package-a', $extensions);
             $this->assertArrayHasKey('vendor/package-b', $extensions);
-            $this->assertFileExists($tempDir.'/mate/AGENT_INSTRUCTIONS.md');
+            $this->assertFileExists($tempDir.'/AGENTS.md');
         } finally {
             $this->removeDirectory($tempDir);
         }
@@ -218,8 +218,55 @@ PHP
 
             $output = $tester->getDisplay();
             $this->assertStringContainsString('No Mate extensions found', $output);
-            $this->assertFileExists($tempDir.'/mate/AGENT_INSTRUCTIONS.md');
+            $this->assertFileDoesNotExist($tempDir.'/mate/AGENT_INSTRUCTIONS.md');
             $this->assertFileExists($tempDir.'/AGENTS.md');
+        } finally {
+            $this->removeDirectory($tempDir);
+        }
+    }
+
+    public function testLeavesLegacyInstructionsFileAloneAndPointsItOut()
+    {
+        $tempDir = sys_get_temp_dir().'/mate-discover-test-'.uniqid();
+        mkdir($tempDir.'/mate', 0755, true);
+
+        try {
+            file_put_contents($tempDir.'/mate/AGENT_INSTRUCTIONS.md', "# Edited by hand\n");
+
+            $rootDir = $this->createConfiguration($this->fixturesDir.'/with-ai-mate-config', $tempDir);
+            $tester = new CommandTester($this->createCommand($rootDir));
+
+            $tester->execute([]);
+
+            $this->assertSame(Command::SUCCESS, $tester->getStatusCode());
+            $this->assertSame("# Edited by hand\n", file_get_contents($tempDir.'/mate/AGENT_INSTRUCTIONS.md'));
+            $this->assertStringContainsString('mate/AGENT_INSTRUCTIONS.md is no longer generated or read by Mate', $tester->getDisplay(true));
+
+            $tester->execute(['--composer' => true]);
+
+            $this->assertStringContainsString('mate/AGENT_INSTRUCTIONS.md is no longer generated or read by Mate', $tester->getDisplay(true));
+        } finally {
+            $this->removeDirectory($tempDir);
+        }
+    }
+
+    public function testPointsOutDeprecatedRootProjectInstructions()
+    {
+        $tempDir = sys_get_temp_dir().'/mate-discover-test-'.uniqid();
+        mkdir($tempDir, 0755, true);
+
+        try {
+            $rootDir = $this->createConfiguration($this->fixturesDir.'/with-ai-mate-config', $tempDir);
+            file_put_contents($rootDir.'/composer.json', json_encode([
+                'name' => 'acme/app',
+                'extra' => ['ai-mate' => ['scan-dirs' => ['mate/src'], 'instructions' => 'mate/INSTRUCTIONS.md']],
+            ]));
+            $tester = new CommandTester($this->createCommand($rootDir));
+
+            $tester->execute([]);
+
+            $this->assertSame(Command::SUCCESS, $tester->getStatusCode());
+            $this->assertStringContainsString('"extra.ai-mate.instructions" in composer.json is deprecated and ignored', $tester->getDisplay(true));
         } finally {
             $this->removeDirectory($tempDir);
         }
@@ -338,7 +385,7 @@ PHP
         return new DiscoverCommand(
             new ComposerExtensionDiscovery($rootDir, $logger),
             new ExtensionConfigSynchronizer($repository),
-            new AgentInstructionsMaterializer($rootDir, new AgentInstructionsAggregator($rootDir, [], $logger), $logger),
+            new AgentInstructionsMaterializer($rootDir, $logger),
             new SkillDiscovery($rootDir, $frontmatter, $logger),
             new SkillInstaller($rootDir, $repository, $frontmatter, new SkillContentHasher(), new Linker(), new Filesystem(), $logger),
         );

@@ -106,7 +106,6 @@ class InitCommand extends Command
             'mate/config.php',
             'mate/.env',
             'mate/.gitignore',
-            'mate/AGENT_INSTRUCTIONS.md',
         ];
         foreach ($files as $file) {
             $fullPath = $this->rootDir.'/'.$file;
@@ -143,7 +142,7 @@ class InitCommand extends Command
         // The container was built before mate/config.php existed, so hand the values in directly.
         $materializationResult = $this->instructionsMaterializer
             ->withInvocation($this->invocation, $this->phpVersion)
-            ->synchronizeFromCurrentInstructionsFile();
+            ->materializeForExtensions();
         if ($materializationResult['agents_file_updated']) {
             $actions[] = ['✓', 'Updated', 'AGENTS.md (AI Mate managed instructions block)'];
         } else {
@@ -165,8 +164,8 @@ class InitCommand extends Command
             'Next steps:',
             '  1. Run "composer dump-autoload" to register the Mate\\ autoloader',
             '  2. Add custom tools to mate/src/ (public methods with the #[MateTool] attribute)',
-            '  3. Point your coding agent at the CLI; it reads mate/AGENT_INSTRUCTIONS.md and runs',
-            \sprintf('     "%s tools:list", "tools:inspect <tool>" and "tools:call <tool> --<param>=<value>"', $this->invocation),
+            \sprintf('  3. Run "%s discover" to install the extension skills', $this->invocation),
+            '  4. Point your coding agent at AGENTS.md (CLAUDE.md imports it for Claude Code)',
         ]);
 
         if (!class_exists(Toon::class)) {
@@ -188,9 +187,9 @@ class InitCommand extends Command
 
     private function postCopyTemplateAction(string $template, string $destination): void
     {
-        // Both templates name the command the agent has to type, and AGENTS.md is about to
+        // The template names the command the agent has to type, and AGENTS.md is about to
         // promise that same command. A stale `vendor/bin/mate` here would contradict it.
-        if (\in_array($template, ['mate/config.php', 'mate/AGENT_INSTRUCTIONS.md'], true)) {
+        if ('mate/config.php' === $template) {
             $this->fillPlaceholders($destination);
         }
 
