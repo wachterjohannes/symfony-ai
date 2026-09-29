@@ -15,9 +15,12 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\AI\Mate\Bridge\Symfony\Exception\UndecodableMessageException;
 use Symfony\AI\Mate\Bridge\Symfony\Messenger\EnvelopeDecoder;
+use Symfony\AI\Mate\Bridge\Symfony\Messenger\FailedMessage;
 use Symfony\AI\Mate\Bridge\Symfony\Tests\Fixtures\Messenger\FailingHandler;
 use Symfony\AI\Mate\Bridge\Symfony\Tests\Fixtures\Messenger\Gadget;
 use Symfony\AI\Mate\Bridge\Symfony\Tests\Fixtures\Messenger\ImportPrice;
+use Symfony\AI\Mate\Bridge\Symfony\Tests\Fixtures\Messenger\PrioritizedImport;
+use Symfony\AI\Mate\Bridge\Symfony\Tests\Fixtures\Messenger\Priority;
 use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\Stamp\ErrorDetailsStamp;
 use Symfony\Component\Messenger\Stamp\RedeliveryStamp;
@@ -148,6 +151,32 @@ final class EnvelopeDecoderTest extends TestCase
         $this->assertSame('App\Message\Gone', $message->messageClass);
         $this->assertNull($message->exceptionClass);
         $this->assertSame(0, $message->retryCount);
+    }
+
+    public function testReadsAnEnvelopeWhoseMessageHoldsEnumsWithoutLoadingThem()
+    {
+        $serialized = serialize(new Envelope(new PrioritizedImport(Priority::High, [Priority::High, Priority::Low]), [new RedeliveryStamp(2)]));
+        // An enum no autoloader here knows, used twice (the second occurrence is a back-reference).
+        $serialized = str_replace(Priority::class.':High', 'App\\Gone\\Level:Top', $serialized);
+        $serialized = preg_replace_callback('/E:(\d+):"App\\\\Gone\\\\Level:Top"/', static fn (): string => \sprintf('E:%d:"%s"', \strlen('App\\Gone\\Level:Top'), 'App\\Gone\\Level:Top'), $serialized) ?? $serialized;
+        $this->assertStringContainsString('E:18:"App\\Gone\\Level:Top"', $serialized);
+
+        $decoder = new EnvelopeDecoder();
+        class_exists(FailedMessage::class); // Mate's own classes, loaded on first use.
+        $loaded = [];
+        $spy = static function (string $class) use (&$loaded): void {
+            $loaded[] = $class;
+        };
+        spl_autoload_register($spy, true, true);
+        try {
+            $message = $decoder->decode('1', addslashes($serialized), [], null);
+        } finally {
+            spl_autoload_unregister($spy);
+        }
+
+        $this->assertSame(PrioritizedImport::class, $message->messageClass);
+        $this->assertSame(2, $message->retryCount);
+        $this->assertSame([], $loaded, 'No class may be autoloaded while decoding.');
     }
 
     /**

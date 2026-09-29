@@ -6,7 +6,7 @@ description: Diagnose Messenger messages that fail, a worker (messenger:consume)
 # Messenger failures
 
 `symfony-messenger-failed` reads the failure transports straight from their storage and groups the
-messages by cause: exception class, message pattern (quoted values, paths and numbers blanked) and
+messages by cause: exception class, message pattern (quoted values, paths and ids blanked) and
 the application frame that threw.
 
 ```
@@ -14,8 +14,11 @@ vendor/bin/mate tools:call symfony-messenger-failed
 vendor/bin/mate tools:call symfony-messenger-failed --transport=failed --group=2    # every message of group 2
 ```
 
+With several kernel contexts (one cache directory each), add `--context=<name>`.
+
 The result has one entry per failure transport under `transports` (`--transport=<name>` reads one).
-Per transport: `message_count`, `group_count`, `undecodable` (rows it could not read, with the
+Per transport: `message_count`, `scanned`, `scan_truncated` (with `scan_truncated_reason` when
+not every message was read), `group_count`, `undecodable` (rows it could not read, with the
 reason) and `groups`, largest first. Per group: `count`, `message_classes`, `exception_class`,
 `failed_in` (first frame outside vendor/, usually the handler), `sample_messages` (distinct
 exception messages, the actual values are here), `trace` (top frames), `retry_count` (a number, or
