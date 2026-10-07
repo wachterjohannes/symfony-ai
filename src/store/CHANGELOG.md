@@ -4,6 +4,7 @@ CHANGELOG
 0.14
 ----
 
+ * Add `Reranker\TypeSafe\TypeSafeReranker` to rerank documents with TypeSafe's Jev, which also tells whether the documents suffice to answer the query
  * `Indexer\SourceIndexer` now passes its options to the loader as well as to the document processor
  * [BC BREAK] Accept and return `Platform\Vector\VectorInterface` in `Query\VectorQuery` and `Query\HybridQuery` instead of the final `Platform\Vector\Vector` class
  * [BC BREAK] Type stores, retrievers, rerankers and vectorizers against the new `Document\VectorDocumentInterface` instead of the final `Document\VectorDocument` class
