@@ -186,6 +186,47 @@ The stages this package itself reports are available as ``Progress::STAGE_MODEL_
 Streaming and tool calling compose: when the model streams a tool call, the agent executes it and streams the next
 round into the very same execution.
 
+Resumable Runs
+~~~~~~~~~~~~~~
+
+An execution lives as long as the process that drives it. For a chat in a web request that is too long, so an agent
+with a :class:`Symfony\\AI\\Agent\\Execution\\Run\\RunStoreInterface` can also run in rounds. A round is one model
+request plus the execution of the tools it asked for. Everything the next round needs is saved in the store, so
+any process can execute it::
+
+    use Symfony\AI\Agent\Agent;
+    use Symfony\AI\Agent\Execution\Run\InMemoryRunStore;
+
+    $store = new InMemoryRunStore();
+    $agent = new Agent($platform, 'gpt-4o', toolbox: $toolbox, runStore: $store);
+
+    // in the web request: nothing is sent to the model yet
+    $run = $agent->start('Which plant likes shade?');
+    $runId = $run->getId();
+
+    // in a worker: one round per call, until the run is finished
+    do {
+        $run = $agent->resume($runId);
+    } while (!$run->isFinished());
+
+``resume()`` saves the run after every update, so a client polling the store sees the tool calls and the streamed
+deltas of a round while it is still going on. It remembers the sequence of the last event it received and asks only
+for newer ones::
+
+    $run = $store->get($runId);
+
+    $run->getStatus();           // RunStatus::Pending, Running, Completed or Failed
+    $run->getEventsSince($seen); // the Progress updates after the sequence $seen
+    $run->getResult();           // the final result of a completed run
+    $run->getError();            // the message of the exception that failed the run
+
+A failing round fails the run instead of throwing, so a worker does not retry it blindly. Two workers advancing the
+same run at once are told apart by the store, the slower one gets a
+:class:`Symfony\\AI\\Agent\\Exception\\RunConflictException`.
+
+The run store has to persist messages, tool results and results. The ``InMemoryRunStore`` serializes them like a real
+store would, but forgets everything with the process.
+
 Tools
 -----
 
