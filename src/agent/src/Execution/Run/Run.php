@@ -11,6 +11,7 @@
 
 namespace Symfony\AI\Agent\Execution\Run;
 
+use Symfony\AI\Agent\Exception\LogicException;
 use Symfony\AI\Agent\Execution\Update\Progress;
 use Symfony\AI\Platform\Result\ResultInterface;
 
@@ -105,7 +106,7 @@ final class Run
      */
     public function getState(): RunState
     {
-        return $this->state ?? throw new \LogicException('A finished run holds no state anymore.');
+        return $this->state ?? throw new LogicException('A finished run holds no state anymore.');
     }
 
     /**

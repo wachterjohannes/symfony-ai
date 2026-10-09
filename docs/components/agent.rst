@@ -209,7 +209,8 @@ any process can execute it::
         $run = $agent->resume($runId);
     } while (!$run->isFinished());
 
-``resume()`` saves the run after every update, so a client polling the store sees the tool calls and the streamed
+The agent implements :class:`Symfony\\AI\\Agent\\ResumableAgentInterface`, a separate interface so existing
+agents stay compatible. ``resume()`` saves the run after every update, so a client polling the store sees the tool calls and the streamed
 deltas of a round while it is still going on. It remembers the sequence of the last event it received and asks only
 for newer ones::
 

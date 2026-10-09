@@ -34,7 +34,7 @@ use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 /**
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
-final class Agent implements AgentInterface
+final class Agent implements ResumableAgentInterface
 {
     private readonly Runner $runner;
 
@@ -129,14 +129,6 @@ final class Agent implements AgentInterface
         return new Execution($factory, true === ($options['stream'] ?? false), $cancellation);
     }
 
-    /**
-     * Starts a run that advances one round per {@see resume()} call, so the rounds can happen in a worker
-     * while the caller polls the run from the store.
-     *
-     * Nothing is sent to the model yet, the first round is executed by the first {@see resume()}.
-     *
-     * @param array<string, mixed> $options
-     */
     public function start(string|MessageBag|UserMessage $input, array $options = []): Run
     {
         [$model, $messages, $processedOptions] = $this->processInput($input, $options);
@@ -147,18 +139,6 @@ final class Agent implements AgentInterface
         return $run;
     }
 
-    /**
-     * Executes the next round of a run and saves the run, after every update of the round, so a poller sees
-     * the tool calls and streamed deltas while the round is still going on.
-     *
-     * A finished run is returned as it is. A failure of the round fails the run instead of being thrown,
-     * its message is on the run.
-     *
-     * @param non-empty-string $id
-     *
-     * @throws Exception\RunNotFoundException
-     * @throws Exception\RunConflictException when another process advanced the run at the same time
-     */
     public function resume(string $id): Run
     {
         $store = $this->getRunStore();
@@ -195,6 +175,8 @@ final class Agent implements AgentInterface
     }
 
     /**
+     * @param array<string, mixed> $options
+     *
      * @return array{non-empty-string, MessageBag, array<string, mixed>}
      */
     private function processInput(string|MessageBag|UserMessage $input, array $options): array

@@ -21,6 +21,7 @@ use Symfony\AI\Agent\Execution\Run\RunStatus;
 use Symfony\AI\Agent\Execution\Update\Progress;
 use Symfony\AI\Agent\Output;
 use Symfony\AI\Agent\OutputProcessorInterface;
+use Symfony\AI\Agent\ResumableAgentInterface;
 use Symfony\AI\Agent\Toolbox\ToolboxInterface;
 use Symfony\AI\Agent\Toolbox\ToolResult;
 use Symfony\AI\Platform\Message\Message;
@@ -33,6 +34,11 @@ use Symfony\AI\Platform\Test\InMemoryPlatform;
 
 final class AgentRunTest extends TestCase
 {
+    public function testTheAgentIsResumable()
+    {
+        $this->assertInstanceOf(ResumableAgentInterface::class, $this->agent(new InMemoryPlatform('Hi'), new InMemoryRunStore()));
+    }
+
     public function testStartDoesNotCallThePlatform()
     {
         $invocations = 0;
