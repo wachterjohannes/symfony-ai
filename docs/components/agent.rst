@@ -216,8 +216,9 @@ for newer ones::
 
     $run = $store->get($runId);
 
-    $run->getStatus();           // RunStatus::Pending, Running, Completed or Failed
+    $run->getStatus();           // RunStatus::Pending, Running, WaitingForInput, Completed or Failed
     $run->getEventsSince($seen); // the Progress updates after the sequence $seen
+    $run->getInputRequest();     // what a run in WaitingForInput waits for
     $run->getResult();           // the final result of a completed run
     $run->getError();            // the message of the exception that failed the run
 

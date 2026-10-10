@@ -4,7 +4,7 @@ CHANGELOG
 0.15
 ----
 
- * Add `ResumableAgentInterface`, implemented by `Agent` with `start()` and `resume()`, to run an agent one round at a time, so the rounds can be executed by different processes while a client polls the `Run` from a `RunStoreInterface` for its status, its `Progress` events and its result
+ * Add `ResumableAgentInterface`, implemented by `Agent` with `start()` and `resume()`, to run an agent one round at a time, so the rounds can be executed by different processes while a client polls the `Run` from a `RunStoreInterface` for its status, its `Progress` events and its result, which may pause as `WaitingForInput`
  * Add `Progress::STAGE_MODEL_REQUEST`, `Progress::STAGE_DELTA`, `Progress::STAGE_TOOL_CALL` and `Progress::STAGE_HANDOFF` constants for the stage names this package itself reports, used internally wherever a stage was matched or constructed with a raw string
 
 0.14

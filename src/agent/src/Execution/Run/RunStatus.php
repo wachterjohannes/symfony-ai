@@ -26,6 +26,11 @@ enum RunStatus: string
      */
     case Running = 'running';
 
+    /**
+     * Paused until someone answers, see {@see Run::getInputRequest()}.
+     */
+    case WaitingForInput = 'waiting_for_input';
+
     case Completed = 'completed';
 
     case Failed = 'failed';

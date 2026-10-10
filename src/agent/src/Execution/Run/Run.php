@@ -35,6 +35,8 @@ final class Run
 
     private ?ResultInterface $result = null;
 
+    private mixed $inputRequest = null;
+
     private ?string $error = null;
 
     private int $version = 0;
@@ -86,6 +88,15 @@ final class Run
     }
 
     /**
+     * What a run in the status {@see RunStatus::WaitingForInput} waits for, for example a question or the
+     * tool calls to approve. Its shape is up to the agent that paused the run.
+     */
+    public function getInputRequest(): mixed
+    {
+        return $this->inputRequest;
+    }
+
+    /**
      * The message of the exception that failed the run, null if it did not fail.
      */
     public function getError(): ?string
@@ -116,6 +127,15 @@ final class Run
     {
         $this->status = RunStatus::Running;
         $this->events[] = RunEvent::fromProgress(\count($this->events) + 1, $progress);
+    }
+
+    /**
+     * @internal
+     */
+    public function waitForInput(mixed $request): void
+    {
+        $this->status = RunStatus::WaitingForInput;
+        $this->inputRequest = $request;
     }
 
     /**

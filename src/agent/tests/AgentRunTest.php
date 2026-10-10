@@ -17,6 +17,7 @@ use Symfony\AI\Agent\Exception\RunConflictException;
 use Symfony\AI\Agent\Exception\RunNotFoundException;
 use Symfony\AI\Agent\Exception\RuntimeException;
 use Symfony\AI\Agent\Execution\Run\InMemoryRunStore;
+use Symfony\AI\Agent\Execution\Run\Run;
 use Symfony\AI\Agent\Execution\Run\RunStatus;
 use Symfony\AI\Agent\Execution\Update\Progress;
 use Symfony\AI\Agent\Output;
@@ -34,6 +35,17 @@ use Symfony\AI\Platform\Test\InMemoryPlatform;
 
 final class AgentRunTest extends TestCase
 {
+    public function testARunCanWaitForInput()
+    {
+        $run = new Run('run-1', null);
+
+        $run->waitForInput(['question' => 'Which room?']);
+
+        $this->assertSame(RunStatus::WaitingForInput, $run->getStatus());
+        $this->assertFalse($run->isFinished());
+        $this->assertSame(['question' => 'Which room?'], $run->getInputRequest());
+    }
+
     public function testTheAgentIsResumable()
     {
         $this->assertInstanceOf(ResumableAgentInterface::class, $this->agent(new InMemoryPlatform('Hi'), new InMemoryRunStore()));
