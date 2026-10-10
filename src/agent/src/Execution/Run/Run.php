@@ -121,12 +121,18 @@ final class Run
     }
 
     /**
+     * Without a sequence the event is numbered after the last one. An agent that rebuilds its events on every
+     * read passes the sequence, so the same event gets the same number each time.
+     *
+     * @param positive-int|null $sequence
+     *
      * @internal
      */
-    public function record(Progress $progress): void
+    public function record(Progress $progress, ?int $sequence = null): void
     {
         $this->status = RunStatus::Running;
-        $this->events[] = RunEvent::fromProgress(\count($this->events) + 1, $progress);
+        $last = [] === $this->events ? 0 : $this->events[array_key_last($this->events)]->getSequence();
+        $this->events[] = RunEvent::fromProgress($sequence ?? $last + 1, $progress);
     }
 
     /**

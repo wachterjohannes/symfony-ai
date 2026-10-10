@@ -46,6 +46,17 @@ final class AgentRunTest extends TestCase
         $this->assertSame(['question' => 'Which room?'], $run->getInputRequest());
     }
 
+    public function testAnEventCanBeRecordedWithItsOwnSequence()
+    {
+        $run = new Run('run-1', null);
+
+        $run->record(new Progress('tool_call'), 3);
+        $run->record(new Progress('tool_call'));
+
+        $this->assertSame([3, 4], array_map(static fn ($event) => $event->getSequence(), $run->getEventsSince()));
+        $this->assertSame([4], array_map(static fn ($event) => $event->getSequence(), $run->getEventsSince(3)));
+    }
+
     public function testTheAgentIsResumable()
     {
         $this->assertInstanceOf(ResumableAgentInterface::class, $this->agent(new InMemoryPlatform('Hi'), new InMemoryRunStore()));
