@@ -1,6 +1,11 @@
 CHANGELOG
 =========
 
+0.15
+----
+
+ * Add `symfony-messenger-failed` tool and `symfony-messenger-failures` skill, listing the messages in the Messenger failure transports grouped by cause
+
 0.14
 ----
 
