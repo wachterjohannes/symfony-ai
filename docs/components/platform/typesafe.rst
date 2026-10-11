@@ -102,6 +102,47 @@ whether to act on an answer, or to fall back to another model or to a human::
     Jev does not take messages, call tools nor stream its answers, so it cannot be the model of an agent. Use it
     next to one instead, for example to classify the input of a user before choosing the agent to hand it to.
 
+Reranking Documents
+~~~~~~~~~~~~~~~~~~~
+
+Ranking and answerability are different questions: a conventional reranker orders the documents of a query, but
+cannot tell that none of them answers it. The ``TypeSafeReranker`` of the Store component asks Jev one evaluation per
+query instead, with the query as its state, one yes/no question per candidate ("does this passage help answering the
+query?") and one extra "gate" question ("do the passages together suffice to answer the query?")::
+
+    use Symfony\AI\Store\Reranker\TypeSafe\TypeSafeReranker;
+
+    $reranker = new TypeSafeReranker($platform, 'jev-1.13.0', threshold: 0.5, gateThreshold: 0.5);
+
+    $evaluation = $reranker->evaluate($query, $documents, topK: 5);
+
+    if (!$evaluation->isAnswerable()) {
+        // skip the LLM and answer that the information is not part of the documents
+    }
+
+    $evaluation->getDocuments();     // the relevant documents, best first, scored by their probability
+    $evaluation->getAnswerability(); // the probability of the gate
+
+The reranker is a ``RerankerInterface`` as well, so it works with the ``RerankerListener`` too. Its ``rerank()``
+method returns the relevant documents, but cannot return the gate: the interface only carries documents. Use
+``evaluate()`` where the gate matters.
+
+Jev does not replace embeddings and the vector store: the documents handed to the reranker remain the upper bound of
+what can be found. Candidates below ``threshold`` are dropped, which can leave fewer than ``topK`` documents.
+
+Candidates are split over several requests once ``maxQuestionsPerRequest`` is exceeded (10 by default). The gate of
+every request only sees the candidates of its request, so the highest one stands for the whole set.
+
+.. warning::
+
+    This is a prototype, and some assumptions are not verified against the API yet:
+
+    * the maximum number of questions per request is unknown, so ``maxQuestionsPerRequest`` is a conservative guess;
+    * it is unknown whether probabilities stay reliable with many questions in one request, so tune the thresholds
+      against your own data;
+    * latency and cost compared to a cross-encoder reranker like Cohere's are not measured. The passages are sent
+      twice, as a candidate and as part of the gate.
+
 Models
 ~~~~~~
 
