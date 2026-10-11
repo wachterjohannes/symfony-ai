@@ -74,6 +74,17 @@ cd ai.symfony.com && php bin/console app:cookbook:build
 ```
 This rebuilds `ai.symfony.com/config/cookbook.json` and the HTML fragments in `ai.symfony.com/templates/cookbook/content/` from the RST. Always commit the regenerated artifacts together with the RST changes: production (Upsun) ships only the `ai.symfony.com/` directory and cannot run the generator, so stale artifacts would ship outdated cookbook content.
 
+### Architecture Diagram Artifacts
+The JSON files in `docs/architecture/` are the single source of truth for the navigable architecture diagrams on ai.symfony.com (`/architecture`). Each file is a spec for [archify](https://github.com/tt-a1i/archify), vendored read-only under `tools/archify/`. After changing a component's structure, bridges, or package dependencies, check whether the diagrams still match:
+```bash
+cd ai.symfony.com && php bin/console app:architecture:check
+```
+This reports drift against the real codebase: a hard error when a spec references a file or package that no longer exists, a warning when new code (a package, a bridge directory) exists that no diagram mentions yet. If a spec needs updating, edit the relevant `docs/architecture/*.json` file and regenerate the committed artifacts:
+```bash
+cd ai.symfony.com && php bin/console app:architecture:build
+```
+This renders every spec into `ai.symfony.com/public/diagrams/*.html` and regenerates `ai.symfony.com/public/architecture.json`, the machine-readable manifest also referenced from `public/llms.txt`. Always commit specs and regenerated artifacts together: production (Upsun) ships only the `ai.symfony.com/` directory, so stale artifacts would ship outdated diagrams.
+
 ### Development Linking
 Use the `./link` script to symlink local development versions:
 ```bash

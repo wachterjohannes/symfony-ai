@@ -1,0 +1,83 @@
+name: Architecture Diagram Artifacts
+
+on:
+    pull_request:
+        paths:
+            - 'docs/architecture/**'
+            - 'ai.symfony.com/public/diagrams/**'
+            - 'ai.symfony.com/public/architecture.json'
+            - 'ai.symfony.com/src/Architecture/**'
+            - 'ai.symfony.com/src/Command/Architecture*Command.php'
+            - 'tools/archify/**'
+            - '.github/workflows/architecture-artifacts.yaml'
+
+concurrency:
+    group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+    cancel-in-progress: true
+
+jobs:
+    render-reproducibility:
+        name: Rendered diagrams are up to date
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v7
+              with:
+                  # Diagram specs pin meta.repository.revision to the SHA they were last
+                  # verified against, which is usually older than the checked-out commit.
+                  # archify resolves that revision with `git cat-file`, so a shallow clone
+                  # (the default) fails the moment revision != HEAD.
+                  fetch-depth: 0
+
+            - name: Setup PHP
+              uses: shivammathur/setup-php@v2
+              with:
+                  php-version: 8.5
+
+            - name: Setup Node
+              uses: actions/setup-node@v4
+              with:
+                  node-version: '22'
+
+            - name: Install website dependencies
+              uses: ramsey/composer-install@v4
+              with:
+                  working-directory: ai.symfony.com
+
+            - name: Rebuild architecture diagrams with archify
+              working-directory: ai.symfony.com
+              run: php bin/console app:architecture:build
+
+            - name: Fail if artifacts are out of date
+              run: |
+                  CHANGED=$(git status --porcelain docs/architecture ai.symfony.com/public/diagrams ai.symfony.com/public/architecture.json)
+                  if [ -n "$CHANGED" ]; then
+                      echo "::error::Architecture diagram artifacts are out of date. Run 'cd ai.symfony.com && php bin/console app:architecture:build' and commit the result."
+                      git --no-pager diff -- docs/architecture ai.symfony.com/public/diagrams ai.symfony.com/public/architecture.json
+                      echo "$CHANGED"
+                      exit 1
+                  fi
+                  echo "Architecture diagram artifacts are up to date."
+
+    drift-check:
+        name: Diagram specs match the repository
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v7
+
+            - name: Setup PHP
+              uses: shivammathur/setup-php@v2
+              with:
+                  php-version: 8.5
+
+            - name: Install website dependencies
+              uses: ramsey/composer-install@v4
+              with:
+                  working-directory: ai.symfony.com
+
+            - name: Check architecture diagram specs for drift
+              working-directory: ai.symfony.com
+              run: php bin/console app:architecture:check

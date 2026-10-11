@@ -1,0 +1,195 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Platform",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/symfony/ai",
+      "provider": "github",
+      "revision": "7c3ce859aa500cc3592b25323c842cb419ed5a67"
+    },
+    "views": [
+      {
+        "id": "request-pipeline",
+        "label": "Request pipeline",
+        "focus": ["platform", "contract", "message", "result"],
+        "note": "How a call flows from your code through Platform into a normalized provider request and back into a typed result."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "agent",
+      "type": "backend",
+      "label": "Agent",
+      "sublabel": "requires Platform",
+      "pos": [100, 16],
+      "size": [150, 48],
+      "sources": [{"path": "src/agent/AGENTS.md"}]
+    },
+    {
+      "id": "chat",
+      "type": "backend",
+      "label": "Chat",
+      "sublabel": "requires Platform",
+      "pos": [520, 16],
+      "size": [150, 48],
+      "sources": [{"path": "src/chat/AGENTS.md"}]
+    },
+    {
+      "id": "store",
+      "type": "backend",
+      "label": "Store",
+      "sublabel": "requires Platform",
+      "pos": [940, 16],
+      "size": [150, 48],
+      "sources": [{"path": "src/store/AGENTS.md"}]
+    },
+    {
+      "id": "platform",
+      "type": "backend",
+      "label": "Platform",
+      "sublabel": "unified model access",
+      "pos": [520, 106],
+      "size": [150, 48],
+      "sources": [
+        {"path": "src/platform/AGENTS.md"},
+        {"path": "src/platform/src/Platform.php"},
+        {"path": "src/platform/src/PlatformInterface.php"}
+      ]
+    },
+    {
+      "id": "contract",
+      "type": "backend",
+      "label": "Contract",
+      "sublabel": "contracts, schema & tools",
+      "pos": [60, 196],
+      "size": [150, 48],
+      "sources": [
+        {"path": "src/platform/src/Contract.php"},
+        {"path": "src/platform/src/Tool/Tool.php"}
+      ]
+    },
+    {
+      "id": "message",
+      "type": "backend",
+      "label": "Message",
+      "sublabel": "message bag & templates",
+      "pos": [520, 196],
+      "size": [150, 48],
+      "sources": [
+        {"path": "src/platform/src/Message/Message.php"},
+        {"path": "src/platform/src/Message/MessageBag.php"}
+      ]
+    },
+    {
+      "id": "result",
+      "type": "backend",
+      "label": "Result",
+      "sublabel": "typed provider results",
+      "pos": [900, 196],
+      "size": [150, 48],
+      "sources": [{"path": "src/platform/src/Result/ResultInterface.php"}]
+    },
+    {
+      "id": "bridges",
+      "type": "backend",
+      "label": "Bridges",
+      "sublabel": "37 providers",
+      "pos": [710, 286],
+      "size": [150, 48],
+      "sources": [{"path": "src/platform/src/Bridge/OpenAi/Gpt.php"}]
+    },
+    {
+      "id": "providers",
+      "type": "cloud",
+      "label": "AI Providers",
+      "sublabel": "OpenAI, Anthropic, more",
+      "pos": [710, 376],
+      "size": [150, 48]
+    }
+  ],
+  "connections": [
+    {
+      "id": "agent-to-platform",
+      "from": "agent",
+      "to": "platform",
+      "label": "requires",
+      "variant": "emphasis"
+    },
+    {
+      "id": "chat-to-platform",
+      "from": "chat",
+      "to": "platform",
+      "label": "requires",
+      "labelDy": 24
+    },
+    {
+      "id": "store-to-platform",
+      "from": "store",
+      "to": "platform",
+      "label": "requires"
+    },
+    {
+      "id": "platform-to-contract",
+      "from": "platform",
+      "to": "contract",
+      "label": "normalizes via"
+    },
+    {
+      "id": "platform-to-message",
+      "from": "platform",
+      "to": "message",
+      "label": "accepts",
+      "labelDy": 24
+    },
+    {
+      "id": "platform-to-result",
+      "from": "platform",
+      "to": "result",
+      "label": "returns"
+    },
+    {
+      "id": "platform-to-bridges",
+      "from": "platform",
+      "to": "bridges",
+      "label": "implemented by",
+      "variant": "emphasis",
+      "labelAt": [690, 258]
+    },
+    {
+      "id": "bridges-to-providers",
+      "from": "bridges",
+      "to": "providers",
+      "label": "calls",
+      "labelDy": 24
+    }
+  ],
+  "cards": [
+    {
+      "dot": "violet",
+      "title": "Entry point",
+      "items": [
+        "Platform is the single call surface: invoke() takes a Model, a MessageBag or prompt, and options",
+        "Agent, Chat and Store all require Platform"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "Request pipeline",
+      "items": [
+        "Contract normalizes messages, tools and options into a provider payload",
+        "Result converts the raw provider response back into a typed result"
+      ]
+    },
+    {
+      "dot": "slate",
+      "title": "Testing bridges",
+      "items": [
+        "Record-and-replay scaffolding in Test/Replay/ pins result converters against real provider response shapes",
+        "Replay runs in CI without credentials; recording is a manual, local-only step"
+      ]
+    }
+  ]
+}
