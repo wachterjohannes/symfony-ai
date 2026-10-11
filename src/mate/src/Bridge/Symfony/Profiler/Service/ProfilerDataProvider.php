@@ -142,9 +142,11 @@ final class ProfilerDataProvider
     }
 
     /**
+     * The newest $limit matching profiles (all of them when $limit <= 0), and how many match in total.
+     *
      * @param array<string, mixed> $criteria
      *
-     * @return array<ProfileIndex>
+     * @return array{profiles: list<ProfileIndex>, total: int}
      */
     public function searchProfiles(array $criteria, int $limit = 20): array
     {
@@ -154,6 +156,8 @@ final class ProfilerDataProvider
         $end = isset($criteria['to']) ? strtotime($criteria['to']) : null;
 
         foreach ($this->storages as $context => $storage) {
+            // Every storage is read in full (not up to $limit): that is what makes "total" exact
+            // across several profiler directories.
             $profiles = $storage->find(
                 ip: $criteria['ip'] ?? null,
                 url: $criteria['url'] ?? null,
@@ -185,7 +189,10 @@ final class ProfilerDataProvider
 
         usort($allResults, static fn ($a, $b) => $b->getTime() <=> $a->getTime());
 
-        return \array_slice($allResults, 0, $limit);
+        return [
+            'profiles' => $limit > 0 ? \array_slice($allResults, 0, $limit) : $allResults,
+            'total' => \count($allResults),
+        ];
     }
 
     /**

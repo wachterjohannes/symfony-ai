@@ -1,6 +1,11 @@
 CHANGELOG
 =========
 
+0.15
+----
+
+ * Add `total` and `truncated` to `symfony-profiler-list`, ahead of the `profiles`; `limit=0` lists every profile and a negative `limit` is rejected
+
 0.14
 ----
 
