@@ -31,7 +31,7 @@ final class ModelCatalog implements ModelCatalogInterface
     ) {
     }
 
-    public function getModel(string $modelName): Ollama
+    public function getModel(string $modelName): Ollama|Decision
     {
         $response = $this->httpClient->request('POST', 'api/show', [
             'json' => [
@@ -59,6 +59,12 @@ final class ModelCatalog implements ModelCatalogInterface
 
         if ([] === $payload['capabilities']) {
             throw new InvalidArgumentException('The model information could not be retrieved from the Ollama API. Your Ollama server might be too old. Try upgrade it.');
+        }
+
+        // Decision models are served by the dedicated "POST /v1/systemone" endpoint, not by the chat API,
+        // so their other capabilities (e.g. "completion") do not apply: they have none, like other decision models (e.g. TypeSafe's Jev).
+        if (\in_array('decision', $payload['capabilities'], true)) {
+            return new Decision($modelName, []);
         }
 
         $capabilities = array_map(
@@ -110,7 +116,7 @@ final class ModelCatalog implements ModelCatalogInterface
 
                 return [
                     $retrievedModel->getName() => [
-                        'class' => Ollama::class,
+                        'class' => $retrievedModel::class,
                         'capabilities' => $retrievedModel->getCapabilities(),
                     ],
                 ];

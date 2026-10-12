@@ -1,6 +1,11 @@
 CHANGELOG
 =========
 
+0.15
+----
+
+ * Add support for decision models (`decision` capability, Ollama >= 0.35.0), served through `POST /v1/systemone` and queried with the `Decision\Evaluation` of the Platform
+
 0.14
 ----
 
