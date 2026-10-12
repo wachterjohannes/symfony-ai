@@ -16,6 +16,7 @@ use PHPUnit\Framework\TestCase;
 use Symfony\AI\Platform\Bridge\Ollama\ModelCatalog;
 use Symfony\AI\Platform\Bridge\Ollama\Ollama;
 use Symfony\AI\Platform\Capability;
+use Symfony\AI\Platform\Exception\InvalidArgumentException;
 use Symfony\AI\Platform\Exception\ModelNotFoundException;
 use Symfony\AI\Platform\Exception\RuntimeException;
 use Symfony\Component\HttpClient\MockHttpClient;
@@ -42,6 +43,64 @@ final class OllamaApiCatalogTest extends TestCase
             Capability::OUTPUT_STRUCTURED,
         ], $model->getCapabilities());
         $this->assertSame(1, $httpClient->getRequestsCount());
+    }
+
+    public function testModelCatalogIgnoresDecisionCapability()
+    {
+        $httpClient = new MockHttpClient([
+            new JsonMockResponse([
+                'capabilities' => ['decision', 'tools', 'thinking', 'completion'],
+            ]),
+        ], 'http://127.0.0.1:11434');
+
+        $model = (new ModelCatalog($httpClient))->getModel('foo');
+
+        $this->assertSame([
+            Capability::TOOL_CALLING,
+            Capability::THINKING,
+            Capability::INPUT_MESSAGES,
+            Capability::OUTPUT_STRUCTURED,
+        ], $model->getCapabilities());
+    }
+
+    public function testModelCatalogCanReturnModelsWithDecisionCapabilityFromApi()
+    {
+        $httpClient = new MockHttpClient([
+            new JsonMockResponse([
+                'models' => [
+                    [
+                        'name' => 'classifier',
+                        'details' => [],
+                    ],
+                ],
+            ]),
+            new JsonMockResponse([
+                'capabilities' => ['decision', 'tools', 'thinking', 'completion'],
+            ]),
+        ], 'http://127.0.0.1:11434');
+
+        $models = (new ModelCatalog($httpClient))->getModels();
+
+        $this->assertSame([
+            Capability::TOOL_CALLING,
+            Capability::THINKING,
+            Capability::INPUT_MESSAGES,
+            Capability::OUTPUT_STRUCTURED,
+        ], $models['classifier']['capabilities']);
+    }
+
+    public function testModelCatalogStillRejectsUnknownCapabilities()
+    {
+        $httpClient = new MockHttpClient([
+            new JsonMockResponse([
+                'capabilities' => ['decision', 'unknown'],
+            ]),
+        ], 'http://127.0.0.1:11434');
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('The "unknown" capability is not supported');
+
+        (new ModelCatalog($httpClient))->getModel('foo');
     }
 
     public function testModelCatalogCanReturnEmbeddingModelsFromApi()

@@ -61,6 +61,8 @@ final class ModelCatalog implements ModelCatalogInterface
             throw new InvalidArgumentException('The model information could not be retrieved from the Ollama API. Your Ollama server might be too old. Try upgrade it.');
         }
 
+        // "decision" marks classification models served via /v1/systemone, which this bridge does not
+        // support, so it has no matching Capability; any other unknown capability still throws.
         $capabilities = array_map(
             static fn (string $capability): Capability => match ($capability) {
                 'embedding' => Capability::EMBEDDINGS,
@@ -72,7 +74,10 @@ final class ModelCatalog implements ModelCatalogInterface
                 'insert' => Capability::FILL_IN_THE_MIDDLE,
                 default => throw new InvalidArgumentException(\sprintf('The "%s" capability is not supported', $capability)),
             },
-            $payload['capabilities'],
+            array_values(array_filter(
+                $payload['capabilities'],
+                static fn (string $capability): bool => 'decision' !== $capability,
+            )),
         );
 
         if (!\in_array(Capability::EMBEDDINGS, $capabilities, true)) {
