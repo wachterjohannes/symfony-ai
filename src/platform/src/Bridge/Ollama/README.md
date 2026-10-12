@@ -3,6 +3,25 @@ Ollama Platform
 
 Ollama platform bridge for Symfony AI.
 
+Decision models
+---------------
+
+Models declaring the `decision` capability (Ollama >= 0.35.0) are served through `POST /v1/systemone`.
+They are queried with the `Evaluation` of the TypeSafe bridge and answer with its `Answers`::
+
+    use Symfony\AI\Platform\Bridge\Ollama\Factory;
+    use Symfony\AI\Platform\Bridge\TypeSafe\Evaluation;
+    use Symfony\AI\Platform\Bridge\TypeSafe\Question\ChoiceQuestion;
+
+    $platform = Factory::createPlatform('http://localhost:11434');
+    $answers = $platform->invoke('nimble', new Evaluation('Our checkout has returned 500 errors since 9am.', [
+        'label' => new ChoiceQuestion('Which label fits this ticket?', ['billing' => 'Payments', 'bug' => 'Software errors']),
+    ]))->asObject();
+
+    $answers->getChoice('label')->getChoice(); // "bug"
+
+Images (Clef models) are not supported yet.
+
 Ollama Documentation
 --------------------
 

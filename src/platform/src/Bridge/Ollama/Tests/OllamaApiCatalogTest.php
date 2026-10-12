@@ -13,6 +13,7 @@ namespace Symfony\AI\Platform\Bridge\Ollama\Tests;
 
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
+use Symfony\AI\Platform\Bridge\Ollama\Decision;
 use Symfony\AI\Platform\Bridge\Ollama\ModelCatalog;
 use Symfony\AI\Platform\Bridge\Ollama\Ollama;
 use Symfony\AI\Platform\Capability;
@@ -45,7 +46,7 @@ final class OllamaApiCatalogTest extends TestCase
         $this->assertSame(1, $httpClient->getRequestsCount());
     }
 
-    public function testModelCatalogIgnoresDecisionCapability()
+    public function testModelCatalogReturnsDecisionModelWithoutCapabilities()
     {
         $httpClient = new MockHttpClient([
             new JsonMockResponse([
@@ -53,47 +54,41 @@ final class OllamaApiCatalogTest extends TestCase
             ]),
         ], 'http://127.0.0.1:11434');
 
-        $model = (new ModelCatalog($httpClient))->getModel('foo');
+        $model = (new ModelCatalog($httpClient))->getModel('nimble');
 
-        $this->assertSame([
-            Capability::TOOL_CALLING,
-            Capability::THINKING,
-            Capability::INPUT_MESSAGES,
-            Capability::OUTPUT_STRUCTURED,
-        ], $model->getCapabilities());
+        $this->assertInstanceOf(Decision::class, $model);
+        $this->assertSame('nimble', $model->getName());
+        $this->assertSame([], $model->getCapabilities());
     }
 
-    public function testModelCatalogCanReturnModelsWithDecisionCapabilityFromApi()
+    public function testModelCatalogCanReturnDecisionModelsFromApi()
     {
         $httpClient = new MockHttpClient([
             new JsonMockResponse([
                 'models' => [
-                    [
-                        'name' => 'classifier',
-                        'details' => [],
-                    ],
+                    ['name' => 'nimble', 'details' => []],
+                    ['name' => 'llama3', 'details' => []],
                 ],
             ]),
             new JsonMockResponse([
                 'capabilities' => ['decision', 'tools', 'thinking', 'completion'],
             ]),
+            new JsonMockResponse([
+                'capabilities' => ['completion'],
+            ]),
         ], 'http://127.0.0.1:11434');
 
         $models = (new ModelCatalog($httpClient))->getModels();
 
-        $this->assertSame([
-            Capability::TOOL_CALLING,
-            Capability::THINKING,
-            Capability::INPUT_MESSAGES,
-            Capability::OUTPUT_STRUCTURED,
-        ], $models['classifier']['capabilities']);
+        $this->assertSame(['class' => Decision::class, 'capabilities' => []], $models['nimble']);
+        $this->assertSame(Ollama::class, $models['llama3']['class']);
     }
 
     public function testModelCatalogStillRejectsUnknownCapabilities()
     {
         $httpClient = new MockHttpClient([
             new JsonMockResponse([
-                'capabilities' => ['decision', 'unknown'],
+                'capabilities' => ['completion', 'unknown'],
             ]),
         ], 'http://127.0.0.1:11434');
 
