@@ -12,11 +12,11 @@
 namespace Symfony\AI\Agent\Execution;
 
 use Symfony\AI\Agent\Exception\MaxIterationsExceededException;
+use Symfony\AI\Agent\Execution\Run\RunState;
 use Symfony\AI\Agent\Execution\Update\Progress;
 use Symfony\AI\Agent\Execution\Update\Result as ResultUpdate;
 use Symfony\AI\Agent\Toolbox\Event\ToolCallsExecuted;
 use Symfony\AI\Agent\Toolbox\Exception\ToolNotFoundException;
-use Symfony\AI\Agent\Toolbox\Source\SourceCollection;
 use Symfony\AI\Agent\Toolbox\ToolboxInterface;
 use Symfony\AI\Agent\Toolbox\ToolExecutorInterface;
 use Symfony\AI\Agent\Toolbox\ToolResultConverter;
@@ -25,7 +25,6 @@ use Symfony\AI\Platform\Message\Content\Text;
 use Symfony\AI\Platform\Message\Content\Thinking;
 use Symfony\AI\Platform\Message\Message;
 use Symfony\AI\Platform\Message\MessageBag;
-use Symfony\AI\Platform\Metadata\Metadata;
 use Symfony\AI\Platform\PlatformInterface;
 use Symfony\AI\Platform\Result\MultiPartResult;
 use Symfony\AI\Platform\Result\ObjectResult;
@@ -73,87 +72,114 @@ final class Runner
      */
     public function run(string $model, MessageBag $messages, array $options, ?Cancellation $cancellation = null): \Generator
     {
-        [$options, $allowedTools] = $this->exposeTools($options);
-        $messages = $this->excludeToolMessages ? clone $messages : $messages;
-
-        $sources = new SourceCollection();
-        $metadata = new Metadata();
-        $iterations = 0;
+        $state = new RunState($model, $this->excludeToolMessages ? clone $messages : $messages, $options);
 
         while (true) {
-            $deferredResult = $this->platform->invoke($model, $messages, $options);
-            $cancellation?->activate($deferredResult->getRawResult());
-
-            try {
-                yield new Progress(Progress::STAGE_MODEL_REQUEST, 'Invoking model.', $model);
-
-                if ($cancellation?->isRequested()) {
-                    return;
-                }
-
-                $result = $deferredResult->getResult();
-
-                $assistantMessage = null;
-                if ($result instanceof StreamResult) {
-                    $streamedResult = yield from $this->consumeStream($result, $cancellation);
-                    if (null === $streamedResult) {
-                        return;
-                    }
-
-                    [$result, $assistantMessage] = $streamedResult;
-                }
-            } finally {
-                $cancellation?->deactivate();
-            }
+            $result = yield from $this->step($state, $cancellation);
 
             if ($cancellation?->isRequested()) {
                 return;
             }
 
-            $toolCallResult = $this->extractToolCallResult($result);
-            if (null === $toolCallResult || null === $this->toolExecutor) {
-                break;
+            if (null !== $result) {
+                yield new ResultUpdate($result);
+
+                return;
+            }
+        }
+    }
+
+    /**
+     * Executes one round: invokes the model and, if it asked for tools, executes them and appends the
+     * outcome to the conversation of the state.
+     *
+     * Everything the next round needs is in the state afterwards, so the rounds of a run may be executed
+     * by different processes.
+     *
+     * @return \Generator<int, UpdateInterface, mixed, ResultInterface|null> the final result, null if another round is needed or the run was canceled
+     */
+    public function step(RunState $state, ?Cancellation $cancellation = null): \Generator
+    {
+        $model = $state->getModel();
+        $messages = $state->getMessages();
+        [$options, $allowedTools] = $this->exposeTools($state->getOptions());
+
+        $deferredResult = $this->platform->invoke($model, $messages, $options);
+        $cancellation?->activate($deferredResult->getRawResult());
+
+        try {
+            yield new Progress('model_request', 'Invoking model.', $model);
+
+            if ($cancellation?->isRequested()) {
+                return null;
             }
 
-            // $metadata aggregates the tool calling rounds, the final result carries its own
-            $metadata->merge($result->getMetadata());
+            $result = $deferredResult->getResult();
 
-            if (null !== $this->maxToolCalls && ++$iterations > $this->maxToolCalls) {
-                throw new MaxIterationsExceededException($this->maxToolCalls);
-            }
-
-            $toolCalls = array_values($toolCallResult->getContent());
-            $this->denyRestrictedToolCalls($toolCalls, $allowedTools);
-            $toolResults = yield from $this->toolExecutor->execute($toolCalls);
-
-            $messages->add($assistantMessage ?? Message::ofAssistant($result));
-            foreach ($toolResults as $i => $toolResult) {
-                $messages->add(Message::ofToolCall($toolCalls[$i], $this->resultConverter->convert($toolResult)));
-
-                if (null !== $toolResult->getSources()) {
-                    $sources = $sources->merge($toolResult->getSources());
+            $assistantMessage = null;
+            if ($result instanceof StreamResult) {
+                $streamedResult = yield from $this->consumeStream($result, $cancellation);
+                if (null === $streamedResult) {
+                    return null;
                 }
+
+                [$result, $assistantMessage] = $streamedResult;
             }
+        } finally {
+            $cancellation?->deactivate();
+        }
 
-            $event = new ToolCallsExecuted($toolResults);
-            $this->eventDispatcher?->dispatch($event);
+        if ($cancellation?->isRequested()) {
+            return null;
+        }
 
-            if ($event->hasResult()) {
-                $result = $event->getResult();
+        $toolCallResult = $this->extractToolCallResult($result);
+        if (null === $toolCallResult || null === $this->toolExecutor) {
+            return $this->finish($state, $result);
+        }
 
-                break;
+        // the metadata of the state aggregates the tool calling rounds, the final result carries its own
+        $state->getMetadata()->merge($result->getMetadata());
+
+        if (null !== $this->maxToolCalls && $state->countToolRound() > $this->maxToolCalls) {
+            throw new MaxIterationsExceededException($this->maxToolCalls);
+        }
+
+        $toolCalls = array_values($toolCallResult->getContent());
+        $this->denyRestrictedToolCalls($toolCalls, $allowedTools);
+        $toolResults = yield from $this->toolExecutor->execute($toolCalls);
+
+        $messages->add($assistantMessage ?? Message::ofAssistant($result));
+        foreach ($toolResults as $i => $toolResult) {
+            $messages->add(Message::ofToolCall($toolCalls[$i], $this->resultConverter->convert($toolResult)));
+
+            if (null !== $toolResult->getSources()) {
+                $state->mergeSources($toolResult->getSources());
             }
         }
 
+        $event = new ToolCallsExecuted($toolResults);
+        $this->eventDispatcher?->dispatch($event);
+
+        if ($event->hasResult()) {
+            return $this->finish($state, $event->getResult());
+        }
+
+        return null;
+    }
+
+    private function finish(RunState $state, ResultInterface $result): ResultInterface
+    {
         // Merged in order, so mergeable values like the token usage add up and the final result's own values win
+        $metadata = $state->getMetadata();
         $metadata->merge($result->getMetadata());
         $result->getMetadata()->set($metadata->all());
 
         if ($this->includeSources) {
-            $result->getMetadata()->add('sources', $sources);
+            $result->getMetadata()->add('sources', $state->getSources());
         }
 
-        yield new ResultUpdate($result);
+        return $result;
     }
 
     /**
