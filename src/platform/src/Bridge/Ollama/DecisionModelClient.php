@@ -18,7 +18,7 @@ use Symfony\AI\Platform\Result\RawHttpResult;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 /**
- * Sends {@see \Symfony\AI\Platform\Bridge\TypeSafe\Evaluation}s to the "POST /v1/systemone" endpoint of Ollama.
+ * Sends {@see \Symfony\AI\Platform\Decision\Evaluation}s to the "POST /v1/systemone" endpoint of Ollama.
  *
  * @author Johannes Wachter <johannes@sulu.io>
  */

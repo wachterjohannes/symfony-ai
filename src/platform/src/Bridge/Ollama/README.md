@@ -7,11 +7,11 @@ Decision models
 ---------------
 
 Models declaring the `decision` capability (Ollama >= 0.35.0) are served through `POST /v1/systemone`.
-They are queried with the `Evaluation` of the TypeSafe bridge and answer with its `Answers`::
+They are queried with the `Evaluation` of the Platform's `Decision` namespace and answer with its `Answers`::
 
     use Symfony\AI\Platform\Bridge\Ollama\Factory;
-    use Symfony\AI\Platform\Bridge\TypeSafe\Evaluation;
-    use Symfony\AI\Platform\Bridge\TypeSafe\Question\ChoiceQuestion;
+    use Symfony\AI\Platform\Decision\Evaluation;
+    use Symfony\AI\Platform\Decision\Question\ChoiceQuestion;
 
     $platform = Factory::createPlatform('http://localhost:11434');
     $answers = $platform->invoke('nimble', new Evaluation('Our checkout has returned 500 errors since 9am.', [

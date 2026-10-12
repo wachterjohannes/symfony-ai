@@ -549,7 +549,6 @@ deptrac:
       - VertexAiPlatform
     OllamaPlatform:
       - PlatformComponent
-      - TypeSafePlatform
     OpenAiPlatform:
       - PlatformComponent
       - OpenResponsesPlatform

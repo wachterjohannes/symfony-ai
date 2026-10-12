@@ -11,7 +11,8 @@
 
 namespace Symfony\AI\Platform\Bridge\Ollama;
 
-use Symfony\AI\Platform\Bridge\TypeSafe\ResultConverter as TypeSafeResultConverter;
+use Symfony\AI\Platform\Decision\AnswersConverter;
+use Symfony\AI\Platform\Decision\TokenUsageExtractor;
 use Symfony\AI\Platform\Exception\RuntimeException;
 use Symfony\AI\Platform\Model;
 use Symfony\AI\Platform\Result\HttpStatusErrorHandlingTrait;
@@ -24,23 +25,15 @@ use Symfony\Contracts\HttpClient\Exception\DecodingExceptionInterface;
 use Symfony\Contracts\HttpClient\ResponseInterface;
 
 /**
- * Converts the "POST /v1/systemone" response of Ollama into {@see \Symfony\AI\Platform\Bridge\TypeSafe\Answer\Answers}.
+ * Converts the "POST /v1/systemone" response of Ollama into {@see \Symfony\AI\Platform\Decision\Answer\Answers}.
  *
- * The success payload is identical to the one of TypeSafe, so it is delegated to its converter; only the
- * error handling differs, as Ollama reports errors as {"error": "message"}.
+ * Ollama reports errors as {"error": "message"}; the success payload is shared with other decision providers.
  *
  * @author Johannes Wachter <johannes@sulu.io>
  */
 final class DecisionResultConverter implements ResultConverterInterface
 {
     use HttpStatusErrorHandlingTrait;
-
-    private readonly TypeSafeResultConverter $converter;
-
-    public function __construct()
-    {
-        $this->converter = new TypeSafeResultConverter();
-    }
 
     public function supports(Model $model): bool
     {
@@ -58,12 +51,12 @@ final class DecisionResultConverter implements ResultConverterInterface
             throw new RuntimeException(\sprintf('Unexpected response code %d: "%s"', $httpResponse->getStatusCode(), $this->extractErrorMessage($httpResponse) ?? $httpResponse->getContent(false)));
         }
 
-        return $this->converter->convert($result, $options);
+        return new ObjectResult((new AnswersConverter())->convert($result->getData()));
     }
 
     public function getTokenUsageExtractor(): TokenUsageExtractorInterface
     {
-        return $this->converter->getTokenUsageExtractor();
+        return new TokenUsageExtractor();
     }
 
     private function extractErrorMessage(ResponseInterface $response): ?string

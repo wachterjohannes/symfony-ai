@@ -4,8 +4,7 @@ CHANGELOG
 0.15
 ----
 
- * Add support for decision models (`decision` capability, Ollama >= 0.35.0), served through `POST /v1/systemone` and queried with the `Evaluation` of the TypeSafe bridge
- * Add the `symfony/ai-type-safe-platform` dependency
+ * Add support for decision models (`decision` capability, Ollama >= 0.35.0), served through `POST /v1/systemone` and queried with the `Decision\Evaluation` of the Platform
 
 0.14
 ----

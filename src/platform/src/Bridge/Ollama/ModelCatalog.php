@@ -62,7 +62,7 @@ final class ModelCatalog implements ModelCatalogInterface
         }
 
         // Decision models are served by the dedicated "POST /v1/systemone" endpoint, not by the chat API,
-        // so their other capabilities (e.g. "completion") do not apply: like TypeSafe's Jev they have none.
+        // so their other capabilities (e.g. "completion") do not apply: they have none, like other decision models (e.g. TypeSafe's Jev).
         if (\in_array('decision', $payload['capabilities'], true)) {
             return new Decision($modelName, []);
         }
