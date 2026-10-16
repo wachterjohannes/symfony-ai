@@ -585,6 +585,7 @@ deptrac:
       - PlatformComponent
     StoreComponent:
       - PlatformComponent
+      - TypeSafePlatform
     AzureSearchStore:
       - StoreComponent
       - PlatformComponent
