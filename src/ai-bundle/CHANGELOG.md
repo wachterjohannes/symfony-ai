@@ -5,6 +5,7 @@ CHANGELOG
 ----
 
  * Tag the MCP toolboxes of `mcp_server` tool entries with `kernel.reset`, so long-running workers refresh the tool list of a remote MCP server between requests and messages
+ * Add a `doctrine` store, keeping vectors in a column of the table a Doctrine entity already lives in
 
 0.14
 ----

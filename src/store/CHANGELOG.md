@@ -1,6 +1,12 @@
 CHANGELOG
 =========
 
+0.15
+----
+
+ * Add `Document\VectorDocumentFactoryInterface`
+ * Add the `Doctrine` bridge, keeping vectors on the entity table or mirroring entities into any store
+
 0.14
 ----
 
