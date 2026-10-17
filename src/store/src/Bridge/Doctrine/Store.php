@@ -166,6 +166,18 @@ final class Store implements ManagedStoreInterface, StoreInterface
         );
     }
 
+    /**
+     * Counts the entities that carry a vector, as those are the documents of this store.
+     */
+    public function count(): int
+    {
+        $count = $this->entityManager->getConnection()->fetchOne(
+            \sprintf('SELECT COUNT(*) FROM %s WHERE %s IS NOT NULL', $this->tableName(), $this->vectorColumn()),
+        );
+
+        return max(0, (int) $count);
+    }
+
     public function supports(string $queryClass): bool
     {
         return VectorQuery::class === $queryClass;

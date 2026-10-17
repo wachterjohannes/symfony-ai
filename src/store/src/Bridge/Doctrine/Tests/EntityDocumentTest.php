@@ -13,9 +13,12 @@ namespace Symfony\AI\Store\Bridge\Doctrine\Tests;
 
 use PHPUnit\Framework\TestCase;
 use Symfony\AI\Platform\Vector\Vector;
+use Symfony\AI\Store\Bridge\Doctrine\Attribute\AiEmbeddable;
+use Symfony\AI\Store\Bridge\Doctrine\EmbeddableEntityInterface;
 use Symfony\AI\Store\Bridge\Doctrine\EntityDocument;
 use Symfony\AI\Store\Bridge\Doctrine\EntityVectorDocument;
 use Symfony\AI\Store\Bridge\Doctrine\Tests\Fixtures\Article;
+use Symfony\AI\Store\Bridge\Doctrine\Tests\Fixtures\Note;
 use Symfony\AI\Store\Document\Metadata;
 use Symfony\AI\Store\Exception\InvalidArgumentException;
 
@@ -36,10 +39,36 @@ final class EntityDocumentTest extends TestCase
         $this->assertSame('something else entirely', $document->getContent());
     }
 
+    public function testRendersTheAttributesOfAnEntityWithoutTheInterface(): void
+    {
+        $document = EntityDocument::fromEntity(new Note('Reality TV', 'A show about people.'), 1);
+
+        $this->assertSame("Title: Reality TV\nText: A show about people.", $document->getContent());
+    }
+
+    public function testPrefersTheInterfaceOverTheAttributes(): void
+    {
+        $entity = new #[AiEmbeddable(template: 'from the attribute')] class implements EmbeddableEntityInterface {
+            public function getEmbeddableContent(): string
+            {
+                return 'from the interface';
+            }
+        };
+
+        $this->assertSame('from the interface', EntityDocument::fromEntity($entity, 1)->getContent());
+    }
+
+    public function testPrefersGivenContentOverTheAttributes(): void
+    {
+        $document = EntityDocument::fromEntity(new Note('Reality TV'), 1, 'something else entirely');
+
+        $this->assertSame('something else entirely', $document->getContent());
+    }
+
     public function testRefusesAnEntityThatDoesNotSayWhatToEmbed(): void
     {
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessageMatches('/Cannot derive embeddable content/');
+        $this->expectExceptionMessageMatches('/Cannot derive embeddable content.*#\[AiEmbeddable\]/');
 
         EntityDocument::fromEntity(new \stdClass(), 1);
     }

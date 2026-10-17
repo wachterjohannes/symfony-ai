@@ -107,6 +107,40 @@ File-based vector storage using `Vektor`_. The index is the storage directory it
 SQL Databases
 -------------
 
+Doctrine
+~~~~~~~~
+
+Embeddings for Doctrine ORM entities, either in a column of the entity's own table or mirrored into
+any other store.
+
+.. code-block:: terminal
+
+    $ composer require symfony/ai-doctrine-store
+
+**Requirements:** ``doctrine/orm``, plus a database with vector support for the column approach
+(PostgreSQL with ``pgvector``, MariaDB 11.7+, MySQL 9.0+ or SQLite with `sqlite-vec`_)
+
+::
+
+    use Symfony\AI\Store\Bridge\Doctrine\Store;
+
+    $store = new Store($entityManager, Article::class, 'embedding');
+
+.. code-block:: yaml
+
+    # config/packages/ai.yaml
+    ai:
+        store:
+            doctrine:
+                my_store:
+                    entity: 'App\Entity\Article'
+                    vector_field: 'embedding'
+                    distance: 'cosine'
+                    setup_options:
+                        dimensions: 1536
+
+See :doc:`doctrine` for the DBAL type, the mirror approach and when to use which.
+
 Postgres
 ~~~~~~~~
 

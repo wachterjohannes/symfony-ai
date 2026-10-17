@@ -165,6 +165,18 @@ final class IntegrationTest extends TestCase
         $this->assertSame('Indexed', $this->titleOf($documents[0]));
     }
 
+    public function testCountsTheEntitiesCarryingAVector(): void
+    {
+        $store = $this->store();
+        $store->setup(['dimensions' => 3]);
+        $indexed = $this->persist(new Article('Indexed'));
+        $this->persist(new Article('Not indexed'));
+
+        $store->add(new VectorDocument($indexed->getId(), new Vector([1.0, 0.0, 0.0])));
+
+        $this->assertCount(1, $store);
+    }
+
     public function testClearingKeepsTheEntities(): void
     {
         $store = $this->store();

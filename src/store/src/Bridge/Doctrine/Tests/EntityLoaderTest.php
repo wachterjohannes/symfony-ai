@@ -18,11 +18,14 @@ use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\ORMSetup;
 use Doctrine\ORM\Tools\SchemaTool;
 use PHPUnit\Framework\TestCase;
+use Symfony\AI\Store\Bridge\Doctrine\EntityContentRenderer;
 use Symfony\AI\Store\Bridge\Doctrine\EntityDocument;
 use Symfony\AI\Store\Bridge\Doctrine\EntityLoader;
 use Symfony\AI\Store\Bridge\Doctrine\Tests\Fixtures\Article;
+use Symfony\AI\Store\Bridge\Doctrine\Tests\Fixtures\Note;
 use Symfony\AI\Store\Bridge\Doctrine\Type\VectorType;
 use Symfony\AI\Store\Exception\InvalidArgumentException;
+use Symfony\Component\PropertyAccess\PropertyAccessorInterface;
 
 final class EntityLoaderTest extends TestCase
 {
@@ -43,7 +46,10 @@ final class EntityLoaderTest extends TestCase
         $connection = DriverManager::getConnection(['driver' => 'pdo_sqlite', 'memory' => true], $configuration);
         $this->entityManager = new EntityManager($connection, $configuration);
 
-        (new SchemaTool($this->entityManager))->createSchema([$this->entityManager->getClassMetadata(Article::class)]);
+        (new SchemaTool($this->entityManager))->createSchema([
+            $this->entityManager->getClassMetadata(Article::class),
+            $this->entityManager->getClassMetadata(Note::class),
+        ]);
     }
 
     public function testWalksEveryEntityAcrossPageBoundaries(): void
@@ -103,6 +109,32 @@ final class EntityLoaderTest extends TestCase
         );
 
         $this->assertSame('FIRST', iterator_to_array($loader->load(), false)[0]->getContent());
+    }
+
+    public function testRendersEntitiesDescribedByAttributes(): void
+    {
+        $this->entityManager->persist(new Note('Reality TV', 'A show about people.'));
+        $this->entityManager->flush();
+
+        $loader = new EntityLoader($this->entityManager, Note::class);
+        $documents = iterator_to_array($loader->load(), false);
+
+        $this->assertCount(1, $documents);
+        $this->assertSame("Title: Reality TV\nText: A show about people.", $documents[0]->getContent());
+        $this->assertStringNotContainsString('never embed this', $documents[0]->getContent());
+    }
+
+    public function testUsesTheRendererItWasGiven(): void
+    {
+        $this->entityManager->persist(new Note('Reality TV'));
+        $this->entityManager->flush();
+
+        $propertyAccessor = $this->createMock(PropertyAccessorInterface::class);
+        $propertyAccessor->method('getValue')->willReturn('read by the given accessor');
+
+        $loader = new EntityLoader($this->entityManager, Note::class, renderer: new EntityContentRenderer($propertyAccessor));
+
+        $this->assertSame("Title: read by the given accessor\nText: read by the given accessor", iterator_to_array($loader->load(), false)[0]->getContent());
     }
 
     public function testYieldsNothingForAnEmptyTable(): void

@@ -25,11 +25,14 @@ use Symfony\AI\Store\Exception\InvalidArgumentException;
  */
 final class EntityLoader implements LoaderInterface
 {
+    private readonly EntityContentRenderer $renderer;
+
     /**
      * @param class-string|null               $entityClass    the entity to load when `load()` is called without a source
      * @param (\Closure(object): string)|null $contentBuilder builds the text to embed, defaulting to what the entity declares itself
      * @param positive-int                    $batchSize      how many entities are read per query
      * @param bool                            $clearBatches   whether to clear the entity manager after every page
+     * @param EntityContentRenderer|null      $renderer       renders entities marked with #[AiEmbeddable], a new one is used by default
      */
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
@@ -37,7 +40,9 @@ final class EntityLoader implements LoaderInterface
         private readonly ?\Closure $contentBuilder = null,
         private readonly int $batchSize = 100,
         private readonly bool $clearBatches = true,
+        ?EntityContentRenderer $renderer = null,
     ) {
+        $this->renderer = $renderer ?? new EntityContentRenderer();
     }
 
     /**
@@ -78,6 +83,7 @@ final class EntityLoader implements LoaderInterface
                     entity: $entity,
                     id: $this->identifierOf($metadata->getIdentifierValues($entity)[$identifierField]),
                     content: null === $this->contentBuilder ? null : ($this->contentBuilder)($entity),
+                    renderer: $this->renderer,
                 );
             }
 

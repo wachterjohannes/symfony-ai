@@ -39,16 +39,23 @@ final class EntityDocument implements VectorDocumentFactoryInterface
     }
 
     /**
+     * The content is taken from the first of these that exists: the given content, the entity's own
+     * {@see EmbeddableEntityInterface::getEmbeddableContent()}, the entity's #[AiEmbeddable] attributes.
+     *
      * @param string|null $content the text to embed, defaulting to what the entity itself declares
      */
-    public static function fromEntity(object $entity, int|string $id, ?string $content = null, Metadata $metadata = new Metadata()): self
+    public static function fromEntity(object $entity, int|string $id, ?string $content = null, Metadata $metadata = new Metadata(), ?EntityContentRenderer $renderer = null): self
     {
         if (null === $content) {
-            if (!$entity instanceof EmbeddableEntityInterface) {
-                throw new InvalidArgumentException(\sprintf('Cannot derive embeddable content from "%s", let it implement "%s" or pass the content explicitly.', $entity::class, EmbeddableEntityInterface::class));
-            }
+            $renderer ??= new EntityContentRenderer();
 
-            $content = $entity->getEmbeddableContent();
+            if ($entity instanceof EmbeddableEntityInterface) {
+                $content = $entity->getEmbeddableContent();
+            } elseif ($renderer->supports($entity)) {
+                $content = $renderer->render($entity);
+            } else {
+                throw new InvalidArgumentException(\sprintf('Cannot derive embeddable content from "%s", let it implement "%s", mark it with #[AiEmbeddable] or pass the content explicitly.', $entity::class, EmbeddableEntityInterface::class));
+            }
         }
 
         return new self($entity, $id, $content, $metadata);

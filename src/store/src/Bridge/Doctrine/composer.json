@@ -1,6 +1,6 @@
 {
     "name": "symfony/ai-doctrine-store",
-    "description": "Doctrine ORM vector store bridge for Symfony AI, storing embeddings on the entity's own table",
+    "description": "Doctrine ORM bridge for Symfony AI Store, embedding entities either on their own table or mirrored into any other store",
     "license": "MIT",
     "type": "symfony-ai-store",
     "keywords": [
@@ -13,6 +13,7 @@
         "orm",
         "pgvector",
         "postgres",
+        "rag",
         "store",
         "vector"
     ],
@@ -22,6 +23,10 @@
             "email": "mail@christopher-hertel.de"
         },
         {
+            "name": "Johannes Wachter",
+            "email": "johannes@sulu.io"
+        },
+        {
             "name": "Symfony Community",
             "homepage": "https://symfony.com/contributors"
         }
@@ -29,17 +34,22 @@
     "require": {
         "php": ">=8.2",
         "doctrine/dbal": "^4.0",
+        "doctrine/event-manager": "^1.2|^2.0",
         "doctrine/orm": "^3.0",
+        "doctrine/persistence": "^3.1|^4.0",
         "oskarstark/enum-helper": "^1.5",
         "symfony/ai-platform": "^0.14",
-        "symfony/ai-store": "^0.14"
+        "symfony/ai-store": "^0.14",
+        "symfony/property-access": "^7.3|^8.0",
+        "symfony/uid": "^7.3|^8.0"
     },
     "require-dev": {
         "phpstan/phpstan": "^2.1",
         "phpstan/phpstan-phpunit": "^2.0",
         "phpstan/phpstan-strict-rules": "^2.0",
         "phpunit/phpunit": "^11.5.53",
-        "symfony/uid": "^7.3|^8.0"
+        "symfony/cache": "^7.3|^8.0",
+        "symfony/var-exporter": "^7.3|^8.0"
     },
     "minimum-stability": "dev",
     "autoload": {

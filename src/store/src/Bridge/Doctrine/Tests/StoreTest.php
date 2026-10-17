@@ -22,6 +22,7 @@ use Symfony\AI\Platform\Vector\Vector;
 use Symfony\AI\Store\Bridge\Doctrine\EntityDocument;
 use Symfony\AI\Store\Bridge\Doctrine\Store;
 use Symfony\AI\Store\Bridge\Doctrine\Tests\Fixtures\Article;
+use Symfony\AI\Store\Bridge\Doctrine\Tests\Fixtures\Note;
 use Symfony\AI\Store\Bridge\Doctrine\Type\VectorType;
 use Symfony\AI\Store\Document\VectorDocument;
 use Symfony\AI\Store\Exception\InvalidArgumentException;
@@ -57,7 +58,10 @@ final class StoreTest extends TestCase
         $this->entityManager = new EntityManager($connection, $configuration);
 
         $schemaTool = new SchemaTool($this->entityManager);
-        $schemaTool->createSchema([$this->entityManager->getClassMetadata(Article::class)]);
+        $schemaTool->createSchema([
+            $this->entityManager->getClassMetadata(Article::class),
+            $this->entityManager->getClassMetadata(Note::class),
+        ]);
     }
 
     public function testWritesTheVectorOntoTheRowOfItsEntity(): void
@@ -120,6 +124,31 @@ final class StoreTest extends TestCase
         $this->assertNull($this->storedVector($first));
         $this->assertNull($this->storedVector($second));
         $this->assertSame(2, $this->countArticles());
+    }
+
+    public function testCountsTheEntitiesCarryingAVector(): void
+    {
+        $first = $this->persist(new Article('First'));
+        $this->persist(new Article('Second'));
+        $store = $this->store();
+
+        $this->assertCount(0, $store);
+
+        $store->add(new VectorDocument($first->getId(), new Vector([1.0])));
+
+        $this->assertCount(1, $store);
+    }
+
+    public function testTakesTheVectorOfAnEntityDescribedByAttributes(): void
+    {
+        $note = new Note('Reality TV', 'A show about people.');
+        $this->entityManager->persist($note);
+        $this->entityManager->flush();
+
+        $document = EntityDocument::fromEntity($note, $note->getId());
+        (new Store($this->entityManager, Note::class, 'embedding'))->add($document->createVectorDocument(new Vector([0.5])));
+
+        $this->assertSame('[0.5]', $this->entityManager->getConnection()->fetchOne('SELECT embedding FROM note WHERE id = ?', [$note->getId()]));
     }
 
     public function testAddingNothingTouchesNothing(): void
