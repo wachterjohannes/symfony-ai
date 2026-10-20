@@ -19,6 +19,7 @@ namespace Symfony\AI\Platform;
 final class PlatformOptions
 {
     public const MAX_OUTPUT_TOKEN = 'max_output_tokens';
+    public const TEMPERATURE = 'temperature';
 
     private function __construct()
     {

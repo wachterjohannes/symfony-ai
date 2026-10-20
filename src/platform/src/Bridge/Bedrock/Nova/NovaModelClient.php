@@ -18,6 +18,7 @@ use Symfony\AI\Platform\Bridge\Bedrock\RegionMapper;
 use Symfony\AI\Platform\Exception\InvalidArgumentException;
 use Symfony\AI\Platform\Model;
 use Symfony\AI\Platform\ModelClientInterface;
+use Symfony\AI\Platform\PlatformOptions;
 
 /**
  * @author Björn Altmann
@@ -47,8 +48,8 @@ class NovaModelClient implements ModelClientInterface
             $modelOptions['toolConfig']['tools'] = $options['tools'];
         }
 
-        if (isset($options['temperature'])) {
-            $modelOptions['inferenceConfig']['temperature'] = $options['temperature'];
+        if (isset($options[PlatformOptions::TEMPERATURE])) {
+            $modelOptions['inferenceConfig']['temperature'] = $options[PlatformOptions::TEMPERATURE];
         }
 
         if (isset($options['max_tokens'])) {

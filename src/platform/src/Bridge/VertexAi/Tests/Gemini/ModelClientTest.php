@@ -251,6 +251,21 @@ final class ModelClientTest extends TestCase
         ]);
     }
 
+    public function testCanonicalTemperatureIsMovedIntoGenerationConfig()
+    {
+        $httpClient = new MockHttpClient(function (string $method, string $url, array $options) {
+            $body = json_decode($options['body'], true);
+
+            $this->assertSame(0.7, $body['generationConfig']['temperature']);
+            $this->assertArrayNotHasKey('temperature', $body);
+
+            return new JsonMockResponse(['candidates' => []]);
+        });
+
+        $client = new ModelClient($httpClient, 'global', 'test');
+        $client->request(new Model('gemini-2.0-flash'), ['contents' => []], ['temperature' => 0.7]);
+    }
+
     public function testMalformedUtf8InPayloadDoesNotAbortTheRequest()
     {
         $httpClient = new MockHttpClient(function (string $method, string $url, array $options) {

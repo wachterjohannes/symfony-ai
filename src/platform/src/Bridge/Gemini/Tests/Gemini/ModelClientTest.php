@@ -82,6 +82,21 @@ final class ModelClientTest extends TestCase
         $client->request(new Gemini('gemini-1.5-flash'), $payload, $options);
     }
 
+    public function testTemperatureLandsInGenerationConfig()
+    {
+        $httpClient = new MockHttpClient(function (string $method, string $url, array $options) {
+            $body = json_decode($options['body'], true);
+
+            $this->assertSame(0.7, $body['generationConfig']['temperature']);
+            $this->assertArrayNotHasKey('temperature', $body);
+
+            return new JsonMockResponse(['candidates' => []]);
+        });
+
+        $client = new ModelClient($httpClient, 'test-api-key');
+        $client->request(new Gemini('gemini-1.5-flash'), ['contents' => []], ['temperature' => 0.7]);
+    }
+
     public function testCanonicalMaxOutputTokensIsRenamedToMaxOutputTokensCamelCase()
     {
         $httpClient = new MockHttpClient(function (string $method, string $url, array $options) {

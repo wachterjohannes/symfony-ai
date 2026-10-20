@@ -81,6 +81,11 @@ final class ModelClient implements ModelClientInterface
             unset($options[PlatformOptions::MAX_OUTPUT_TOKEN]);
         }
 
+        if (isset($options[PlatformOptions::TEMPERATURE])) {
+            $options['generationConfig']['temperature'] = $options[PlatformOptions::TEMPERATURE];
+            unset($options[PlatformOptions::TEMPERATURE]);
+        }
+
         if (isset($options['generationConfig'])) {
             $options['generationConfig'] = (object) $options['generationConfig'];
         }

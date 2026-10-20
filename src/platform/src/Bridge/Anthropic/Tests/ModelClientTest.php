@@ -393,6 +393,19 @@ class ModelClientTest extends TestCase
         $this->modelClient->request($this->model, ['message' => 'test'], $options);
     }
 
+    public function testTemperatureIsSentTopLevel()
+    {
+        $this->httpClient = new MockHttpClient(function ($method, $url, $options) {
+            $body = json_decode($options['body'], true);
+            $this->assertSame(0.7, $body['temperature']);
+
+            return new JsonMockResponse('{"success": true}');
+        });
+
+        $this->modelClient = new ModelClient($this->httpClient, 'test-api-key');
+        $this->modelClient->request($this->model, ['message' => 'test'], ['temperature' => 0.7]);
+    }
+
     public function testCanonicalMaxOutputTokensOverridesTheModelsDefaultMaxTokens()
     {
         $this->httpClient = new MockHttpClient(function ($method, $url, $options) {

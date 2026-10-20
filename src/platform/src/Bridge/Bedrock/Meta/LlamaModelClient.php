@@ -18,6 +18,7 @@ use Symfony\AI\Platform\Bridge\Bedrock\RegionMapper;
 use Symfony\AI\Platform\Bridge\Meta\Llama;
 use Symfony\AI\Platform\Model;
 use Symfony\AI\Platform\ModelClientInterface;
+use Symfony\AI\Platform\PlatformOptions;
 
 /**
  * @author Björn Altmann
@@ -36,10 +37,15 @@ class LlamaModelClient implements ModelClientInterface
 
     public function request(Model $model, array|string $payload, array $options = []): RawBedrockResult
     {
+        $body = $payload;
+        if (\is_array($body) && isset($options[PlatformOptions::TEMPERATURE])) {
+            $body['temperature'] = $options[PlatformOptions::TEMPERATURE];
+        }
+
         return new RawBedrockResult($this->bedrockRuntimeClient->invokeModel(new InvokeModelRequest([
             'modelId' => $this->getModelId($model),
             'contentType' => 'application/json',
-            'body' => json_encode($payload, \JSON_THROW_ON_ERROR),
+            'body' => json_encode($body, \JSON_THROW_ON_ERROR),
         ])));
     }
 
