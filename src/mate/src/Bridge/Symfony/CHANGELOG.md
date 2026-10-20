@@ -1,6 +1,11 @@
 CHANGELOG
 =========
 
+0.16
+----
+
+ * Add the `symfony-profiler-summary` tool: counts the latest top-level requests (500 by default, sub-requests skipped), reports how many failed (status 400 or above) and groups the failures by `METHOD STATUS path?query`, most frequent first, so "what fails most" no longer takes paging through `symfony-profiler-list`. `truncated` says whether older requests were left out; `limit=0` looks at all of them
+
 0.14
 ----
 
