@@ -16,6 +16,7 @@ use Symfony\AI\Platform\Exception\InvalidArgumentException;
 use Symfony\AI\Platform\JsonBodyEncodingTrait;
 use Symfony\AI\Platform\Model;
 use Symfony\AI\Platform\ModelClientInterface;
+use Symfony\AI\Platform\PlatformOptions;
 use Symfony\AI\Platform\Result\RawHttpResult;
 use Symfony\Component\HttpClient\EventSourceHttpClient;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
@@ -55,9 +56,9 @@ final class ModelClient implements ModelClientInterface
 
         // The canonical option every bridge accepts; Mistral's chat completions endpoint expects
         // it as "max_tokens".
-        if (isset($options['max_output_tokens'])) {
-            $options['max_tokens'] = $options['max_output_tokens'];
-            unset($options['max_output_tokens']);
+        if (isset($options[PlatformOptions::MAX_OUTPUT_TOKEN])) {
+            $options['max_tokens'] = $options[PlatformOptions::MAX_OUTPUT_TOKEN];
+            unset($options[PlatformOptions::MAX_OUTPUT_TOKEN]);
         }
 
         return new RawHttpResult($this->httpClient->request('POST', $this->baseUrl.'/v1/chat/completions', [

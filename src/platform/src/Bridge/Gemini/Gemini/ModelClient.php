@@ -16,6 +16,7 @@ use Symfony\AI\Platform\Exception\InvalidArgumentException;
 use Symfony\AI\Platform\JsonBodyEncodingTrait;
 use Symfony\AI\Platform\Model;
 use Symfony\AI\Platform\ModelClientInterface;
+use Symfony\AI\Platform\PlatformOptions;
 use Symfony\AI\Platform\Result\RawHttpResult;
 use Symfony\AI\Platform\StructuredOutput\PlatformSubscriber;
 use Symfony\Component\HttpClient\EventSourceHttpClient;
@@ -73,9 +74,9 @@ final class ModelClient implements ModelClientInterface
 
         // The canonical option every bridge accepts; Gemini's own generationConfig field is the
         // camelCase "maxOutputTokens" and rejects an unrecognized field with a 400.
-        if (isset($options['max_output_tokens'])) {
-            $options['maxOutputTokens'] = $options['max_output_tokens'];
-            unset($options['max_output_tokens']);
+        if (isset($options[PlatformOptions::MAX_OUTPUT_TOKEN])) {
+            $options['maxOutputTokens'] = $options[PlatformOptions::MAX_OUTPUT_TOKEN];
+            unset($options[PlatformOptions::MAX_OUTPUT_TOKEN]);
         }
 
         $config = ['generationConfig' => $options];

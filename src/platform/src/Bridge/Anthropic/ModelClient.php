@@ -15,6 +15,7 @@ use Symfony\AI\Platform\Exception\InvalidArgumentException;
 use Symfony\AI\Platform\JsonBodyEncodingTrait;
 use Symfony\AI\Platform\Model;
 use Symfony\AI\Platform\ModelClientInterface;
+use Symfony\AI\Platform\PlatformOptions;
 use Symfony\AI\Platform\Result\RawHttpResult;
 use Symfony\Component\HttpClient\EventSourceHttpClient;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
@@ -84,9 +85,9 @@ final class ModelClient implements ModelClientInterface
         // The canonical option every bridge accepts; Anthropic's own wire field is "max_tokens"
         // (required on every request), so an explicit canonical value always wins over whatever
         // default a Model class (e.g. Claude) already put there.
-        if (isset($options['max_output_tokens'])) {
-            $options['max_tokens'] = $options['max_output_tokens'];
-            unset($options['max_output_tokens']);
+        if (isset($options[PlatformOptions::MAX_OUTPUT_TOKEN])) {
+            $options['max_tokens'] = $options[PlatformOptions::MAX_OUTPUT_TOKEN];
+            unset($options[PlatformOptions::MAX_OUTPUT_TOKEN]);
         }
 
         $cacheControl = $this->getCacheControl($this->cacheRetention);
