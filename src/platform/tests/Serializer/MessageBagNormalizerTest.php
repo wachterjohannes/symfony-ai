@@ -19,8 +19,10 @@ use Symfony\AI\Platform\Message\Message;
 use Symfony\AI\Platform\Message\MessageBag;
 use Symfony\AI\Platform\Result\ToolCall;
 use Symfony\AI\Platform\Serializer\MessageBagNormalizer;
+use Symfony\AI\Platform\Tests\Fixtures\StructuredOutput\City;
 use Symfony\AI\Platform\TokenUsage\TokenUsage;
 use Symfony\Component\Serializer\Encoder\JsonEncoder;
+use Symfony\Component\Serializer\Normalizer\ObjectNormalizer;
 use Symfony\Component\Serializer\Serializer;
 
 final class MessageBagNormalizerTest extends TestCase
@@ -46,6 +48,21 @@ final class MessageBagNormalizerTest extends TestCase
         $this->assertSame('weather', $restored->getMetadata()->get('sticky_agent'));
         $this->assertEquals(new TokenUsage(promptTokens: 10), $restored->getMetadata()->get('token_usage'));
         $this->assertSame($normalizer->normalize($messages), $normalizer->normalize($restored));
+    }
+
+    public function testCustomMetadataKeysOfTheBagSurviveAJsonRoundTrip()
+    {
+        $messages = new MessageBag(Message::ofUser('Hi'));
+        $messages->getMetadata()->add('app_ticket', 'T-42');
+        $messages->getMetadata()->add('app_context', ['user' => ['id' => 7, 'roles' => ['admin']]]);
+        $messages->getMetadata()->add('app_city', new City('Berlin', 3500000));
+        $serializer = new Serializer([new MessageBagNormalizer(), new ObjectNormalizer()], [new JsonEncoder()]);
+
+        $restored = $serializer->deserialize($serializer->serialize($messages, 'json'), MessageBag::class, 'json');
+
+        $this->assertSame('T-42', $restored->getMetadata()->get('app_ticket'));
+        $this->assertSame(['user' => ['id' => 7, 'roles' => ['admin']]], $restored->getMetadata()->get('app_context'));
+        $this->assertEquals(new City('Berlin', 3500000), $restored->getMetadata()->get('app_city'));
     }
 
     public function testItRejectsInvalidData()

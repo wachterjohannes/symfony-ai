@@ -309,6 +309,11 @@ repeating the same request may succeed:
 * ``bad_request`` (``BadRequestException``)
 * ``model_not_found`` (``ModelNotFoundException`` and ``MissingModelSupportException``)
 * ``content_filtered`` (``ContentFilterException``)
+* ``max_iterations_exceeded`` (``MaxIterationsExceededException``)
+* ``tool_not_found`` (``ToolNotFoundException``)
+* ``tool_execution_failed`` (``ToolExecutionException``)
+
+The last three belong to the agent. None of them is retryable.
 
 Stepwise runs
 ~~~~~~~~~~~~~
@@ -316,8 +321,16 @@ Stepwise runs
 An agent can also be driven in steps, so workers in different processes advance one conversation. The ``MessageBag``
 is the only state. Two options limit a run. ``max_rounds`` is a positive integer. The run does at most that many model
 rounds and executes the tools of the last round. Then it stops without another model call. With ``defer_tool_calls``
-set to ``true``, the run stops as soon as the model asks for tools and does not execute them. Both options count per
-run and never reach the platform. A stopped run skips the output processors, since it has no final answer::
+the run stops as soon as the model asks for tools and leaves the deferred calls open. Both options count per
+run and never reach the platform. A stopped run skips the output processors, since it has no final answer.
+
+``defer_tool_calls`` takes three forms. With ``true`` every call is deferred. A list of tool names defers the calls to
+those tools. A closure receives each ``ToolCall`` and returns ``true`` to defer it. When only some calls of a round are
+deferred, the agent executes the others in the same round and appends their ``ToolCallMessage``, in the order of the
+model's calls. The run then stops. ``getPendingToolCalls()`` lists exactly the deferred calls. This fits tools that run
+on the client, approvals and questions for the user, while server tools keep running right away::
+
+    $execution = $agent->call($messages, ['defer_tool_calls' => ['ask_user', 'open_url']]);
 
     $execution = $agent->call($messages, ['defer_tool_calls' => true]);
     $messages = $execution->getMessages();
@@ -338,6 +351,16 @@ with the original input again, since it counts as a new message.
 
 Stopping the iteration of an execution works inside one process. The options exist for workers in different
 processes, since the state is the ``MessageBag`` and no generator has to survive between the steps.
+
+Custom metadata
+~~~~~~~~~~~~~~~
+
+Messages and the ``MessageBag`` carry metadata. The lossless normalizers of the platform keep it, so custom keys set
+with ``$message->getMetadata()->add()`` survive the message store. Values can be scalars, arrays and objects. Objects
+need a normalizer for their class in the serializer of the store. The core writes two keys itself. ``execution_id`` is
+the id of the execution, on the last assistant message of a run. ``round`` is the number of the model round, on every
+assistant message. Applications should give their own keys a prefix, for example ``app_ticket``, so they never collide
+with a key the core adds later.
 
 Tools
 -----

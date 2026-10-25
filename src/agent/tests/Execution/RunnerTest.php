@@ -21,6 +21,7 @@ use Symfony\AI\Agent\Execution\Runner;
 use Symfony\AI\Agent\Execution\Update\Progress;
 use Symfony\AI\Agent\Execution\Update\Result as ResultUpdate;
 use Symfony\AI\Agent\Execution\UpdateInterface;
+use Symfony\AI\Agent\Toolbox\Event\ToolCallsExecuted;
 use Symfony\AI\Agent\Toolbox\Exception\ToolNotFoundException;
 use Symfony\AI\Agent\Toolbox\SequentialToolExecutor;
 use Symfony\AI\Agent\Toolbox\Source\Source;
@@ -67,6 +68,7 @@ use Symfony\AI\Platform\TokenUsage\TokenUsage;
 use Symfony\AI\Platform\TokenUsage\TokenUsageAggregation;
 use Symfony\AI\Platform\Tool\ExecutionReference;
 use Symfony\AI\Platform\Tool\Tool;
+use Symfony\Component\EventDispatcher\EventDispatcher;
 
 final class RunnerTest extends TestCase
 {
@@ -989,6 +991,153 @@ final class RunnerTest extends TestCase
         $this->assertEquals([$toolCall], ExecutionState::pendingToolCallsOf($messages));
     }
 
+    public function testDeferToolCallsByNameRunsTheOtherToolsInTheSameRound()
+    {
+        $server = new ToolCall('id1', 'server_tool', ['a' => 1]);
+        $client = new ToolCall('id2', 'client_tool', []);
+        $executed = [];
+        $platform = $this->platform(new ToolCallResult([$server, $client]), new TextResult('Never asked'));
+        $runner = $this->createRunner($platform, $this->recordingToolbox($executed));
+
+        $update = $this->lastUpdate($runner, new MessageBag(Message::ofUser('Hi')), ['defer_tool_calls' => ['client_tool']]);
+
+        $this->assertSame(['server_tool'], $executed);
+        $this->assertCount(1, $this->invokedMessages);
+        $messages = $update->getMessages();
+        $this->assertInstanceOf(MessageBag::class, $messages);
+        $this->assertSame([UserMessage::class, AssistantMessage::class, ToolCallMessage::class], array_map(get_class(...), $messages->getMessages()));
+        $assistant = $messages->getMessages()[1];
+        $this->assertInstanceOf(AssistantMessage::class, $assistant);
+        $this->assertEquals([$server, $client], $assistant->getToolCalls());
+        $this->assertSame(ExecutionStatus::WaitingForInput, ExecutionState::statusOf($messages));
+        $this->assertEquals([$client], ExecutionState::pendingToolCallsOf($messages));
+    }
+
+    public function testDeferToolCallsByClosureReceivesEachCall()
+    {
+        $server = new ToolCall('id1', 'server_tool', []);
+        $client = new ToolCall('id2', 'client_tool', ['ask' => true]);
+        $seen = [];
+        $executed = [];
+        $runner = $this->createRunner($this->platform(new ToolCallResult([$server, $client])), $this->recordingToolbox($executed));
+
+        $update = $this->lastUpdate($runner, new MessageBag(Message::ofUser('Hi')), ['defer_tool_calls' => static function (ToolCall $toolCall) use (&$seen): bool {
+            $seen[] = $toolCall->getName();
+
+            return [] !== $toolCall->getArguments();
+        }]);
+
+        $this->assertSame(['server_tool', 'client_tool'], $seen);
+        $this->assertSame(['server_tool'], $executed);
+        $this->assertEquals([$client], ExecutionState::pendingToolCallsOf($update->getMessages()));
+    }
+
+    public function testDeferToolCallsTrueStillDefersEveryCall()
+    {
+        $first = new ToolCall('id1', 'server_tool', []);
+        $second = new ToolCall('id2', 'client_tool', []);
+        $executed = [];
+        $runner = $this->createRunner($this->platform(new ToolCallResult([$first, $second])), $this->recordingToolbox($executed));
+
+        $update = $this->lastUpdate($runner, new MessageBag(Message::ofUser('Hi')), ['defer_tool_calls' => true]);
+
+        $this->assertSame([], $executed);
+        $this->assertEquals([$first, $second], ExecutionState::pendingToolCallsOf($update->getMessages()));
+    }
+
+    public function testDeferToolCallsFalseDefersNoCall()
+    {
+        $first = new ToolCall('id1', 'server_tool', []);
+        $second = new ToolCall('id2', 'client_tool', []);
+        $executed = [];
+        $runner = $this->createRunner($this->platform(new ToolCallResult([$first, $second]), new TextResult('Done')), $this->recordingToolbox($executed));
+
+        $update = $this->lastUpdate($runner, new MessageBag(Message::ofUser('Hi')), ['defer_tool_calls' => false]);
+
+        $this->assertSame(['server_tool', 'client_tool'], $executed);
+        $this->assertSame('Done', $update->getResult()->getContent());
+    }
+
+    public function testARoundWithoutADeferredCallContinuesToTheFinalAnswer()
+    {
+        $toolCall = new ToolCall('id1', 'server_tool', []);
+        $executed = [];
+        $runner = $this->createRunner($this->platform(new ToolCallResult([$toolCall]), new TextResult('Done')), $this->recordingToolbox($executed));
+
+        $update = $this->lastUpdate($runner, new MessageBag(Message::ofUser('Hi')), ['defer_tool_calls' => ['client_tool']]);
+
+        $this->assertSame(['server_tool'], $executed);
+        $this->assertCount(2, $this->invokedMessages);
+        $this->assertSame('Done', $update->getResult()->getContent());
+        $this->assertSame(ExecutionStatus::Completed, ExecutionState::statusOf($update->getMessages()));
+    }
+
+    public function testToolMessagesOfAPartialDeferFollowTheOrderOfTheModelsCalls()
+    {
+        $first = new ToolCall('id1', 'server_a', []);
+        $deferred = new ToolCall('id2', 'client_tool', []);
+        $third = new ToolCall('id3', 'server_b', []);
+        $executed = [];
+        $runner = $this->createRunner($this->platform(new ToolCallResult([$first, $deferred, $third])), $this->recordingToolbox($executed));
+
+        $update = $this->lastUpdate($runner, new MessageBag(Message::ofUser('Hi')), ['defer_tool_calls' => ['client_tool']]);
+
+        $this->assertSame(['server_a', 'server_b'], $executed);
+        $answered = [];
+        foreach ($update->getMessages()->getMessages() as $message) {
+            if ($message instanceof ToolCallMessage) {
+                $text = $message->getContent()[0];
+                $this->assertInstanceOf(Text::class, $text);
+                $answered[] = [$message->getToolCall()->getId(), $text->getText()];
+            }
+        }
+        $this->assertSame([['id1', 'answer of server_a'], ['id3', 'answer of server_b']], $answered);
+    }
+
+    public function testAPartialDeferCollectsTheSourcesOfTheExecutedCalls()
+    {
+        $server = new ToolCall('id1', 'server_tool', []);
+        $client = new ToolCall('id2', 'client_tool', []);
+        $source = new Source('Title', 'https://example.com', 'Content');
+        $toolbox = $this->createStub(ToolboxInterface::class);
+        $toolbox->method('getTools')->willReturn([]);
+        $toolbox->method('execute')->willReturn(new ToolResult($server, 'answer', new SourceCollection([$source])));
+        $runner = $this->createRunner($this->platform(new ToolCallResult([$server, $client])), $toolbox, includeSources: true);
+
+        $update = $this->lastUpdate($runner, new MessageBag(Message::ofUser('Hi')), ['defer_tool_calls' => ['client_tool']]);
+
+        $this->assertEquals(new SourceCollection([$source]), $update->getResult()->getMetadata()->get('sources'));
+    }
+
+    public function testAPartialDeferFiresTheToolRoundCallbackAndTheEventWithTheExecutedResults()
+    {
+        $server = new ToolCall('id1', 'server_tool', []);
+        $client = new ToolCall('id2', 'client_tool', []);
+        $executed = [];
+        $dispatched = [];
+        $dispatcher = new EventDispatcher();
+        $dispatcher->addListener(ToolCallsExecuted::class, static function (ToolCallsExecuted $event) use (&$dispatched): void {
+            $dispatched[] = array_map(static fn (ToolResult $result): string => $result->getToolCall()->getName(), $event->getToolResults());
+            $event->setResult(new TextResult('Replaced'));
+        });
+        $toolbox = $this->recordingToolbox($executed);
+        $runner = new Runner($this->platform(new ToolCallResult([$server, $client])), $toolbox, new SequentialToolExecutor($toolbox), eventDispatcher: $dispatcher);
+        $rounds = [];
+
+        $last = null;
+        foreach ($runner->run('gpt-4', new MessageBag(Message::ofUser('Hi')), ['defer_tool_calls' => ['client_tool']], onToolRound: static function (MessageBag $messages) use (&$rounds): void {
+            $rounds[] = \count($messages->getMessages());
+        }) as $update) {
+            $last = $update;
+        }
+
+        $this->assertSame([['server_tool']], $dispatched);
+        $this->assertSame([3], $rounds);
+        $this->assertInstanceOf(ResultUpdate::class, $last);
+        $this->assertInstanceOf(ToolCallResult::class, $last->getResult());
+        $this->assertEquals([$client], ExecutionState::pendingToolCallsOf($last->getMessages()));
+    }
+
     public function testEveryAssistantMessageCarriesItsRoundNumber()
     {
         $toolCall = new ToolCall('id1', 'tool1', []);
@@ -1110,6 +1259,10 @@ final class RunnerTest extends TestCase
         yield 'negative rounds' => [['max_rounds' => -1]];
         yield 'string rounds' => [['max_rounds' => '2']];
         yield 'non-bool defer' => [['defer_tool_calls' => 'yes']];
+        yield 'defer list with a non-string' => [['defer_tool_calls' => ['tool1', 1]]];
+        yield 'defer list with an empty name' => [['defer_tool_calls' => ['']]];
+        yield 'defer map' => [['defer_tool_calls' => ['tool1' => true]]];
+        yield 'defer callable string' => [['defer_tool_calls' => 'strlen']];
     }
 
     public function testSourcesDoNotLeakFromAFailedRunIntoTheNextOne()
@@ -1221,6 +1374,24 @@ final class RunnerTest extends TestCase
         }
 
         return $rounds;
+    }
+
+    /**
+     * @param list<string> $executed
+     *
+     * @param-out list<string> $executed
+     */
+    private function recordingToolbox(array &$executed): ToolboxInterface
+    {
+        $toolbox = $this->createStub(ToolboxInterface::class);
+        $toolbox->method('getTools')->willReturn([]);
+        $toolbox->method('execute')->willReturnCallback(static function (ToolCall $toolCall) use (&$executed): ToolResult {
+            $executed[] = $toolCall->getName();
+
+            return new ToolResult($toolCall, 'answer of '.$toolCall->getName());
+        });
+
+        return $toolbox;
     }
 
     private function countingToolbox(ToolCall $toolCall, int &$executions): ToolboxInterface

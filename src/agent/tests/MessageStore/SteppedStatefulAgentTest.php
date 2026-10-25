@@ -116,6 +116,54 @@ final class SteppedStatefulAgentTest extends TestCase
         $this->assertSame(2, $stored[3]->getMetadata()->get('round'));
     }
 
+    public function testPartiallyDeferredToolCallsRunTheServerToolAndAWorkerAnswersTheRest()
+    {
+        $platform = MockPlatformFactory::createPlatform(static function (mixed $model, array $input): ResultInterface {
+            $toolMessages = array_filter($input['messages'], static fn (array $message): bool => 'tool' === ($message['role'] ?? null));
+
+            return 2 === \count($toolMessages)
+                ? new TextResult('Done.')
+                : new ToolCallResult([new ToolCall('call_1', 'clock'), new ToolCall('call_2', 'ask_user')]);
+        });
+        $executed = [];
+        $toolbox = $this->createStub(ToolboxInterface::class);
+        $toolbox->method('getTools')->willReturn([]);
+        $toolbox->method('execute')->willReturnCallback(static function (ToolCall $toolCall) use (&$executed): ToolResult {
+            $executed[] = $toolCall->getName();
+
+            return new ToolResult($toolCall, '12:00');
+        });
+        $store = $this->serializingStore();
+        $agent = new Agent($platform, 'gpt-4', toolbox: $toolbox, messageStore: $store);
+        $messages = new MessageBag(Message::ofUser('Ask me the time.'));
+
+        $first = $agent->call($messages, ['defer_tool_calls' => ['ask_user']]);
+        $first->getResult();
+
+        $this->assertSame(['clock'], $executed);
+        $this->assertSame(ExecutionStatus::WaitingForInput, $first->getStatus());
+        $this->assertEquals([new ToolCall('call_2', 'ask_user')], $first->getPendingToolCalls());
+
+        $stored = $store->load($messages->getId());
+        $this->assertSame(
+            [UserMessage::class, AssistantMessage::class, ToolCallMessage::class],
+            array_map(get_class(...), $stored->getMessages()),
+        );
+        $this->assertSame($first->getId()->toRfc4122(), $stored->getMessages()[1]->getMetadata()->get('execution_id'));
+        $this->assertSame(1, $stored->getMessages()[1]->getMetadata()->get('round'));
+
+        $second = $agent->call($stored->with(Message::ofToolCall(new ToolCall('call_2', 'ask_user'), 'noon')), ['defer_tool_calls' => ['ask_user']]);
+
+        $this->assertSame('Done.', $second->getContent());
+        $this->assertSame(ExecutionStatus::Completed, $second->getStatus());
+        $this->assertSame(['clock'], $executed);
+
+        $stored = $store->load($messages->getId())->getMessages();
+        $this->assertCount(5, $stored);
+        $this->assertSame($second->getId()->toRfc4122(), $stored[4]->getMetadata()->get('execution_id'));
+        $this->assertSame(2, $stored[4]->getMetadata()->get('round'));
+    }
+
     private function platform(): PlatformInterface
     {
         return MockPlatformFactory::createPlatform(static function (mixed $model, array $input): ResultInterface {

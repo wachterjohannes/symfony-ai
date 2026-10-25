@@ -138,22 +138,40 @@ final class Runner
 
             $toolRoundMetadata = [...$result->getMetadata()->all(), 'round' => $round];
 
-            if ($deferToolCalls) {
-                $messages = $messages->with($this->toAssistantMessage($result, $assistantMessage, $toolRoundMetadata));
-                $stopped = true;
+            $deferredCalls = [];
+            $executableCalls = [];
+            foreach ($toolCalls as $i => $toolCall) {
+                if (null !== $deferToolCalls && $deferToolCalls($toolCall)) {
+                    $deferredCalls[$i] = true;
 
-                break;
+                    continue;
+                }
+
+                $executableCalls[] = $toolCall;
             }
+            $roundIsDeferred = [] !== $deferredCalls;
 
-            $toolResults = yield from $this->toolExecutor->execute($toolCalls);
+            $toolResults = [] === $executableCalls ? [] : yield from $this->toolExecutor->execute($executableCalls);
 
             $messages = $messages->with($this->toAssistantMessage($result, $assistantMessage, $toolRoundMetadata));
-            foreach ($toolResults as $i => $toolResult) {
-                $messages = $messages->with(Message::ofToolCall($toolCalls[$i], $this->resultConverter->convert($toolResult)));
+            $executed = 0;
+            foreach ($toolCalls as $i => $toolCall) {
+                if (isset($deferredCalls[$i])) {
+                    continue;
+                }
+
+                $toolResult = $toolResults[$executed++];
+                $messages = $messages->with(Message::ofToolCall($toolCall, $this->resultConverter->convert($toolResult)));
 
                 if (null !== $toolResult->getSources()) {
                     $sources = $sources->merge($toolResult->getSources());
                 }
+            }
+
+            if ($roundIsDeferred && [] === $toolResults) {
+                $stopped = true;
+
+                break;
             }
 
             if (null !== $onToolRound) {
@@ -162,6 +180,13 @@ final class Runner
 
             $event = new ToolCallsExecuted($toolResults);
             $this->eventDispatcher?->dispatch($event);
+
+            if ($roundIsDeferred) {
+                // the deferred calls have no answer yet, so a listener cannot replace it
+                $stopped = true;
+
+                break;
+            }
 
             if ($event->hasResult()) {
                 $result = $event->getResult();
@@ -314,7 +339,7 @@ final class Runner
      *
      * @param array<string, mixed> $options
      *
-     * @return array{array<string, mixed>, int|null, bool} the remaining options, the maximum of model rounds and whether tool calls are left to the caller
+     * @return array{array<string, mixed>, int|null, (\Closure(ToolCall): bool)|null} the remaining options, the maximum of model rounds and the check which tool calls are left to the caller
      */
     private function extractStepOptions(array $options): array
     {
@@ -326,11 +351,23 @@ final class Runner
             throw new InvalidArgumentException('The "max_rounds" option must be a positive integer.');
         }
 
-        if (!\is_bool($deferToolCalls)) {
-            throw new InvalidArgumentException('The "defer_tool_calls" option must be a boolean.');
+        if (false === $deferToolCalls) {
+            return [$options, $maxRounds, null];
         }
 
-        return [$options, $maxRounds, $deferToolCalls];
+        if (true === $deferToolCalls) {
+            return [$options, $maxRounds, static fn (ToolCall $toolCall): bool => true];
+        }
+
+        if ($deferToolCalls instanceof \Closure) {
+            return [$options, $maxRounds, $deferToolCalls];
+        }
+
+        if (!\is_array($deferToolCalls) || !array_is_list($deferToolCalls) || [] !== array_filter($deferToolCalls, static fn (mixed $name): bool => !\is_string($name) || '' === $name)) {
+            throw new InvalidArgumentException('The "defer_tool_calls" option must be a boolean, a list of tool names or a closure.');
+        }
+
+        return [$options, $maxRounds, static fn (ToolCall $toolCall): bool => \in_array($toolCall->getName(), $deferToolCalls, true)];
     }
 
     /**
