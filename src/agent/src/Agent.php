@@ -26,6 +26,7 @@ use Symfony\AI\Agent\Toolbox\ToolboxInterface;
 use Symfony\AI\Agent\Toolbox\ToolExecutorInterface;
 use Symfony\AI\Agent\Toolbox\ToolResultConverter;
 use Symfony\AI\Platform\Exception\ExceptionInterface;
+use Symfony\AI\Platform\Message\AssistantMessage;
 use Symfony\AI\Platform\Message\MessageBag;
 use Symfony\AI\Platform\Message\MessageInterface;
 use Symfony\AI\Platform\Message\UserMessage;
@@ -135,7 +136,16 @@ final class Agent implements AgentInterface
             $onToolRound = null;
             if (null !== $this->messageStore) {
                 $store = $this->messageStore;
-                $onToolRound = static fn (MessageBag $round) => $store->save($input->merge(new MessageBag(...\array_slice($round->getMessages(), \count($messages)))));
+                $onToolRound = static function (MessageBag $round) use ($store, $input, $messages, $executionId): void {
+                    $runMessages = \array_slice($round->getMessages(), \count($messages));
+                    foreach ($runMessages as $message) {
+                        if ($message instanceof AssistantMessage) {
+                            $message->getMetadata()->add('execution_id', $executionId->toRfc4122());
+                        }
+                    }
+
+                    $store->save($input->merge(new MessageBag(...$runMessages)));
+                };
             }
 
             foreach ($this->runner->run($model, $messages, $processedOptions, $cancellation, $onToolRound) as $update) {
