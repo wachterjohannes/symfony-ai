@@ -51,6 +51,7 @@ use Symfony\AI\Platform\Test\MockPlatformFactory;
 use Symfony\AI\Platform\TokenUsage\TokenUsage;
 use Symfony\AI\Platform\Tool\ExecutionReference;
 use Symfony\AI\Platform\Tool\Tool;
+use Symfony\Component\Uid\Uuid;
 use Symfony\Contracts\HttpClient\ResponseInterface;
 
 final class AgentTest extends TestCase
@@ -403,8 +404,47 @@ final class AgentTest extends TestCase
 
         $last = $messages[array_key_last($messages)];
         $this->assertInstanceOf(AssistantMessage::class, $last);
-        $this->assertSame($execution->getId()->toRfc4122(), $last->getMetadata()->get('execution_id'));
+        $this->assertSame($execution->getId(), $last->getMetadata()->get('execution_id'));
         $this->assertFalse($messages[0]->getMetadata()->has('execution_id'));
+    }
+
+    public function testExecutionIdOptionSetsTheIdAndStaysAwayFromTheProcessorsAndThePlatform()
+    {
+        $platform = $this->createMock(PlatformInterface::class);
+        $messages = new MessageBag(new UserMessage(new Text('Hello')));
+
+        $inputProcessor = $this->createMock(InputProcessorInterface::class);
+        $inputProcessor->expects($this->once())
+            ->method('processInput')
+            ->with($this->callback(static fn (Input $input): bool => ['temperature' => 0.5] === $input->getOptions()));
+
+        $platform->expects($this->once())
+            ->method('invoke')
+            ->with('gpt-4o', $messages, ['temperature' => 0.5])
+            ->willReturn(new DeferredResult(new PlainConverter(new TextResult('Hi')), $this->createMock(RawResultInterface::class), []));
+
+        $agent = new Agent($platform, 'gpt-4o', [$inputProcessor]);
+        $execution = $agent->call($messages, ['temperature' => 0.5, 'execution_id' => 'run-42']);
+
+        $this->assertSame('run-42', $execution->getId());
+        $execution->getResult();
+        $this->assertSame('run-42', $execution->getMessages()->getMessages()[1]->getMetadata()->get('execution_id'));
+    }
+
+    public function testExecutionIdIsAUuidWithoutTheOption()
+    {
+        $agent = new Agent(MockPlatformFactory::createPlatform(static fn (): ResultInterface => new TextResult('Hi')), 'gpt-4');
+
+        $this->assertTrue(Uuid::isValid($agent->call('Hello')->getId()));
+    }
+
+    public function testExecutionIdOptionMustBeANonEmptyString()
+    {
+        $agent = new Agent(MockPlatformFactory::createPlatform(static fn (): ResultInterface => new TextResult('Hi')), 'gpt-4');
+
+        $this->expectException(InvalidArgumentException::class);
+
+        $agent->call('Hello', ['execution_id' => 42]);
     }
 
     public function testGetMessagesMapsStructuredOutputToTheAnsweredJson()

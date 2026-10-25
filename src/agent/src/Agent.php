@@ -83,7 +83,8 @@ final class Agent implements AgentInterface
      *
      * Read it eagerly with `->getContent()`/`->getResult()`, iterate it to observe every model request, tool call
      * and streamed delta as an update, or register callbacks via `->onProgress(...)`. With the "stream" option
-     * set, `->getContent()` yields the answer's deltas.
+     * set, `->getContent()` yields the answer's deltas. The "execution_id" option sets the id of the execution and
+     * is not passed on to processors or the platform.
      *
      * @param array<string, mixed> $options
      *
@@ -94,7 +95,12 @@ final class Agent implements AgentInterface
     public function call(string|MessageBag|UserMessage $input, array $options = []): Execution
     {
         $cancellation = new Cancellation();
-        $executionId = Uuid::v7();
+        $executionId = $options['execution_id'] ?? Uuid::v7()->toRfc4122();
+        if (!\is_string($executionId) || '' === $executionId) {
+            throw new InvalidArgumentException('The "execution_id" option must be a non-empty string.');
+        }
+
+        unset($options['execution_id']);
         $factory = function () use ($input, $options, $cancellation, $executionId): \Generator {
             $input = InputNormalizer::toMessageBag($input);
             $request = new Input($this->getModel(), $input, $options);
@@ -158,7 +164,7 @@ final class Agent implements AgentInterface
                 }
 
                 if ([] !== $newMessages) {
-                    $newMessages[array_key_last($newMessages)]->getMetadata()->add('execution_id', $executionId->toRfc4122());
+                    $newMessages[array_key_last($newMessages)]->getMetadata()->add('execution_id', $executionId);
                 }
 
                 return $input->merge(new MessageBag(...$newMessages));

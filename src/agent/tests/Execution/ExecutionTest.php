@@ -11,10 +11,13 @@
 
 namespace Symfony\AI\Agent\Tests\Execution;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use Symfony\AI\Agent\Exception\InvalidArgumentException;
 use Symfony\AI\Agent\Exception\LogicException;
 use Symfony\AI\Agent\Exception\RuntimeException;
 use Symfony\AI\Agent\Execution\Execution;
+use Symfony\AI\Agent\Execution\ExecutionEvent;
 use Symfony\AI\Agent\Execution\ExecutionStatus;
 use Symfony\AI\Agent\Execution\Update\Progress;
 use Symfony\AI\Agent\Execution\Update\Result as ResultUpdate;
@@ -430,25 +433,227 @@ final class ExecutionTest extends TestCase
     {
         $execution = new Execution(static fn (): \Generator => yield new ResultUpdate(new TextResult('Hello')));
 
-        $this->assertSame($execution->getId(), $execution->getId());
+        $id = $execution->getId();
         $execution->getResult();
-        $this->assertTrue($execution->getId()->equals($execution->getId()));
+
+        $this->assertTrue(Uuid::isValid($id));
+        $this->assertSame($id, $execution->getId());
     }
 
     public function testGetIdDiffersBetweenExecutions()
     {
         $factory = static fn (): \Generator => yield new ResultUpdate(new TextResult('Hello'));
 
-        $this->assertFalse((new Execution($factory))->getId()->equals((new Execution($factory))->getId()));
+        $this->assertNotSame((new Execution($factory))->getId(), (new Execution($factory))->getId());
     }
 
     public function testGetIdReturnsThePassedId()
     {
-        $id = Uuid::v7();
+        $execution = new Execution(static fn (): \Generator => yield new ResultUpdate(new TextResult('Hello')), id: 'remote-run-1');
 
-        $execution = new Execution(static fn (): \Generator => yield new ResultUpdate(new TextResult('Hello')), id: $id);
+        $this->assertSame('remote-run-1', $execution->getId());
+    }
 
-        $this->assertSame($id, $execution->getId());
+    public function testEventsAreRecordedWhileConsuming()
+    {
+        $execution = new Execution(static function (): \Generator {
+            yield new Progress('model_request', 'Invoking model.', 'gpt-4');
+            yield new Progress('tool_call', 'Calling tool.');
+            yield new ResultUpdate(new TextResult('Done'));
+        });
+
+        $this->assertSame([], $execution->getEventsSince());
+
+        $execution->getResult();
+
+        $events = $execution->getEventsSince();
+        $this->assertCount(2, $events);
+        $this->assertSame(1, $events[0]->getSequence());
+        $this->assertSame('model_request', $events[0]->getStage());
+        $this->assertSame('gpt-4', $events[0]->getPayload());
+        $this->assertSame(2, $events[1]->getSequence());
+        $this->assertSame('tool_call', $events[1]->getStage());
+    }
+
+    public function testGetEventsSinceFiltersByTheCursor()
+    {
+        $execution = new Execution(static function (): \Generator {
+            yield new Progress('a');
+            yield new Progress('b');
+            yield new Progress('c');
+            yield new ResultUpdate(new TextResult('Done'));
+        });
+        $execution->getResult();
+
+        $this->assertSame(['b', 'c'], array_map(static fn ($event) => $event->getStage(), $execution->getEventsSince(1)));
+        $this->assertSame([], $execution->getEventsSince(3));
+    }
+
+    public function testRecordUsesAnExplicitSequence()
+    {
+        $execution = new Execution(static fn (): \Generator => yield new ResultUpdate(new TextResult('Done')));
+
+        $execution->record(new Progress('a'), 5);
+        $execution->record(new Progress('b'));
+        $execution->record(new Progress('c'), 10);
+
+        $this->assertSame([5, 6, 10], array_map(static fn ($event) => $event->getSequence(), $execution->getEventsSince()));
+        $this->assertSame(['c'], array_map(static fn ($event) => $event->getStage(), $execution->getEventsSince(6)));
+    }
+
+    public function testRecordRejectsASequenceThatIsNotGreaterThanTheLastOne()
+    {
+        $execution = new Execution(static fn (): \Generator => yield new ResultUpdate(new TextResult('Done')));
+        $execution->record(new Progress('a'), 3);
+
+        $this->expectException(InvalidArgumentException::class);
+
+        $execution->record(new Progress('b'), 3);
+    }
+
+    public function testLiveExecutionHasNoInputRequestAndNoErrorCode()
+    {
+        $execution = new Execution(static function (): \Generator {
+            yield from [];
+
+            throw new RuntimeException('Boom');
+        });
+
+        try {
+            $execution->getResult();
+        } catch (RuntimeException) {
+        }
+
+        $this->assertNull($execution->getInputRequest());
+        $this->assertNull($execution->getErrorCode());
+    }
+
+    public function testRestoreACompletedExecution()
+    {
+        $result = new TextResult('Done');
+        $messages = new MessageBag(Message::ofUser('Hi'), Message::ofAssistant('Done'));
+        $event = new ExecutionEvent(4, 'tool_call', 'Calling tool.');
+
+        $execution = Execution::restore('run-1', ExecutionStatus::Completed, $result, messages: $messages, events: [$event]);
+
+        $this->assertSame('run-1', $execution->getId());
+        $this->assertSame(ExecutionStatus::Completed, $execution->getStatus());
+        $this->assertFalse($execution->isSuspended());
+        $this->assertSame($result, $execution->getResult());
+        $this->assertSame('Done', $execution->getContent());
+        $this->assertSame($messages, $execution->getMessages());
+        $this->assertSame([$event], $execution->getEventsSince(3));
+        $this->assertSame([], $execution->getEventsSince(4));
+        $this->assertSame([], iterator_to_array($execution, false));
+        $this->assertSame([], iterator_to_array($execution, false));
+    }
+
+    public function testRestoreContinuesTheSequenceOfTheGivenEvents()
+    {
+        $execution = Execution::restore('run-1', ExecutionStatus::Running, events: [new ExecutionEvent(4, 'a')]);
+
+        $execution->record(new Progress('b'));
+
+        $this->assertSame([5], array_map(static fn ($event) => $event->getSequence(), $execution->getEventsSince(4)));
+    }
+
+    public function testRestoreACompletedExecutionRequiresAResult()
+    {
+        $this->expectException(InvalidArgumentException::class);
+
+        Execution::restore('run-1', ExecutionStatus::Completed);
+    }
+
+    public function testRestoreAWaitingExecution()
+    {
+        $toolCall = new ToolCall('call_1', 'weather', []);
+
+        $execution = Execution::restore('run-1', ExecutionStatus::WaitingForInput, pendingToolCalls: [$toolCall], inputRequest: ['question' => 'Which city?']);
+
+        $this->assertSame(ExecutionStatus::WaitingForInput, $execution->getStatus());
+        $this->assertTrue($execution->isSuspended());
+        $this->assertSame([$toolCall], $execution->getPendingToolCalls());
+        $this->assertSame(['question' => 'Which city?'], $execution->getInputRequest());
+
+        $this->expectException(LogicException::class);
+        $this->expectExceptionMessage('status is "waiting_for_input"');
+
+        $execution->getResult();
+    }
+
+    public function testRestoreAFailedExecution()
+    {
+        $execution = Execution::restore('run-1', ExecutionStatus::Failed, error: 'Boom', errorCode: 'rate_limited');
+
+        $this->assertSame(ExecutionStatus::Failed, $execution->getStatus());
+        $this->assertSame('Boom', $execution->getError());
+        $this->assertSame('rate_limited', $execution->getErrorCode());
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Boom');
+
+        $execution->getResult();
+    }
+
+    public function testRestoreACancelledExecution()
+    {
+        $execution = Execution::restore('run-1', ExecutionStatus::Cancelled);
+
+        $this->assertSame(ExecutionStatus::Cancelled, $execution->getStatus());
+
+        $this->expectException(RuntimeException::class);
+
+        $execution->getResult();
+    }
+
+    #[DataProvider('provideStatusesWithoutAResult')]
+    public function testRestoreAnExecutionWithoutAResultThrowsALogicException(ExecutionStatus $status)
+    {
+        $execution = Execution::restore('run-1', $status);
+
+        $this->assertSame($status, $execution->getStatus());
+
+        $this->expectException(LogicException::class);
+
+        $execution->getResult();
+    }
+
+    /**
+     * @return iterable<string, array{ExecutionStatus}>
+     */
+    public static function provideStatusesWithoutAResult(): iterable
+    {
+        yield 'pending' => [ExecutionStatus::Pending];
+        yield 'running' => [ExecutionStatus::Running];
+        yield 'waiting for input' => [ExecutionStatus::WaitingForInput];
+    }
+
+    public function testRestoredExecutionHasNoMessagesByDefault()
+    {
+        $execution = Execution::restore('run-1', ExecutionStatus::Running);
+
+        $this->expectException(LogicException::class);
+
+        $execution->getMessages();
+    }
+
+    public function testRestoredExecutionIsReadOnly()
+    {
+        $execution = Execution::restore('run-1', ExecutionStatus::Running);
+
+        foreach ([
+            static fn () => $execution->onProgress(static function (): void {}),
+            static fn () => $execution->onResult(static function (): void {}),
+            static fn () => $execution->cancel(),
+            static fn () => $execution->asStream()->current(),
+        ] as $action) {
+            try {
+                $action();
+                $this->fail('The restored execution should have thrown.');
+            } catch (LogicException) {
+                $this->addToAssertionCount(1);
+            }
+        }
     }
 
     public function testStatusIsPendingBeforeConsumption()

@@ -231,9 +231,40 @@ failed execution::
         $toolCalls = $execution->getPendingToolCalls();
     }
 
-``getId()`` returns a UUID that identifies this run. The conversation is identified by the id of its ``MessageBag``.
-The last assistant message returned by ``getMessages()`` carries the id in its ``execution_id`` metadata, so it is
-stored with the message.
+``getId()`` returns a string that identifies this run. It is a UUIDv7 unless you pass your own with the
+``execution_id`` option. The option never reaches processors or the platform. The conversation is identified by the id
+of its ``MessageBag``. The last assistant message returned by ``getMessages()`` carries the id in its ``execution_id``
+metadata, so it is stored with the message::
+
+    $execution = $agent->call($messages, ['execution_id' => $job->getId()]);
+
+Every progress update is also recorded as an :class:`Symfony\\AI\\Agent\\Execution\\ExecutionEvent` with a growing
+sequence number. ``getEventsSince()`` returns the events after a cursor, so a client can poll for what is new::
+
+    $cursor = 0;
+
+    foreach ($execution->getEventsSince($cursor) as $event) {
+        echo $event->getStage().': '.$event->getMessage();
+        $cursor = $event->getSequence();
+    }
+
+``Execution::restore()`` rebuilds an execution from state you keep yourself, without calling a model. Use it for
+adapters whose state is not a ``MessageBag``, for example a conversation that lives on a remote platform. The status is
+taken as given. A restored execution is read-only: you cannot iterate, observe or cancel it. ``getInputRequest()`` and
+``getErrorCode()`` return what a restored execution carries for a parked or failed run::
+
+    $execution = Execution::restore(
+        id: $row['id'],
+        status: ExecutionStatus::from($row['status']),
+        result: null === $row['answer'] ? null : new TextResult($row['answer']),
+        error: $row['error'],
+        errorCode: $row['error_code'],
+        inputRequest: $row['input_request'],
+        events: $row['events'],
+    );
+
+    $execution->getStatus();
+    $execution->getEventsSince($cursor);
 
 Tools
 -----
