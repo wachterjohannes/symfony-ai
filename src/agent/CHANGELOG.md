@@ -7,7 +7,7 @@ CHANGELOG
  * Add `Toolbox\Source\SourceCollectionNormalizer`, keeping the sources of an answer when its messages are serialized
  * Add `MessageStore\MessageStoreInterface` and `MessageStore\InMemoryMessageStore` keeping message bags by their ID, and the `$messageStore` argument of `Agent` continuing and saving the stored conversation
  * Keep the phase of a streamed text when the `Runner` turns the round into a result
- * Add `ExecutionStatus` and `Execution::getStatus()`, `getPendingToolCalls()`, `getError()`, `getErrorCode()` (see `ErrorCodeAwareInterface`), `getEventsSince()` (see `ExecutionEvent`) and `getId()` to read where an execution stands, the id is also stored as `execution_id` in the metadata of the last assistant message, and the `max_rounds` and `defer_tool_calls` options to run an agent in steps
+ * Add `ExecutionInterface`, returned by `AgentInterface::call()`, `ExecutionStatus` and `Execution::getStatus()`, `getPendingToolCalls()`, `getError()`, `getErrorCode()` (see `ErrorCodeAwareInterface`), `getEventsSince()` (see `ExecutionEvent`) and `getId()` to read where an execution stands, the id is also stored as `execution_id` in the metadata of the last assistant message, and the `max_rounds` and `defer_tool_calls` options to run an agent in steps
  * Add `Execution::getMessages()` returning the given messages followed by the messages of the run, each assistant message carrying the metadata of its own model request
  * Add an optional `$messages` argument to `Update\Result`, for agents providing the messages of their execution
  * [BC BREAK] The agent no longer changes the given `MessageBag`: input processors replace it with `Input::setMessageBag()`, and the tool loop runs on its own copy

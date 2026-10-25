@@ -17,9 +17,11 @@ use Symfony\AI\Agent\Exception\InvalidArgumentException;
 use Symfony\AI\Agent\Exception\LogicException;
 use Symfony\AI\Agent\Exception\RuntimeException;
 use Symfony\AI\Agent\Execution\Execution;
+use Symfony\AI\Agent\Execution\ExecutionInterface;
 use Symfony\AI\Agent\Execution\ExecutionStatus;
 use Symfony\AI\Agent\Execution\Update\Progress;
 use Symfony\AI\Agent\Execution\Update\Result as ResultUpdate;
+use Symfony\AI\Agent\MockAgent;
 use Symfony\AI\Platform\Exception\UnexpectedResultTypeException;
 use Symfony\AI\Platform\Message\Message;
 use Symfony\AI\Platform\Message\MessageBag;
@@ -36,6 +38,22 @@ use Symfony\Component\Uid\Uuid;
 
 final class ExecutionTest extends TestCase
 {
+    public function testExecutionIsAnExecutionInterface()
+    {
+        $execution = new Execution(static function (): \Generator {
+            yield new ResultUpdate(new TextResult('Done'));
+        });
+
+        $this->assertInstanceOf(ExecutionInterface::class, $execution);
+    }
+
+    public function testMockAgentReturnsAnExecutionInterface()
+    {
+        $agent = new MockAgent(['Hello' => 'Hi']);
+
+        $this->assertInstanceOf(ExecutionInterface::class, $agent->call('Hello'));
+    }
+
     public function testGetResultReturnsTheFinalResult()
     {
         $result = new TextResult('Done');

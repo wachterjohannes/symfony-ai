@@ -12,7 +12,7 @@
 namespace Symfony\AI\Agent\Exception;
 
 /**
- * An exception carrying a machine readable code, exposed by {@see \Symfony\AI\Agent\Execution\Execution::getErrorCode()}.
+ * An exception carrying a machine readable code, exposed by {@see \Symfony\AI\Agent\Execution\ExecutionInterface::getErrorCode()}.
  *
  * @author Johannes Wachter <johannes@sulu.io>
  */

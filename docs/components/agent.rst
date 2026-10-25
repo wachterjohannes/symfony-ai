@@ -61,7 +61,8 @@ behavior, for example available tools to execute, or are forwarded to the underl
 Execution
 ---------
 
-:method:`Symfony\\AI\\Agent\\Agent::call` returns a lazy :class:`Symfony\\AI\\Agent\\Execution\\Execution`. The
+:method:`Symfony\\AI\\Agent\\Agent::call` returns a lazy :class:`Symfony\\AI\\Agent\\Execution\\ExecutionInterface`.
+:class:`Symfony\\AI\\Agent\\Execution\\Execution` is its implementation. An adapter may return its own. The
 execution *is* the result it produces, so the simplest usage reads the answer straight off it - the example at the
 top of this page does exactly that. Beyond that, the same object reports every step the agent takes - each model
 request, each tool call, and each streamed delta - as an update when you iterate it, which is what you need to show
@@ -303,6 +304,9 @@ A worker loop reads the status. ``Pending`` means the next model round is due, s
 messages. ``WaitingForInput`` means tool calls have no answer. Append a ``ToolCallMessage`` for each of them, then call
 the agent again. ``Completed`` means the run is done. Nothing keeps the ``MessageBag`` between the steps, so the
 application stores it.
+
+Stopping the iteration of an execution works inside one process. The options exist for workers in different
+processes, since the state is the ``MessageBag`` and no generator has to survive between the steps.
 
 Tools
 -----

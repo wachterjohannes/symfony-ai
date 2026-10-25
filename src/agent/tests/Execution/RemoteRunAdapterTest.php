@@ -17,6 +17,7 @@ use Symfony\AI\Agent\Exception\ErrorCodeAwareInterface;
 use Symfony\AI\Agent\Exception\RuntimeException;
 use Symfony\AI\Agent\Execution\Execution;
 use Symfony\AI\Agent\Execution\ExecutionEvent;
+use Symfony\AI\Agent\Execution\ExecutionInterface;
 use Symfony\AI\Agent\Execution\ExecutionState;
 use Symfony\AI\Agent\Execution\ExecutionStatus;
 use Symfony\AI\Agent\Execution\Update\Progress;
@@ -139,7 +140,7 @@ final class RemoteRunAdapter implements AgentInterface
     ) {
     }
 
-    public function call(string|MessageBag|UserMessage $input, array $options = []): Execution
+    public function call(string|MessageBag|UserMessage $input, array $options = []): ExecutionInterface
     {
         $runId = InputNormalizer::toMessageBag($input)->getId();
 

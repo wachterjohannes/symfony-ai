@@ -44,10 +44,8 @@ use Symfony\Component\Uid\Uuid;
  * stream option, its deltas (asStream(), asTextStream(), asStreamedObject(), ...).
  *
  * @author Christopher Hertel <mail@christopher-hertel.de>
- *
- * @implements \IteratorAggregate<int, UpdateInterface>
  */
-final class Execution implements \IteratorAggregate, ResultInterface
+final class Execution implements ExecutionInterface
 {
     use TypedResultTrait {
         asVectors as private;
