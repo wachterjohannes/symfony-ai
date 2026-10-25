@@ -41,7 +41,9 @@ use Symfony\AI\Platform\Message\Template;
 use Symfony\AI\Platform\Message\ToolCallMessage;
 use Symfony\AI\Platform\Message\UserMessage;
 use Symfony\AI\Platform\Result\ToolCall;
+use Symfony\Component\Serializer\Normalizer\DenormalizerAwareInterface;
 use Symfony\Component\Serializer\Normalizer\DenormalizerInterface;
+use Symfony\Component\Serializer\Normalizer\NormalizerAwareInterface;
 use Symfony\Component\Serializer\Normalizer\NormalizerInterface;
 use Symfony\Component\Uid\AbstractUid;
 use Symfony\Component\Uid\TimeBasedUidInterface;
@@ -66,8 +68,25 @@ use Symfony\Component\Uid\Uuid;
  *     ...<string, mixed>
  * }
  */
-final class MessageNormalizer implements NormalizerInterface, DenormalizerInterface
+final class MessageNormalizer implements NormalizerInterface, DenormalizerInterface, NormalizerAwareInterface, DenormalizerAwareInterface
 {
+    private readonly MetadataNormalizer $metadataNormalizer;
+
+    public function __construct()
+    {
+        $this->metadataNormalizer = new MetadataNormalizer();
+    }
+
+    public function setNormalizer(NormalizerInterface $normalizer): void
+    {
+        $this->metadataNormalizer->setNormalizer($normalizer);
+    }
+
+    public function setDenormalizer(DenormalizerInterface $denormalizer): void
+    {
+        $this->metadataNormalizer->setDenormalizer($denormalizer);
+    }
+
     /**
      * @param array<string, mixed> $context
      *
@@ -95,7 +114,7 @@ final class MessageNormalizer implements NormalizerInterface, DenormalizerInterf
             'content' => $content,
             'parts' => $parts,
             'toolCall' => $data instanceof ToolCallMessage ? $this->normalizePart($data->getToolCall()) : null,
-            'metadata' => $data->getMetadata()->all(),
+            'metadata' => $this->metadataNormalizer->normalize($data->getMetadata()->all(), $format, $context),
             'addedAt' => $data->getId()->getDateTime()->getTimestamp(),
         ];
     }
@@ -130,7 +149,7 @@ final class MessageNormalizer implements NormalizerInterface, DenormalizerInterf
 
         $message = $message->withId($id);
         if ([] !== ($data['metadata'] ?? [])) {
-            $message->getMetadata()->set($data['metadata']);
+            $message->getMetadata()->set($this->metadataNormalizer->denormalize($data['metadata'], $format, $context));
         }
 
         return $message;
