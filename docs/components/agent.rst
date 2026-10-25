@@ -260,6 +260,31 @@ failed execution::
 The last assistant message returned by ``getMessages()`` carries the id in its ``execution_id`` metadata, so it is
 stored with the message.
 
+Stepwise runs
+~~~~~~~~~~~~~
+
+An agent can also be driven in steps, so workers in different processes advance one conversation. The ``MessageBag``
+is the only state. Two options limit a run. ``max_rounds`` is a positive integer. The run does at most that many model
+rounds and executes the tools of the last round. Then it stops without another model call. With ``defer_tool_calls``
+set to ``true``, the run stops as soon as the model asks for tools and does not execute them. Both options count per
+run and never reach the platform. A stopped run skips the output processors, since it has no final answer::
+
+    $execution = $agent->call($messages, ['defer_tool_calls' => true]);
+    $messages = $execution->getMessages();
+
+    if (ExecutionStatus::WaitingForInput === $execution->getStatus()) {
+        foreach ($execution->getPendingToolCalls() as $toolCall) {
+            $messages = $messages->with(Message::ofToolCall($toolCall, $runTheTool($toolCall)));
+        }
+    }
+
+    $execution = $agent->call($messages, ['defer_tool_calls' => true]);
+
+A worker loop reads the status. ``Pending`` means the next model round is due, so call the agent again with the
+messages. ``WaitingForInput`` means tool calls have no answer. Append a ``ToolCallMessage`` for each of them, then call
+the agent again. ``Completed`` means the run is done. Nothing keeps the ``MessageBag`` between the steps, so the
+application stores it.
+
 Tools
 -----
 

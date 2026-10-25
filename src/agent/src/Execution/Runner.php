@@ -11,6 +11,7 @@
 
 namespace Symfony\AI\Agent\Execution;
 
+use Symfony\AI\Agent\Exception\InvalidArgumentException;
 use Symfony\AI\Agent\Exception\MaxIterationsExceededException;
 use Symfony\AI\Agent\Execution\Update\Progress;
 use Symfony\AI\Agent\Execution\Update\Result as ResultUpdate;
@@ -75,11 +76,14 @@ final class Runner
      */
     public function run(string $model, MessageBag $messages, array $options, ?Cancellation $cancellation = null, ?\Closure $onToolRound = null): \Generator
     {
+        [$options, $maxRounds, $deferToolCalls] = $this->extractStepOptions($options);
         [$options, $allowedTools] = $this->exposeTools($options);
 
         $sources = new SourceCollection();
         $metadata = new Metadata();
         $iterations = 0;
+        $rounds = 0;
+        $stopped = false;
 
         while (true) {
             $deferredResult = $this->platform->invoke($model, $messages, $options);
@@ -111,6 +115,8 @@ final class Runner
                 return;
             }
 
+            ++$rounds;
+
             $toolCallResult = $this->extractToolCallResult($result);
             if (null === $toolCallResult || null === $this->toolExecutor) {
                 break;
@@ -125,6 +131,14 @@ final class Runner
 
             $toolCalls = array_values($toolCallResult->getContent());
             $this->denyRestrictedToolCalls($toolCalls, $allowedTools);
+
+            if ($deferToolCalls) {
+                $messages = $messages->with($this->toAssistantMessage($result, $assistantMessage, $result->getMetadata()->all()));
+                $stopped = true;
+
+                break;
+            }
+
             $toolResults = yield from $this->toolExecutor->execute($toolCalls);
 
             $messages = $messages->with($this->toAssistantMessage($result, $assistantMessage, $result->getMetadata()->all()));
@@ -149,15 +163,23 @@ final class Runner
 
                 break;
             }
+
+            if (null !== $maxRounds && $rounds >= $maxRounds) {
+                $stopped = true;
+
+                break;
+            }
         }
 
         $roundMetadata = $result->getMetadata()->all();
         if ($this->includeSources) {
             $roundMetadata['sources'] = $sources;
         }
-        $answer = fn (?ResultInterface $replacement = null): MessageBag => $messages->with(null === $replacement
-            ? $this->toAssistantMessage($result, $assistantMessage, $roundMetadata)
-            : $this->toAssistantMessage($replacement, null, $roundMetadata));
+        $answer = fn (?ResultInterface $replacement = null): MessageBag => $stopped
+            ? $messages
+            : $messages->with(null === $replacement
+                ? $this->toAssistantMessage($result, $assistantMessage, $roundMetadata)
+                : $this->toAssistantMessage($replacement, null, $roundMetadata));
 
         // Merged in order, so mergeable values like the token usage add up and the final result's own values win
         $metadata->merge($result->getMetadata());
@@ -278,6 +300,30 @@ final class Runner
         }
 
         return null;
+    }
+
+    /**
+     * Takes the step options out of the options, so they reach neither the platform nor the output processors.
+     *
+     * @param array<string, mixed> $options
+     *
+     * @return array{array<string, mixed>, int|null, bool} the remaining options, the maximum of model rounds and whether tool calls are left to the caller
+     */
+    private function extractStepOptions(array $options): array
+    {
+        $maxRounds = $options['max_rounds'] ?? null;
+        $deferToolCalls = $options['defer_tool_calls'] ?? false;
+        unset($options['max_rounds'], $options['defer_tool_calls']);
+
+        if (null !== $maxRounds && (!\is_int($maxRounds) || $maxRounds < 1)) {
+            throw new InvalidArgumentException('The "max_rounds" option must be a positive integer.');
+        }
+
+        if (!\is_bool($deferToolCalls)) {
+            throw new InvalidArgumentException('The "defer_tool_calls" option must be a boolean.');
+        }
+
+        return [$options, $maxRounds, $deferToolCalls];
     }
 
     /**

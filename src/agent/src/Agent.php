@@ -15,6 +15,8 @@ use Symfony\AI\Agent\Exception\InvalidArgumentException;
 use Symfony\AI\Agent\Exception\RuntimeException;
 use Symfony\AI\Agent\Execution\Cancellation;
 use Symfony\AI\Agent\Execution\Execution;
+use Symfony\AI\Agent\Execution\ExecutionState;
+use Symfony\AI\Agent\Execution\ExecutionStatus;
 use Symfony\AI\Agent\Execution\Runner;
 use Symfony\AI\Agent\Execution\Update\Result as ResultUpdate;
 use Symfony\AI\Agent\MessageStore\MessageStoreInterface;
@@ -27,7 +29,9 @@ use Symfony\AI\Platform\Message\MessageBag;
 use Symfony\AI\Platform\Message\MessageInterface;
 use Symfony\AI\Platform\Message\UserMessage;
 use Symfony\AI\Platform\PlatformInterface;
+use Symfony\AI\Platform\Result\MultiPartResult;
 use Symfony\AI\Platform\Result\ResultInterface;
+use Symfony\AI\Platform\Result\ToolCallResult;
 use Symfony\Component\Uid\Uuid;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
@@ -150,8 +154,11 @@ final class Agent implements AgentInterface
 
             \assert($result instanceof ResultInterface && $resultUpdate instanceof ResultUpdate);
 
-            $output = new Output($model, $result, $messages, $processedOptions);
-            foreach ($this->outputProcessors as $outputProcessor) {
+            // a stepped run stopped before the final answer has none to process
+            $stopped = (isset($processedOptions['max_rounds']) || isset($processedOptions['defer_tool_calls'])) && $this->isStopped($result, $resultUpdate);
+            $outputProcessors = $stopped ? [] : $this->outputProcessors;
+            $output = new Output($model, $result, $messages, array_diff_key($processedOptions, ['max_rounds' => true, 'defer_tool_calls' => true]));
+            foreach ($outputProcessors as $outputProcessor) {
                 if (!$outputProcessor instanceof OutputProcessorInterface) {
                     throw new InvalidArgumentException(\sprintf('Output processor "%s" must implement "%s".', $outputProcessor::class, OutputProcessorInterface::class));
                 }
@@ -203,5 +210,17 @@ final class Agent implements AgentInterface
         $messages->getMetadata()->set(array_replace($stored->getMetadata()->all(), $input->getMetadata()->all()));
 
         return $messages;
+    }
+
+    private function isStopped(ResultInterface $result, ResultUpdate $resultUpdate): bool
+    {
+        $toolCallResult = $result instanceof MultiPartResult ? $result->asToolCallResult() : $result;
+        if (!$toolCallResult instanceof ToolCallResult) {
+            return false;
+        }
+
+        $messages = $resultUpdate->getMessages();
+
+        return null !== $messages && ExecutionStatus::Completed !== ExecutionState::statusOf($messages);
     }
 }
