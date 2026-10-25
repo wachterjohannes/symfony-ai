@@ -238,6 +238,28 @@ The stages this package itself reports are available as ``Progress::STAGE_MODEL_
 Streaming and tool calling compose: when the model streams a tool call, the agent executes it and streams the next
 round into the very same execution.
 
+Execution Status
+~~~~~~~~~~~~~~~~
+
+An execution also reports where it stands. ``getStatus()`` returns a
+:class:`Symfony\\AI\\Agent\\Execution\\ExecutionStatus` such as ``Pending``, ``Completed``, ``Failed``,
+``Cancelled`` or ``WaitingForInput``. In the last case ``getPendingToolCalls()`` lists the tool calls of the model
+that have no answer yet. Neither method runs the agent and neither throws. ``getError()`` returns the message of a
+failed execution::
+
+    use Symfony\AI\Agent\Execution\ExecutionStatus;
+
+    $execution = $agent->call($messages);
+    $execution->getResult();
+
+    if (ExecutionStatus::WaitingForInput === $execution->getStatus()) {
+        $toolCalls = $execution->getPendingToolCalls();
+    }
+
+``getId()`` returns a UUID that identifies this run. The conversation is identified by the id of its ``MessageBag``.
+The last assistant message returned by ``getMessages()`` carries the id in its ``execution_id`` metadata, so it is
+stored with the message.
+
 Tools
 -----
 

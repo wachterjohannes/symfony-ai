@@ -28,6 +28,7 @@ use Symfony\AI\Platform\Message\MessageInterface;
 use Symfony\AI\Platform\Message\UserMessage;
 use Symfony\AI\Platform\PlatformInterface;
 use Symfony\AI\Platform\Result\ResultInterface;
+use Symfony\Component\Uid\Uuid;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 /**
@@ -99,7 +100,8 @@ final class Agent implements AgentInterface
     public function call(string|MessageBag|UserMessage $input, array $options = []): Execution
     {
         $cancellation = new Cancellation();
-        $factory = function () use ($input, $options, $cancellation): \Generator {
+        $executionId = Uuid::v7();
+        $factory = function () use ($input, $options, $cancellation, $executionId): \Generator {
             $input = InputNormalizer::toMessageBag($input);
             if (null !== $this->messageStore) {
                 $input = $this->continueStored($input, $this->messageStore);
@@ -162,11 +164,15 @@ final class Agent implements AgentInterface
             }
 
             $finalResult = $output->getResult();
-            $conversation = static function () use ($resultUpdate, $messages, $input, $result, $finalResult): MessageBag {
+            $conversation = static function () use ($resultUpdate, $messages, $input, $result, $finalResult, $executionId): MessageBag {
                 $runMessages = $resultUpdate->getMessages($finalResult !== $result ? $finalResult : null);
 
                 // the runner appended to the processed request, the caller's input only gets the new messages
                 $newMessages = \array_slice($runMessages?->getMessages() ?? [], \count($messages));
+
+                if ([] !== $newMessages) {
+                    $newMessages[array_key_last($newMessages)]->getMetadata()->add('execution_id', $executionId->toRfc4122());
+                }
 
                 return $input->merge(new MessageBag(...$newMessages));
             };
@@ -179,7 +185,7 @@ final class Agent implements AgentInterface
             yield new ResultUpdate($finalResult, $conversation);
         };
 
-        return new Execution($factory, true === ($options['stream'] ?? false), $cancellation);
+        return new Execution($factory, true === ($options['stream'] ?? false), $cancellation, $executionId);
     }
 
     /**
