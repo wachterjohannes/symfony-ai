@@ -989,6 +989,68 @@ final class RunnerTest extends TestCase
         $this->assertEquals([$toolCall], ExecutionState::pendingToolCallsOf($messages));
     }
 
+    public function testEveryAssistantMessageCarriesItsRoundNumber()
+    {
+        $toolCall = new ToolCall('id1', 'tool1', []);
+        $executions = 0;
+        $platform = $this->platform(new ToolCallResult([$toolCall]), new TextResult('Done'));
+        $runner = $this->createRunner($platform, $this->countingToolbox($toolCall, $executions));
+
+        $update = $this->lastUpdate($runner, new MessageBag(Message::ofUser('Hi')));
+
+        $this->assertSame([1, 2], $this->roundsOf($update->getMessages()));
+    }
+
+    public function testRoundNumbersContinueInTheNextRun()
+    {
+        $toolCall = new ToolCall('id1', 'tool1', []);
+        $executions = 0;
+        $platform = $this->platform(new ToolCallResult([$toolCall]), new TextResult('Done'));
+        $runner = $this->createRunner($platform, $this->countingToolbox($toolCall, $executions));
+
+        $first = $this->lastUpdate($runner, new MessageBag(Message::ofUser('Hi')), ['max_rounds' => 1]);
+        $second = $this->lastUpdate($runner, $first->getMessages());
+
+        $this->assertSame([1], $this->roundsOf($first->getMessages()));
+        $this->assertSame([1, 2], $this->roundsOf($second->getMessages()));
+    }
+
+    public function testRoundNumbersContinueAfterDeferredToolCalls()
+    {
+        $toolCall = new ToolCall('id1', 'tool1', []);
+        $executions = 0;
+        $platform = $this->platform(new ToolCallResult([$toolCall]), new ToolCallResult([$toolCall]), new TextResult('Done'));
+        $runner = $this->createRunner($platform, $this->countingToolbox($toolCall, $executions));
+
+        $first = $this->lastUpdate($runner, new MessageBag(Message::ofUser('Hi')), ['defer_tool_calls' => true]);
+        $bag = $this->withToolResult($first, $toolCall);
+        $second = $this->lastUpdate($runner, $bag, ['defer_tool_calls' => true]);
+        $bag = $this->withToolResult($second, $toolCall);
+        $third = $this->lastUpdate($runner, $bag);
+
+        $this->assertSame([1], $this->roundsOf($first->getMessages()));
+        $this->assertSame([1, 2], $this->roundsOf($second->getMessages()));
+        $this->assertSame([1, 2, 3], $this->roundsOf($third->getMessages()));
+    }
+
+    public function testStreamedRoundsCarryTheirRoundNumber()
+    {
+        $toolCall = new ToolCall('id1', 'tool1', []);
+        $executions = 0;
+        $toolStream = new StreamResult((static function () use ($toolCall) {
+            yield new TextDelta('Let me check');
+            yield new ToolCallComplete([$toolCall]);
+        })());
+        $finalStream = new StreamResult((static function () {
+            yield new TextDelta('Done');
+        })());
+        $runner = $this->createRunner($this->platform($toolStream, $finalStream), $this->countingToolbox($toolCall, $executions));
+
+        $update = $this->lastUpdate($runner, new MessageBag(Message::ofUser('Hi')));
+
+        $this->assertSame([1, 2], $this->roundsOf($update->getMessages()));
+    }
+
     public function testDeferToolCallsHonorsTheToolsOption()
     {
         $toolCall = new ToolCall('id1', 'tool1', []);
@@ -1134,6 +1196,31 @@ final class RunnerTest extends TestCase
 
         $this->assertInstanceOf(TextResult::class, $result);
         $this->assertSame('Hello world!', $result->getContent());
+    }
+
+    private function withToolResult(ResultUpdate $update, ToolCall $toolCall): MessageBag
+    {
+        $messages = $update->getMessages();
+        $this->assertInstanceOf(MessageBag::class, $messages);
+
+        return $messages->with(Message::ofToolCall($toolCall, 'result'));
+    }
+
+    /**
+     * @return list<int>
+     */
+    private function roundsOf(?MessageBag $messages): array
+    {
+        $this->assertInstanceOf(MessageBag::class, $messages);
+
+        $rounds = [];
+        foreach ($messages->getMessages() as $message) {
+            if ($message instanceof AssistantMessage) {
+                $rounds[] = $message->getMetadata()->get('round');
+            }
+        }
+
+        return $rounds;
     }
 
     private function countingToolbox(ToolCall $toolCall, int &$executions): ToolboxInterface

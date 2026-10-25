@@ -27,6 +27,7 @@ use Symfony\AI\Platform\Message\Content\Text;
 use Symfony\AI\Platform\Message\Content\Thinking;
 use Symfony\AI\Platform\Message\Message;
 use Symfony\AI\Platform\Message\MessageBag;
+use Symfony\AI\Platform\Message\MessageInterface;
 use Symfony\AI\Platform\Metadata\Metadata;
 use Symfony\AI\Platform\PlatformInterface;
 use Symfony\AI\Platform\Result\CommentaryResult;
@@ -83,6 +84,8 @@ final class Runner
         $metadata = new Metadata();
         $iterations = 0;
         $rounds = 0;
+        $round = 0;
+        $firstRound = 1 + \count(array_filter($messages->getMessages(), static fn (MessageInterface $message): bool => $message instanceof AssistantMessage));
         $stopped = false;
 
         while (true) {
@@ -115,6 +118,7 @@ final class Runner
                 return;
             }
 
+            $round = $firstRound + $rounds;
             ++$rounds;
 
             $toolCallResult = $this->extractToolCallResult($result);
@@ -132,8 +136,10 @@ final class Runner
             $toolCalls = array_values($toolCallResult->getContent());
             $this->denyRestrictedToolCalls($toolCalls, $allowedTools);
 
+            $toolRoundMetadata = [...$result->getMetadata()->all(), 'round' => $round];
+
             if ($deferToolCalls) {
-                $messages = $messages->with($this->toAssistantMessage($result, $assistantMessage, $result->getMetadata()->all()));
+                $messages = $messages->with($this->toAssistantMessage($result, $assistantMessage, $toolRoundMetadata));
                 $stopped = true;
 
                 break;
@@ -141,7 +147,7 @@ final class Runner
 
             $toolResults = yield from $this->toolExecutor->execute($toolCalls);
 
-            $messages = $messages->with($this->toAssistantMessage($result, $assistantMessage, $result->getMetadata()->all()));
+            $messages = $messages->with($this->toAssistantMessage($result, $assistantMessage, $toolRoundMetadata));
             foreach ($toolResults as $i => $toolResult) {
                 $messages = $messages->with(Message::ofToolCall($toolCalls[$i], $this->resultConverter->convert($toolResult)));
 
@@ -160,6 +166,7 @@ final class Runner
             if ($event->hasResult()) {
                 $result = $event->getResult();
                 $assistantMessage = null;
+                ++$round;
 
                 break;
             }
@@ -171,7 +178,7 @@ final class Runner
             }
         }
 
-        $roundMetadata = $result->getMetadata()->all();
+        $roundMetadata = [...$result->getMetadata()->all(), 'round' => $round];
         if ($this->includeSources) {
             $roundMetadata['sources'] = $sources;
         }

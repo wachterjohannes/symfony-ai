@@ -278,7 +278,9 @@ failed execution::
 
 ``getId()`` returns a UUID that identifies this run. The conversation is identified by the id of its ``MessageBag``.
 The last assistant message returned by ``getMessages()`` carries the id in its ``execution_id`` metadata, so it is
-stored with the message.
+stored with the message. Every assistant message of a run also carries its ``round`` metadata, a positive integer. It is
+``1`` plus the number of assistant messages already in the conversation, so a run that continues a ``MessageBag``
+numbers on.
 
 While an execution runs, every ``Progress`` update is recorded as an
 :class:`Symfony\\AI\\Agent\\Execution\\ExecutionEvent` with a sequence number that starts at ``1``.
@@ -297,7 +299,16 @@ greater than the last recorded one::
     $cursor = [] === $events ? $cursor : end($events)->getSequence();
 
 ``getErrorCode()`` returns the code of the exception that failed the execution, if it implements
-:class:`Symfony\\AI\\Agent\\Exception\\ErrorCodeAwareInterface`. Otherwise it returns ``null``.
+:class:`Symfony\\AI\\Platform\\Exception\\ErrorCodeAwareInterface`. Otherwise it returns ``null``. The exceptions of the
+platform implement it, so the codes are the same for every provider. ``isRetryable()`` on the exception tells whether
+repeating the same request may succeed:
+
+* ``rate_limit_exceeded`` (``RateLimitExceededException``, retryable)
+* ``provider_error`` (``ServerException``, retryable)
+* ``authentication_failed`` (``AuthenticationException``)
+* ``bad_request`` (``BadRequestException``)
+* ``model_not_found`` (``ModelNotFoundException`` and ``MissingModelSupportException``)
+* ``content_filtered`` (``ContentFilterException``)
 
 Stepwise runs
 ~~~~~~~~~~~~~
@@ -322,7 +333,8 @@ run and never reach the platform. A stopped run skips the output processors, sin
 A worker loop reads the status. ``Pending`` means the next model round is due, so call the agent again with the
 messages. ``WaitingForInput`` means tool calls have no answer. Append a ``ToolCallMessage`` for each of them, then call
 the agent again. ``Completed`` means the run is done. Nothing keeps the ``MessageBag`` between the steps, so the
-application stores it.
+application stores it. With a message store, continue with the stored bag or with only the new tool messages, never
+with the original input again, since it counts as a new message.
 
 Stopping the iteration of an execution works inside one process. The options exist for workers in different
 processes, since the state is the ``MessageBag`` and no generator has to survive between the steps.

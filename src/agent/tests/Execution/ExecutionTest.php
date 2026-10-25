@@ -12,7 +12,6 @@
 namespace Symfony\AI\Agent\Tests\Execution;
 
 use PHPUnit\Framework\TestCase;
-use Symfony\AI\Agent\Exception\ErrorCodeAwareInterface;
 use Symfony\AI\Agent\Exception\InvalidArgumentException;
 use Symfony\AI\Agent\Exception\LogicException;
 use Symfony\AI\Agent\Exception\RuntimeException;
@@ -22,6 +21,8 @@ use Symfony\AI\Agent\Execution\ExecutionStatus;
 use Symfony\AI\Agent\Execution\Update\Progress;
 use Symfony\AI\Agent\Execution\Update\Result as ResultUpdate;
 use Symfony\AI\Agent\MockAgent;
+use Symfony\AI\Platform\Exception\ErrorCodeAwareInterface;
+use Symfony\AI\Platform\Exception\RateLimitExceededException;
 use Symfony\AI\Platform\Exception\UnexpectedResultTypeException;
 use Symfony\AI\Platform\Message\Message;
 use Symfony\AI\Platform\Message\MessageBag;
@@ -620,6 +621,23 @@ final class ExecutionTest extends TestCase
         $this->assertSame('Quota exceeded', $execution->getError());
     }
 
+    public function testErrorCodeComesFromAPlatformException()
+    {
+        $execution = new Execution(static function (): \Generator {
+            yield from [];
+
+            throw new RateLimitExceededException(30);
+        });
+
+        try {
+            $execution->getResult();
+            $this->fail('The execution should have thrown.');
+        } catch (RateLimitExceededException) {
+        }
+
+        $this->assertSame('rate_limit_exceeded', $execution->getErrorCode());
+    }
+
     public function testErrorCodeIsNullForAPlainException()
     {
         $execution = new Execution(static function (): \Generator {
@@ -671,5 +689,10 @@ final class CodedException extends RuntimeException implements ErrorCodeAwareInt
     public function getErrorCode(): string
     {
         return 'quota_exceeded';
+    }
+
+    public function isRetryable(): bool
+    {
+        return false;
     }
 }

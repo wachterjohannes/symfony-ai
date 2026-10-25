@@ -13,7 +13,6 @@ namespace Symfony\AI\Agent\Tests\Execution;
 
 use PHPUnit\Framework\TestCase;
 use Symfony\AI\Agent\AgentInterface;
-use Symfony\AI\Agent\Exception\ErrorCodeAwareInterface;
 use Symfony\AI\Agent\Exception\RuntimeException;
 use Symfony\AI\Agent\Execution\AbstractExecution;
 use Symfony\AI\Agent\Execution\ExecutionEvent;
@@ -25,6 +24,7 @@ use Symfony\AI\Agent\InputNormalizer;
 use Symfony\AI\Agent\Toolbox\Attribute\AsTool;
 use Symfony\AI\Agent\Toolbox\Toolbox;
 use Symfony\AI\Agent\Toolbox\ToolboxInterface;
+use Symfony\AI\Platform\Exception\ErrorCodeAwareInterface;
 use Symfony\AI\Platform\Message\AssistantMessage;
 use Symfony\AI\Platform\Message\Message;
 use Symfony\AI\Platform\Message\MessageBag;
@@ -130,6 +130,11 @@ final class RemoteRunException extends RuntimeException implements ErrorCodeAwar
     public function getErrorCode(): string
     {
         return $this->errorCode;
+    }
+
+    public function isRetryable(): bool
+    {
+        return false;
     }
 }
 
