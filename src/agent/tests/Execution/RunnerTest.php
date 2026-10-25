@@ -1182,6 +1182,35 @@ final class RunnerTest extends TestCase
         $this->assertSame([1, 2, 3], $this->roundsOf($third->getMessages()));
     }
 
+    public function testRoundNumbersContinueAfterTheHighestRoundOnTheMessages()
+    {
+        $toolCall = new ToolCall('id1', 'tool1', []);
+        $executions = 0;
+        $runner = $this->createRunner($this->platform(new ToolCallResult([$toolCall]), new TextResult('Done')), $this->countingToolbox($toolCall, $executions));
+        $answer = Message::ofAssistant('Rounds one to four in one message');
+        $answer->getMetadata()->add('round', 4);
+
+        $update = $this->lastUpdate($runner, new MessageBag(Message::ofUser('Hi'), $answer, Message::ofUser('More')));
+
+        $this->assertSame([4, 5, 6], $this->roundsOf($update->getMessages()));
+    }
+
+    public function testRoundNumbersFallBackToTheAssistantMessagesWithoutRoundMetadata()
+    {
+        $executions = 0;
+        $runner = $this->createRunner($this->platform(new TextResult('Done')), $this->countingToolbox(new ToolCall('id1', 'tool1', []), $executions));
+
+        $update = $this->lastUpdate($runner, new MessageBag(
+            Message::ofUser('Hi'),
+            Message::ofAssistant('One'),
+            Message::ofUser('Again'),
+            Message::ofAssistant('Two'),
+            Message::ofUser('And again'),
+        ));
+
+        $this->assertSame([null, null, 3], $this->roundsOf($update->getMessages()));
+    }
+
     public function testStreamedRoundsCarryTheirRoundNumber()
     {
         $toolCall = new ToolCall('id1', 'tool1', []);

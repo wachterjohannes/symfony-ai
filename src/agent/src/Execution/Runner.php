@@ -27,7 +27,6 @@ use Symfony\AI\Platform\Message\Content\Text;
 use Symfony\AI\Platform\Message\Content\Thinking;
 use Symfony\AI\Platform\Message\Message;
 use Symfony\AI\Platform\Message\MessageBag;
-use Symfony\AI\Platform\Message\MessageInterface;
 use Symfony\AI\Platform\Metadata\Metadata;
 use Symfony\AI\Platform\PlatformInterface;
 use Symfony\AI\Platform\Result\CommentaryResult;
@@ -85,7 +84,7 @@ final class Runner
         $iterations = 0;
         $rounds = 0;
         $round = 0;
-        $firstRound = 1 + \count(array_filter($messages->getMessages(), static fn (MessageInterface $message): bool => $message instanceof AssistantMessage));
+        $firstRound = $this->firstRound($messages);
         $stopped = false;
 
         while (true) {
@@ -222,6 +221,28 @@ final class Runner
         }
 
         yield new ResultUpdate($result, $answer);
+    }
+
+    /**
+     * Continues after the highest round already on the messages, so a bag that holds one assistant message for several rounds keeps counting.
+     */
+    private function firstRound(MessageBag $messages): int
+    {
+        $assistantMessages = 0;
+        $highest = 0;
+        foreach ($messages->getMessages() as $message) {
+            if (!$message instanceof AssistantMessage) {
+                continue;
+            }
+
+            ++$assistantMessages;
+            $round = $message->getMetadata()->get('round');
+            if (\is_int($round) && $round > $highest) {
+                $highest = $round;
+            }
+        }
+
+        return 1 + max($assistantMessages, $highest);
     }
 
     /**

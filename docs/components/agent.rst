@@ -278,9 +278,9 @@ failed execution::
 
 ``getId()`` returns a UUID that identifies this run. The conversation is identified by the id of its ``MessageBag``.
 The last assistant message returned by ``getMessages()`` carries the id in its ``execution_id`` metadata, so it is
-stored with the message. Every assistant message of a run also carries its ``round`` metadata, a positive integer. It is
-``1`` plus the number of assistant messages already in the conversation, so a run that continues a ``MessageBag``
-numbers on.
+stored with the message. Every assistant message of a run also carries its ``round`` metadata, a positive integer. It
+continues after the highest ``round`` already in the conversation, or after the number of its assistant messages if that
+is higher, so a run that continues a ``MessageBag`` numbers on, also when one assistant message holds several rounds.
 
 While an execution runs, every ``Progress`` update is recorded as an
 :class:`Symfony\\AI\\Agent\\Execution\\ExecutionEvent` with a sequence number that starts at ``1``.
