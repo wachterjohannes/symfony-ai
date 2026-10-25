@@ -15,13 +15,12 @@ use PHPUnit\Framework\TestCase;
 use Symfony\AI\Agent\AgentInterface;
 use Symfony\AI\Agent\Exception\ErrorCodeAwareInterface;
 use Symfony\AI\Agent\Exception\RuntimeException;
-use Symfony\AI\Agent\Execution\Execution;
+use Symfony\AI\Agent\Execution\AbstractExecution;
 use Symfony\AI\Agent\Execution\ExecutionEvent;
 use Symfony\AI\Agent\Execution\ExecutionInterface;
 use Symfony\AI\Agent\Execution\ExecutionState;
 use Symfony\AI\Agent\Execution\ExecutionStatus;
 use Symfony\AI\Agent\Execution\Update\Progress;
-use Symfony\AI\Agent\Execution\Update\Result;
 use Symfony\AI\Agent\InputNormalizer;
 use Symfony\AI\Agent\Toolbox\Attribute\AsTool;
 use Symfony\AI\Agent\Toolbox\Toolbox;
@@ -31,11 +30,13 @@ use Symfony\AI\Platform\Message\Message;
 use Symfony\AI\Platform\Message\MessageBag;
 use Symfony\AI\Platform\Message\ToolCallMessage;
 use Symfony\AI\Platform\Message\UserMessage;
+use Symfony\AI\Platform\Result\ResultInterface;
 use Symfony\AI\Platform\Result\TextResult;
 use Symfony\AI\Platform\Result\ToolCall;
 use Symfony\AI\Platform\Result\ToolCallResult;
 use Symfony\Component\Uid\AbstractUid;
 use Symfony\Component\Uid\TimeBasedUidInterface;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * A remote service owns the history of a run and every process only advances it by one step.
@@ -144,42 +145,124 @@ final class RemoteRunAdapter implements AgentInterface
     {
         $runId = InputNormalizer::toMessageBag($input)->getId();
 
-        $execution = new Execution(function () use ($runId): \Generator {
-            if (null !== $code = $this->remote->failureOf($runId)) {
-                throw new RemoteRunException($code);
-            }
-
-            yield new Progress('remote_step', 'Reading the remote run.');
-
-            foreach (ExecutionState::pendingToolCallsOf($this->remote->history($runId)) as $toolCall) {
-                $this->remote->answer($runId, $toolCall, (string) $this->toolbox->execute($toolCall)->getResult());
-            }
-
-            if (ExecutionStatus::Pending === ExecutionState::statusOf($this->remote->history($runId))) {
-                $this->remote->advance($runId);
-            }
-
-            $history = $this->remote->history($runId);
-            $pending = ExecutionState::pendingToolCallsOf($history);
-
-            yield new Result([] === $pending ? new TextResult($this->lastText($history)) : new ToolCallResult($pending), $history);
-        });
-
+        $events = [];
         $step = 0;
         foreach ($this->remote->history($runId)->getMessages() as $message) {
             if ($message instanceof AssistantMessage) {
-                $execution->record(new Progress('model_request', 'The remote model answered.'), 2 * $step + 1);
-                $execution->record(new Progress('remote_step', 'The remote step finished.'), 2 * $step + 2);
+                $events[] = ExecutionEvent::fromProgress(2 * $step + 1, new Progress('model_request', 'The remote model answered.'));
+                $events[] = ExecutionEvent::fromProgress(2 * $step + 2, new Progress('remote_step', 'The remote step finished.'));
                 ++$step;
             }
         }
 
-        return $execution;
+        return new RemoteRun($this->remote, $this->toolbox, $runId, $events);
     }
 
     public function getName(): string
     {
         return 'remote';
+    }
+}
+
+/**
+ * Reads its state from the remote history and advances the run by one step on the first read of the result.
+ */
+final class RemoteRun extends AbstractExecution
+{
+    private readonly AbstractUid&TimeBasedUidInterface $id;
+    private ?MessageBag $history = null;
+    private ?ResultInterface $result = null;
+    private ?RemoteRunException $failure = null;
+
+    /**
+     * @param list<ExecutionEvent> $events
+     */
+    public function __construct(
+        private readonly FakeRemoteHistory $remote,
+        private readonly ToolboxInterface $toolbox,
+        private readonly AbstractUid $runId,
+        private readonly array $events,
+    ) {
+        $this->id = Uuid::v7();
+    }
+
+    public function getId(): AbstractUid&TimeBasedUidInterface
+    {
+        return $this->id;
+    }
+
+    public function getStatus(): ExecutionStatus
+    {
+        if (null !== $this->failure) {
+            return ExecutionStatus::Failed;
+        }
+
+        return null === $this->history ? ExecutionStatus::Pending : ExecutionState::statusOf($this->history);
+    }
+
+    public function getPendingToolCalls(): array
+    {
+        return null === $this->history ? [] : ExecutionState::pendingToolCallsOf($this->history);
+    }
+
+    public function getError(): ?string
+    {
+        return $this->failure?->getMessage();
+    }
+
+    public function getErrorCode(): ?string
+    {
+        return $this->failure?->getErrorCode();
+    }
+
+    public function getEventsSince(int $sequence = 0): array
+    {
+        return array_values(array_filter(
+            $this->events,
+            static fn (ExecutionEvent $event): bool => $event->getSequence() > $sequence,
+        ));
+    }
+
+    public function getMessages(): MessageBag
+    {
+        $this->advance();
+
+        return $this->history;
+    }
+
+    public function getResult(): ResultInterface
+    {
+        $this->advance();
+
+        return $this->result;
+    }
+
+    private function advance(): void
+    {
+        if (null !== $this->failure) {
+            throw $this->failure;
+        }
+
+        if (null !== $this->result) {
+            return;
+        }
+
+        if (null !== $code = $this->remote->failureOf($this->runId)) {
+            throw $this->failure = new RemoteRunException($code);
+        }
+
+        foreach (ExecutionState::pendingToolCallsOf($this->remote->history($this->runId)) as $toolCall) {
+            $this->remote->answer($this->runId, $toolCall, (string) $this->toolbox->execute($toolCall)->getResult());
+        }
+
+        if (ExecutionStatus::Pending === ExecutionState::statusOf($this->remote->history($this->runId))) {
+            $this->remote->advance($this->runId);
+        }
+
+        $this->history = $this->remote->history($this->runId);
+        $pending = ExecutionState::pendingToolCallsOf($this->history);
+
+        $this->result = [] === $pending ? new TextResult($this->lastText($this->history)) : new ToolCallResult($pending);
     }
 
     private function lastText(MessageBag $history): string

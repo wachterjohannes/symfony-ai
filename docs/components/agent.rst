@@ -62,8 +62,27 @@ Execution
 ---------
 
 :method:`Symfony\\AI\\Agent\\Agent::call` returns a lazy :class:`Symfony\\AI\\Agent\\Execution\\ExecutionInterface`.
-:class:`Symfony\\AI\\Agent\\Execution\\Execution` is its implementation. An adapter may return its own. The
-execution *is* the result it produces, so the simplest usage reads the answer straight off it - the example at the
+:class:`Symfony\\AI\\Agent\\Execution\\Execution` is its implementation. An adapter may return its own. It can
+extend :class:`Symfony\\AI\\Agent\\Execution\\AbstractExecution` and only provide the id, the status, the pending tool
+calls, the error, the messages and the result. Everything else has a default::
+
+    use Symfony\AI\Agent\Execution\AbstractExecution;
+
+    final class RemoteExecution extends AbstractExecution
+    {
+        public function __construct(private readonly RemoteRun $run)
+        {
+        }
+
+        public function getId(): AbstractUid&TimeBasedUidInterface { return $this->run->id; }
+        public function getStatus(): ExecutionStatus { return $this->run->status; }
+        public function getPendingToolCalls(): array { return $this->run->pendingToolCalls; }
+        public function getError(): ?string { return $this->run->error; }
+        public function getMessages(): MessageBag { return $this->run->messages; }
+        public function getResult(): ResultInterface { return $this->run->result; }
+    }
+
+The execution *is* the result it produces, so the simplest usage reads the answer straight off it - the example at the
 top of this page does exactly that. Beyond that, the same object reports every step the agent takes - each model
 request, each tool call, and each streamed delta - as an update when you iterate it, which is what you need to show
 progress to a user while the agent is still working::
