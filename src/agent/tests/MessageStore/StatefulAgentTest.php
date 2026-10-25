@@ -127,6 +127,53 @@ final class StatefulAgentTest extends TestCase
         );
     }
 
+    public function testItSetsTheExecutionIdOnTheCheckpointsOfARun()
+    {
+        $toolCall = new ToolCall('call_1', 'clock');
+        $toolbox = $this->createStub(ToolboxInterface::class);
+        $toolbox->method('getTools')->willReturn([]);
+        $toolbox->method('execute')->willReturn(new ToolResult($toolCall, '12:00'));
+
+        $requests = 0;
+        $platform = MockPlatformFactory::createPlatform(static function () use (&$requests): ResultInterface {
+            ++$requests;
+
+            if (1 === $requests) {
+                return new TextResult('Hello');
+            }
+
+            if (2 === $requests) {
+                return new ToolCallResult([new ToolCall('call_1', 'clock')]);
+            }
+
+            throw new \LogicException('The model is unavailable.');
+        });
+        $store = new InMemoryMessageStore();
+        $agent = new Agent($platform, 'gpt-4', toolbox: $toolbox, messageStore: $store);
+        $messages = new MessageBag(Message::ofUser('Hi'));
+
+        $first = $agent->call($messages);
+        $first->getResult();
+
+        $second = $agent->call($store->load($messages->getId())->with(Message::ofUser('What time is it?')));
+        try {
+            $second->getResult();
+            $this->fail('The second model request of the run is expected to fail.');
+        } catch (\LogicException) {
+        }
+
+        $stored = $store->load($messages->getId())->getMessages();
+
+        $this->assertSame(
+            [UserMessage::class, AssistantMessage::class, UserMessage::class, AssistantMessage::class, ToolCallMessage::class],
+            array_map(get_class(...), $stored),
+        );
+        $this->assertSame($first->getId()->toRfc4122(), $stored[1]->getMetadata()->get('execution_id'));
+        $this->assertFalse($stored[2]->getMetadata()->has('execution_id'));
+        $this->assertSame($second->getId()->toRfc4122(), $stored[3]->getMetadata()->get('execution_id'));
+        $this->assertFalse($stored[4]->getMetadata()->has('execution_id'));
+    }
+
     public function testItFailsWhenTheConversationChangedDuringTheRun()
     {
         $store = new InMemoryMessageStore();

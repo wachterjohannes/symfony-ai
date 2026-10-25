@@ -15,6 +15,9 @@ use Symfony\AI\Agent\Exception\InvalidArgumentException;
 use Symfony\AI\Agent\Exception\RuntimeException;
 use Symfony\AI\Agent\Execution\Cancellation;
 use Symfony\AI\Agent\Execution\Execution;
+use Symfony\AI\Agent\Execution\ExecutionInterface;
+use Symfony\AI\Agent\Execution\ExecutionState;
+use Symfony\AI\Agent\Execution\ExecutionStatus;
 use Symfony\AI\Agent\Execution\Runner;
 use Symfony\AI\Agent\Execution\Update\Result as ResultUpdate;
 use Symfony\AI\Agent\MessageStore\MessageStoreInterface;
@@ -23,11 +26,15 @@ use Symfony\AI\Agent\Toolbox\ToolboxInterface;
 use Symfony\AI\Agent\Toolbox\ToolExecutorInterface;
 use Symfony\AI\Agent\Toolbox\ToolResultConverter;
 use Symfony\AI\Platform\Exception\ExceptionInterface;
+use Symfony\AI\Platform\Message\AssistantMessage;
 use Symfony\AI\Platform\Message\MessageBag;
 use Symfony\AI\Platform\Message\MessageInterface;
 use Symfony\AI\Platform\Message\UserMessage;
 use Symfony\AI\Platform\PlatformInterface;
+use Symfony\AI\Platform\Result\MultiPartResult;
 use Symfony\AI\Platform\Result\ResultInterface;
+use Symfony\AI\Platform\Result\ToolCallResult;
+use Symfony\Component\Uid\Uuid;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 /**
@@ -84,7 +91,7 @@ final class Agent implements AgentInterface
     }
 
     /**
-     * Starts the agent and returns a lazy {@see Execution} that is also the result it produces.
+     * Starts the agent and returns a lazy {@see ExecutionInterface} that is also the result it produces.
      *
      * Read it eagerly with `->getContent()`/`->getResult()`, iterate it to observe every model request, tool call
      * and streamed delta as an update, or register callbacks via `->onProgress(...)`. With the "stream" option
@@ -96,10 +103,11 @@ final class Agent implements AgentInterface
      * @throws RuntimeException         When the platform returns a server error (5xx) or network failure occurs
      * @throws ExceptionInterface       When the platform converter throws an exception
      */
-    public function call(string|MessageBag|UserMessage $input, array $options = []): Execution
+    public function call(string|MessageBag|UserMessage $input, array $options = []): ExecutionInterface
     {
         $cancellation = new Cancellation();
-        $factory = function () use ($input, $options, $cancellation): \Generator {
+        $executionId = Uuid::v7();
+        $factory = function () use ($input, $options, $cancellation, $executionId): \Generator {
             $input = InputNormalizer::toMessageBag($input);
             if (null !== $this->messageStore) {
                 $input = $this->continueStored($input, $this->messageStore);
@@ -128,7 +136,16 @@ final class Agent implements AgentInterface
             $onToolRound = null;
             if (null !== $this->messageStore) {
                 $store = $this->messageStore;
-                $onToolRound = static fn (MessageBag $round) => $store->save($input->merge(new MessageBag(...\array_slice($round->getMessages(), \count($messages)))));
+                $onToolRound = static function (MessageBag $round) use ($store, $input, $messages, $executionId): void {
+                    $runMessages = \array_slice($round->getMessages(), \count($messages));
+                    foreach ($runMessages as $message) {
+                        if ($message instanceof AssistantMessage) {
+                            $message->getMetadata()->add('execution_id', $executionId->toRfc4122());
+                        }
+                    }
+
+                    $store->save($input->merge(new MessageBag(...$runMessages)));
+                };
             }
 
             foreach ($this->runner->run($model, $messages, $processedOptions, $cancellation, $onToolRound) as $update) {
@@ -148,8 +165,11 @@ final class Agent implements AgentInterface
 
             \assert($result instanceof ResultInterface && $resultUpdate instanceof ResultUpdate);
 
-            $output = new Output($model, $result, $messages, $processedOptions);
-            foreach ($this->outputProcessors as $outputProcessor) {
+            // a stepped run stopped before the final answer has none to process
+            $stopped = (isset($processedOptions['max_rounds']) || isset($processedOptions['defer_tool_calls'])) && $this->isStopped($result, $resultUpdate);
+            $outputProcessors = $stopped ? [] : $this->outputProcessors;
+            $output = new Output($model, $result, $messages, array_diff_key($processedOptions, ['max_rounds' => true, 'defer_tool_calls' => true]));
+            foreach ($outputProcessors as $outputProcessor) {
                 if (!$outputProcessor instanceof OutputProcessorInterface) {
                     throw new InvalidArgumentException(\sprintf('Output processor "%s" must implement "%s".', $outputProcessor::class, OutputProcessorInterface::class));
                 }
@@ -162,11 +182,15 @@ final class Agent implements AgentInterface
             }
 
             $finalResult = $output->getResult();
-            $conversation = static function () use ($resultUpdate, $messages, $input, $result, $finalResult): MessageBag {
+            $conversation = static function () use ($resultUpdate, $messages, $input, $result, $finalResult, $executionId): MessageBag {
                 $runMessages = $resultUpdate->getMessages($finalResult !== $result ? $finalResult : null);
 
                 // the runner appended to the processed request, the caller's input only gets the new messages
                 $newMessages = \array_slice($runMessages?->getMessages() ?? [], \count($messages));
+
+                if ([] !== $newMessages) {
+                    $newMessages[array_key_last($newMessages)]->getMetadata()->add('execution_id', $executionId->toRfc4122());
+                }
 
                 return $input->merge(new MessageBag(...$newMessages));
             };
@@ -179,7 +203,7 @@ final class Agent implements AgentInterface
             yield new ResultUpdate($finalResult, $conversation);
         };
 
-        return new Execution($factory, true === ($options['stream'] ?? false), $cancellation);
+        return new Execution($factory, true === ($options['stream'] ?? false), $cancellation, $executionId);
     }
 
     /**
@@ -197,5 +221,17 @@ final class Agent implements AgentInterface
         $messages->getMetadata()->set(array_replace($stored->getMetadata()->all(), $input->getMetadata()->all()));
 
         return $messages;
+    }
+
+    private function isStopped(ResultInterface $result, ResultUpdate $resultUpdate): bool
+    {
+        $toolCallResult = $result instanceof MultiPartResult ? $result->asToolCallResult() : $result;
+        if (!$toolCallResult instanceof ToolCallResult) {
+            return false;
+        }
+
+        $messages = $resultUpdate->getMessages();
+
+        return null !== $messages && ExecutionStatus::Completed !== ExecutionState::statusOf($messages);
     }
 }

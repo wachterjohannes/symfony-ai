@@ -135,6 +135,30 @@ final class MessageNormalizerTest extends TestCase
         $this->assertEquals([new City('Berlin', 3500000)], $restored->getMetadata()->get('cities'));
     }
 
+    #[DataProvider('provideMessagesWithCustomMetadata')]
+    public function testCustomMetadataKeysSurviveAJsonRoundTrip(MessageInterface $message)
+    {
+        $message->getMetadata()->add('app_ticket', 'T-42');
+        $message->getMetadata()->add('app_context', ['user' => ['id' => 7, 'roles' => ['admin']], 'flags' => [true, null]]);
+        $message->getMetadata()->add('app_city', new City('Berlin', 3500000));
+        $serializer = new Serializer([new MessageNormalizer(), new ObjectNormalizer()], [new JsonEncoder()]);
+
+        $restored = $serializer->deserialize($serializer->serialize($message, 'json'), MessageInterface::class, 'json');
+
+        $this->assertSame('T-42', $restored->getMetadata()->get('app_ticket'));
+        $this->assertSame(['user' => ['id' => 7, 'roles' => ['admin']], 'flags' => [true, null]], $restored->getMetadata()->get('app_context'));
+        $this->assertEquals(new City('Berlin', 3500000), $restored->getMetadata()->get('app_city'));
+    }
+
+    /**
+     * @return iterable<string, array{MessageInterface}>
+     */
+    public static function provideMessagesWithCustomMetadata(): iterable
+    {
+        yield 'assistant' => [Message::ofAssistant('Hi')];
+        yield 'tool call' => [new ToolCallMessage(new ToolCall('call_1', 'weather', ['city' => 'Berlin']), new Text('Sunny'))];
+    }
+
     public function testMetadataArraysShapedLikeATypedObjectStayArrays()
     {
         $message = Message::ofAssistant('Hi');
