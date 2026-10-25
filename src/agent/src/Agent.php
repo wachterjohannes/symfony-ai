@@ -26,6 +26,7 @@ use Symfony\AI\Platform\Message\MessageBag;
 use Symfony\AI\Platform\Message\UserMessage;
 use Symfony\AI\Platform\PlatformInterface;
 use Symfony\AI\Platform\Result\ResultInterface;
+use Symfony\Component\Uid\Uuid;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 /**
@@ -93,7 +94,8 @@ final class Agent implements AgentInterface
     public function call(string|MessageBag|UserMessage $input, array $options = []): Execution
     {
         $cancellation = new Cancellation();
-        $factory = function () use ($input, $options, $cancellation): \Generator {
+        $executionId = Uuid::v7();
+        $factory = function () use ($input, $options, $cancellation, $executionId): \Generator {
             $input = InputNormalizer::toMessageBag($input);
             $request = new Input($this->getModel(), $input, $options);
             foreach ($this->inputProcessors as $inputProcessor) {
@@ -145,7 +147,7 @@ final class Agent implements AgentInterface
             }
 
             $finalResult = $output->getResult();
-            $newMessages = static function () use ($resultUpdate, $messages, $input, $result, $finalResult): MessageBag {
+            $newMessages = static function () use ($resultUpdate, $messages, $input, $result, $finalResult, $executionId): MessageBag {
                 // the runner appended to the processed request, the caller's input only gets the new messages
                 $newMessages = \array_slice($resultUpdate->getMessages()?->getMessages() ?? [], \count($messages));
 
@@ -155,12 +157,16 @@ final class Agent implements AgentInterface
                     $newMessages[] = $answer;
                 }
 
+                if ([] !== $newMessages) {
+                    $newMessages[array_key_last($newMessages)]->getMetadata()->add('execution_id', $executionId->toRfc4122());
+                }
+
                 return $input->merge(new MessageBag(...$newMessages));
             };
 
             yield new ResultUpdate($finalResult, $newMessages);
         };
 
-        return new Execution($factory, true === ($options['stream'] ?? false), $cancellation);
+        return new Execution($factory, true === ($options['stream'] ?? false), $cancellation, $executionId);
     }
 }
