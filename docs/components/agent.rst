@@ -260,6 +260,25 @@ failed execution::
 The last assistant message returned by ``getMessages()`` carries the id in its ``execution_id`` metadata, so it is
 stored with the message.
 
+While an execution runs, every ``Progress`` update is recorded as an
+:class:`Symfony\\AI\\Agent\\Execution\\ExecutionEvent` with a sequence number that starts at ``1``.
+``getEventsSince($sequence)`` returns the events after that sequence, in order. A client that polls keeps the last
+sequence it saw as its cursor. An adapter that rebuilds the execution on every poll records the events it read from
+the remote state with ``record($progress, $sequence)`` and uses its own sequence numbers. An explicit sequence must be
+greater than the last recorded one::
+
+    $execution = $agent->call($messages);
+
+    foreach ($remoteProgress as $sequence => $progress) {
+        $execution->record($progress, $sequence);
+    }
+
+    $events = $execution->getEventsSince($cursor);
+    $cursor = [] === $events ? $cursor : end($events)->getSequence();
+
+``getErrorCode()`` returns the code of the exception that failed the execution, if it implements
+:class:`Symfony\\AI\\Agent\\Exception\\ErrorCodeAwareInterface`. Otherwise it returns ``null``.
+
 Stepwise runs
 ~~~~~~~~~~~~~
 

@@ -12,6 +12,8 @@
 namespace Symfony\AI\Agent\Tests\Execution;
 
 use PHPUnit\Framework\TestCase;
+use Symfony\AI\Agent\Exception\ErrorCodeAwareInterface;
+use Symfony\AI\Agent\Exception\InvalidArgumentException;
 use Symfony\AI\Agent\Exception\LogicException;
 use Symfony\AI\Agent\Exception\RuntimeException;
 use Symfony\AI\Agent\Execution\Execution;
@@ -504,6 +506,120 @@ final class ExecutionTest extends TestCase
         $this->assertSame([], $execution->getPendingToolCalls());
     }
 
+    public function testItRecordsProgressUpdatesWithSequencesWhileConsuming()
+    {
+        $execution = new Execution(static function (): \Generator {
+            yield new Progress('model_request', 'Invoking model.');
+            yield new Progress('tool_call', 'Calling tool.', 'weather');
+            yield new ResultUpdate(new TextResult('Done'));
+        });
+
+        $this->assertSame([], $execution->getEventsSince());
+
+        $execution->getResult();
+
+        $events = $execution->getEventsSince();
+        $this->assertCount(2, $events);
+        $this->assertSame(1, $events[0]->getSequence());
+        $this->assertSame('model_request', $events[0]->getStage());
+        $this->assertSame(2, $events[1]->getSequence());
+        $this->assertSame('weather', $events[1]->getPayload());
+
+        $this->assertSame([2], array_map(static fn ($event): int => $event->getSequence(), $execution->getEventsSince(1)));
+        $this->assertSame([], $execution->getEventsSince(2));
+    }
+
+    public function testItRecordsEventsBeforeTheCallbacksRun()
+    {
+        $seen = [];
+        $execution = new Execution(static function (): \Generator {
+            yield new Progress('model_request');
+            yield new ResultUpdate(new TextResult('Done'));
+        });
+        $execution->onProgress(static function () use (&$seen, &$execution): void {
+            $seen[] = \count($execution->getEventsSince());
+        });
+
+        $execution->getResult();
+
+        $this->assertSame([1], $seen);
+    }
+
+    public function testRecordUsesAnExplicitSequence()
+    {
+        $execution = new Execution(static function (): \Generator {
+            yield new ResultUpdate(new TextResult('Done'));
+        });
+
+        $execution->record(new Progress('remote_step'), 3);
+        $execution->record(new Progress('remote_step'));
+        $execution->record(new Progress('remote_step'), 10);
+
+        $this->assertSame([3, 4, 10], array_map(static fn ($event): int => $event->getSequence(), $execution->getEventsSince()));
+        $this->assertSame([10], array_map(static fn ($event): int => $event->getSequence(), $execution->getEventsSince(4)));
+    }
+
+    public function testRecordRejectsASequenceThatIsNotGreaterThanTheLastOne()
+    {
+        $execution = new Execution(static function (): \Generator {
+            yield new ResultUpdate(new TextResult('Done'));
+        });
+        $execution->record(new Progress('remote_step'), 5);
+
+        $this->expectException(InvalidArgumentException::class);
+
+        $execution->record(new Progress('remote_step'), 5);
+    }
+
+    public function testErrorCodeIsNullWhenNotFailed()
+    {
+        $execution = new Execution(static function (): \Generator {
+            yield new ResultUpdate(new TextResult('Done'));
+        });
+
+        $this->assertNull($execution->getErrorCode());
+
+        $execution->getResult();
+
+        $this->assertNull($execution->getErrorCode());
+    }
+
+    public function testErrorCodeComesFromAnErrorCodeAwareException()
+    {
+        $execution = new Execution(static function (): \Generator {
+            yield from [];
+
+            throw new CodedException('Quota exceeded');
+        });
+
+        try {
+            $execution->getResult();
+            $this->fail('The execution should have thrown.');
+        } catch (RuntimeException) {
+        }
+
+        $this->assertSame('quota_exceeded', $execution->getErrorCode());
+        $this->assertSame('Quota exceeded', $execution->getError());
+    }
+
+    public function testErrorCodeIsNullForAPlainException()
+    {
+        $execution = new Execution(static function (): \Generator {
+            yield from [];
+
+            throw new RuntimeException('Boom');
+        });
+
+        try {
+            $execution->getResult();
+            $this->fail('The execution should have thrown.');
+        } catch (RuntimeException) {
+        }
+
+        $this->assertNull($execution->getErrorCode());
+        $this->assertSame('Boom', $execution->getError());
+    }
+
     public function testStatusIsWaitingForInputWithPendingToolCalls()
     {
         $toolCall = new ToolCall('call_1', 'weather', []);
@@ -529,5 +645,13 @@ final class ExecutionTest extends TestCase
         $this->expectException(LogicException::class);
 
         $execution->asStream()->current();
+    }
+}
+
+final class CodedException extends RuntimeException implements ErrorCodeAwareInterface
+{
+    public function getErrorCode(): string
+    {
+        return 'quota_exceeded';
     }
 }
