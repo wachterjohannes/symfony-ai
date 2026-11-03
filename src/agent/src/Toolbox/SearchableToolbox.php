@@ -19,11 +19,15 @@ use Symfony\AI\Platform\Tool\Tool;
 use Symfony\Contracts\Service\ResetInterface;
 
 /**
- * Hides the tools of the decorated toolbox behind a tool the model can use to search for them.
+ * Hides the deferred tools of the decorated toolbox behind a tool the model can use to search for them.
  *
- * Instead of sending all tool definitions with every request, only the always exposed tools and a
- * search tool are advertised. Tools found by a search are added to the exposed tools, so the model
+ * Instead of sending all tool definitions with every request, only the tools that are not deferred and
+ * a search tool are advertised. Tools found by a search are added to the exposed tools, so the model
  * can call them in one of the next steps of the same tool calling loop.
+ *
+ * This is the fallback for providers without a native tool search, which receive the deferred flag
+ * of the tools instead. The tools returned by this toolbox are never deferred, so a provider does not
+ * search a second time.
  *
  * The names of all hidden tools are listed in the description of the search tool. A query of the form
  * "select:name_a,name_b" activates tools by name. Exposing found tools changes the tool list between
@@ -43,15 +47,13 @@ final class SearchableToolbox implements ToolboxInterface, ResetInterface
     private array $foundTools = [];
 
     /**
-     * @param list<string> $alwaysExposedTools  names of tools that are exposed without being searched for
-     * @param int          $activationThreshold a toolbox with this many tools or fewer is exposed directly,
-     *                                           without paying for the search tool call
+     * @param int $activationThreshold this many deferred tools or fewer are exposed directly,
+     *                                 without paying for the search tool call
      */
     public function __construct(
         private readonly ToolboxInterface $innerToolbox,
         private readonly ToolSearchInterface $toolSearch = new KeywordToolSearch(),
         private readonly int $maxResults = 5,
-        private readonly array $alwaysExposedTools = [],
         private readonly int $activationThreshold = 0,
     ) {
     }
@@ -59,14 +61,21 @@ final class SearchableToolbox implements ToolboxInterface, ResetInterface
     public function getTools(): array
     {
         $tools = $this->innerToolbox->getTools();
-        if ([] === $tools || \count($tools) <= $this->activationThreshold) {
+        $deferred = $this->deferredTools();
+        if ([] === $deferred) {
             return $tools;
         }
 
-        $exposed = [$this->createSearchTool($tools)];
+        if (\count($deferred) <= $this->activationThreshold) {
+            return array_map(static fn (Tool $tool): Tool => $tool->withDeferred(false), $tools);
+        }
+
+        $exposed = [$this->createSearchTool($deferred)];
         foreach ($tools as $tool) {
-            if (\in_array($tool->getName(), $this->alwaysExposedTools, true) || \in_array($tool->getName(), $this->foundTools, true)) {
+            if (!$tool->isDeferred()) {
                 $exposed[] = $tool;
+            } elseif (\in_array($tool->getName(), $this->foundTools, true)) {
+                $exposed[] = $tool->withDeferred(false);
             }
         }
 
@@ -88,7 +97,7 @@ final class SearchableToolbox implements ToolboxInterface, ResetInterface
             return $this->select($toolCall, substr(trim($query), 7));
         }
 
-        $found = $this->toolSearch->search($query, $this->innerToolbox->getTools(), $this->maxResults);
+        $found = $this->toolSearch->search($query, $this->deferredTools(), $this->maxResults);
         if ([] === $found) {
             return new ToolResult($toolCall, \sprintf('No tool matching "%s" was found. Try again with different wording or answer without a tool.', $query));
         }
@@ -104,7 +113,7 @@ final class SearchableToolbox implements ToolboxInterface, ResetInterface
     private function select(ToolCall $toolCall, string $names): ToolResult
     {
         $byName = [];
-        foreach ($this->innerToolbox->getTools() as $tool) {
+        foreach ($this->deferredTools() as $tool) {
             $byName[$tool->getName()] = $tool;
         }
 
@@ -152,16 +161,19 @@ final class SearchableToolbox implements ToolboxInterface, ResetInterface
     }
 
     /**
-     * @param Tool[] $tools
+     * @return list<Tool>
      */
-    private function createSearchTool(array $tools): Tool
+    private function deferredTools(): array
     {
-        $names = [];
-        foreach ($tools as $tool) {
-            if (!\in_array($tool->getName(), $this->alwaysExposedTools, true)) {
-                $names[] = $tool->getName();
-            }
-        }
+        return array_values(array_filter($this->innerToolbox->getTools(), static fn (Tool $tool): bool => $tool->isDeferred()));
+    }
+
+    /**
+     * @param list<Tool> $deferred
+     */
+    private function createSearchTool(array $deferred): Tool
+    {
+        $names = array_map(static fn (Tool $tool): string => $tool->getName(), $deferred);
 
         return new Tool(
             new ExecutionReference(self::class, 'execute'),

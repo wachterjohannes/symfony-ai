@@ -28,11 +28,28 @@ final class SearchableToolboxTest extends TestCase
         $this->assertSame([SearchableToolbox::SEARCH_TOOL_NAME], $this->getToolNames($toolbox));
     }
 
-    public function testExposesAlwaysExposedTools()
+    public function testExposesToolsThatAreNotDeferred()
     {
-        $toolbox = new SearchableToolbox($this->createInnerToolbox(), alwaysExposedTools: ['get_invoice']);
+        $toolbox = new SearchableToolbox($this->createInnerToolbox($this->toolsWithClock()));
 
-        $this->assertSame([SearchableToolbox::SEARCH_TOOL_NAME, 'get_invoice'], $this->getToolNames($toolbox));
+        $this->assertSame([SearchableToolbox::SEARCH_TOOL_NAME, 'clock'], $this->getToolNames($toolbox));
+    }
+
+    public function testExposesAllToolsWithoutDeferredTools()
+    {
+        $toolbox = new SearchableToolbox($this->createInnerToolbox([new Tool(new ExecutionReference('Clock'), 'clock', 'Get the time')]));
+
+        $this->assertSame(['clock'], $this->getToolNames($toolbox));
+    }
+
+    public function testExposedToolsAreNotDeferred()
+    {
+        $toolbox = new SearchableToolbox($this->createInnerToolbox($this->toolsWithClock()), maxResults: 1);
+        $toolbox->execute(new ToolCall('id', SearchableToolbox::SEARCH_TOOL_NAME, ['query' => 'send an email']));
+
+        foreach ($toolbox->getTools() as $tool) {
+            $this->assertFalse($tool->isDeferred(), $tool->getName());
+        }
     }
 
     public function testExposesNothingForEmptyInnerToolbox()
@@ -47,6 +64,9 @@ final class SearchableToolboxTest extends TestCase
         $toolbox = new SearchableToolbox($this->createInnerToolbox(), activationThreshold: 2);
 
         $this->assertSame(['send_email', 'get_invoice'], $this->getToolNames($toolbox));
+        foreach ($toolbox->getTools() as $tool) {
+            $this->assertFalse($tool->isDeferred());
+        }
     }
 
     public function testExposesSearchToolAboveActivationThreshold()
@@ -58,12 +78,13 @@ final class SearchableToolboxTest extends TestCase
 
     public function testSearchToolDescriptionListsSearchableToolNames()
     {
-        $toolbox = new SearchableToolbox($this->createInnerToolbox(), alwaysExposedTools: ['get_invoice']);
+        $toolbox = new SearchableToolbox($this->createInnerToolbox($this->toolsWithClock()));
 
         $description = $toolbox->getTools()[0]->getDescription();
 
         $this->assertStringContainsString('send_email', $description);
-        $this->assertStringNotContainsString('get_invoice', $description);
+        $this->assertStringContainsString('get_invoice', $description);
+        $this->assertStringNotContainsString('clock', $description);
     }
 
     public function testSearchToolDescriptionStaysStableAfterSearch()
@@ -193,13 +214,25 @@ final class SearchableToolboxTest extends TestCase
     }
 
     /**
+     * @return list<Tool>
+     */
+    private function toolsWithClock(): array
+    {
+        return [
+            new Tool(new ExecutionReference('Clock'), 'clock', 'Get the current time'),
+            new Tool(new ExecutionReference('EmailTool', 'send'), 'send_email', 'Send an email to a recipient', null, deferred: true),
+            new Tool(new ExecutionReference('InvoiceTool'), 'get_invoice', 'Fetch an invoice by its number', null, deferred: true),
+        ];
+    }
+
+    /**
      * @param list<Tool>|null $tools
      */
     private function createInnerToolbox(?array $tools = null): ToolboxInterface
     {
         $tools ??= [
-            new Tool(new ExecutionReference('EmailTool', 'send'), 'send_email', 'Send an email to a recipient', null),
-            new Tool(new ExecutionReference('InvoiceTool'), 'get_invoice', 'Fetch an invoice by its number', null),
+            new Tool(new ExecutionReference('EmailTool', 'send'), 'send_email', 'Send an email to a recipient', null, deferred: true),
+            new Tool(new ExecutionReference('InvoiceTool'), 'get_invoice', 'Fetch an invoice by its number', null, deferred: true),
         ];
 
         return new class($tools) implements ToolboxInterface {

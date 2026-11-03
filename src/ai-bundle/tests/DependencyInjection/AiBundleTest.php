@@ -35,6 +35,9 @@ use Symfony\AI\Agent\MultiAgent\MultiAgent;
 use Symfony\AI\Agent\Speech\SpeechConfiguration;
 use Symfony\AI\Agent\Toolbox\ChainToolbox;
 use Symfony\AI\Agent\Toolbox\FiberToolExecutor;
+use Symfony\AI\Agent\Toolbox\SearchableToolbox;
+use Symfony\AI\Agent\Toolbox\ToolSearch\Bm25ToolSearch;
+use Symfony\AI\Agent\Toolbox\ToolSearch\KeywordToolSearch;
 use Symfony\AI\AiBundle\AiBundle;
 use Symfony\AI\AiBundle\DependencyInjection\DebugCompilerPass;
 use Symfony\AI\AiBundle\DependencyInjection\FilePromptTemplateFactory;
@@ -616,6 +619,132 @@ class AiBundleTest extends TestCase
                 ],
             ],
         ]);
+    }
+
+    public function testDeferredMcpServerIsWrappedInTheDeferredToolsToolbox()
+    {
+        $container = $this->buildContainer([
+            'ai' => [
+                'agent' => [
+                    'research' => [
+                        'model' => 'gpt-4o-mini',
+                        'tools' => [
+                            ['mcp_server' => 'filesystem.local', 'deferred' => true],
+                            ['mcp_server' => 'web.search'],
+                        ],
+                    ],
+                ],
+            ],
+        ]);
+
+        $chained = $container->getDefinition('ai.toolbox.research')->getArgument(0);
+        $this->assertSame(
+            ['ai.toolbox.research.local', 'ai.toolbox.research.mcp.filesystem.local.flagged', 'ai.toolbox.research.mcp.web.search.deferred'],
+            array_map(static fn ($reference) => (string) $reference, $chained->getValues()),
+        );
+
+        $flagged = $container->getDefinition('ai.toolbox.research.mcp.filesystem.local.flagged');
+        $this->assertSame(\Symfony\AI\Agent\Toolbox\DeferredToolbox::class, $flagged->getClass());
+        $this->assertSame('ai.toolbox.research.mcp.filesystem.local.deferred', (string) $flagged->getArgument(0));
+    }
+
+    public function testDeferredServiceIsAddedToTheMemoryFactoryAsDeferred()
+    {
+        $container = $this->buildContainer([
+            'ai' => [
+                'agent' => [
+                    'my_agent' => [
+                        'model' => 'gpt-4',
+                        'tools' => [
+                            ['service' => 'some_service', 'name' => 'lookup', 'description' => 'Some tool', 'deferred' => true],
+                            ['service' => 'other_service', 'name' => 'clock', 'description' => 'Another tool'],
+                        ],
+                    ],
+                ],
+            ],
+        ]);
+
+        $calls = $container->getDefinition('ai.toolbox.my_agent.memory_factory')->getMethodCalls();
+
+        $this->assertCount(2, $calls);
+        $this->assertSame('addTool', $calls[0][0]);
+        $this->assertTrue($calls[0][1][6]);
+        $this->assertCount(4, $calls[1][1]);
+    }
+
+    public function testDeferredServiceWithoutNameAndDescriptionThrows()
+    {
+        $this->expectException(InvalidConfigurationException::class);
+        $this->expectExceptionMessage('The "deferred" option requires "name" and "description"');
+
+        $this->buildContainer([
+            'ai' => [
+                'agent' => [
+                    'my_agent' => [
+                        'model' => 'gpt-4',
+                        'tools' => [['service' => 'some_service', 'deferred' => true]],
+                    ],
+                ],
+            ],
+        ]);
+    }
+
+    #[TestWith(['keyword', KeywordToolSearch::class])]
+    #[TestWith(['bm25', Bm25ToolSearch::class])]
+    public function testToolSearchFallbackDecoratesTheToolbox(string $search, string $searchClass)
+    {
+        $container = $this->buildContainer([
+            'ai' => [
+                'agent' => [
+                    'my_agent' => [
+                        'model' => 'gpt-4',
+                        'tools' => [
+                            'search' => $search,
+                            'services' => [['service' => 'some_service', 'name' => 'lookup', 'description' => 'Some tool', 'deferred' => true]],
+                        ],
+                    ],
+                ],
+            ],
+        ]);
+
+        $searchable = $container->getDefinition('ai.searchable_toolbox.my_agent');
+        $this->assertSame(SearchableToolbox::class, $searchable->getClass());
+        $this->assertSame(['ai.toolbox.my_agent', null, -2048], $searchable->getDecoratedService());
+        $this->assertSame([['method' => 'reset']], $searchable->getTag('kernel.reset'));
+        $this->assertSame('ai.tool_search.my_agent', (string) $searchable->getArgument(1));
+        $this->assertSame($searchClass, $container->getDefinition('ai.tool_search.my_agent')->getClass());
+    }
+
+    public function testToolSearchFallbackAcceptsACustomService()
+    {
+        $container = $this->buildContainer([
+            'ai' => [
+                'agent' => [
+                    'my_agent' => [
+                        'model' => 'gpt-4',
+                        'tools' => ['search' => 'app.tool_search'],
+                    ],
+                ],
+            ],
+        ]);
+
+        $this->assertSame('app.tool_search', (string) $container->getDefinition('ai.searchable_toolbox.my_agent')->getArgument(1));
+    }
+
+    public function testNoToolSearchFallbackByDefault()
+    {
+        $container = $this->buildContainer([
+            'ai' => [
+                'agent' => [
+                    'my_agent' => [
+                        'model' => 'gpt-4',
+                        'tools' => true,
+                    ],
+                ],
+            ],
+        ]);
+
+        $this->assertFalse($container->hasDefinition('ai.searchable_toolbox.my_agent'));
     }
 
     public function testPrefixWithoutMcpServerThrows()

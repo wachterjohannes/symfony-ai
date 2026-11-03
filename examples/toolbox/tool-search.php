@@ -19,7 +19,7 @@ use Symfony\AI\Platform\Message\MessageBag;
 
 require_once dirname(__DIR__).'/bootstrap.php';
 
-#[AsTool('convert_currency', 'Convert an amount from one currency into another')]
+#[AsTool('convert_currency', 'Convert an amount from one currency into another', deferred: true)]
 final class CurrencyConverter
 {
     public function __invoke(float $amount, string $from, string $to): string
@@ -28,7 +28,7 @@ final class CurrencyConverter
     }
 }
 
-#[AsTool('get_invoice', 'Fetch an invoice by its number')]
+#[AsTool('get_invoice', 'Fetch an invoice by its number', deferred: true)]
 final class InvoiceFetcher
 {
     public function __invoke(string $number): string
@@ -37,7 +37,7 @@ final class InvoiceFetcher
     }
 }
 
-#[AsTool('release_train', 'Trigger the release train of a deployment pipeline')]
+#[AsTool('release_train', 'Trigger the release train of a deployment pipeline', deferred: true)]
 final class ReleaseTrain
 {
     public function __invoke(string $pipeline): string

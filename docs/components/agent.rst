@@ -995,7 +995,8 @@ Tool Search
 
 Sending the definition of every tool with every request costs tokens and, with a growing number of tools, degrades the
 model's ability to pick the right one. The :class:`Symfony\\AI\\Agent\\Toolbox\\SearchableToolbox` decorator therefore
-hides the tools behind a ``tool_search`` tool that the model can use to find the tools it needs for the task at hand::
+hides the deferred tools behind a ``tool_search`` tool that the model can use to find the tools it needs for the task
+at hand. It is the fallback for providers without a native tool search, see `Deferred Tools`_ for marking the tools::
 
     use Symfony\AI\Agent\Agent;
     use Symfony\AI\Agent\Toolbox\SearchableToolbox;
@@ -1006,13 +1007,12 @@ hides the tools behind a ``tool_search`` tool that the model can use to find the
 
     $agent = new Agent($platform, $model, toolbox: $toolbox);
 
-Only ``tool_search`` is advertised upfront. Once the model searched for a tool, the matching tools are added to the
-exposed tools and can be called in one of the next steps of the same tool calling loop.
+Tools that are not deferred stay exposed, next to ``tool_search``. Once the model searched for a deferred tool, the
+matching tools are added to the exposed tools and can be called in one of the next steps of the same tool calling loop.
 
-Tools that are needed frequently can be exposed upfront by their name, and the number of tools a search returns is
-configurable::
+The number of tools a search returns is configurable, and a toolbox with few deferred tools can skip the search::
 
-    $toolbox = new SearchableToolbox($innerToolbox, maxResults: 3, alwaysExposedTools: ['clock']);
+    $toolbox = new SearchableToolbox($innerToolbox, maxResults: 3, activationThreshold: 4);
 
 The description of ``tool_search`` lists the names of all hidden tools, so the model knows what it can look for.
 The model can search with keywords or load tools by name with a query like ``select:convert_currency,get_invoice``.

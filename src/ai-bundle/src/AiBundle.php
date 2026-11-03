@@ -44,11 +44,15 @@ use Symfony\AI\Agent\Speech\SpeechConfiguration;
 use Symfony\AI\Agent\SpeechAgent;
 use Symfony\AI\Agent\Toolbox\Attribute\AsTool;
 use Symfony\AI\Agent\Toolbox\ChainToolbox;
+use Symfony\AI\Agent\Toolbox\DeferredToolbox as DeferredToolsToolbox;
 use Symfony\AI\Agent\Toolbox\FaultTolerantToolbox;
 use Symfony\AI\Agent\Toolbox\FiberToolExecutor;
+use Symfony\AI\Agent\Toolbox\SearchableToolbox;
 use Symfony\AI\Agent\Toolbox\Tool\Subagent;
 use Symfony\AI\Agent\Toolbox\ToolFactory\ChainFactory;
 use Symfony\AI\Agent\Toolbox\ToolFactory\MemoryToolFactory;
+use Symfony\AI\Agent\Toolbox\ToolSearch\Bm25ToolSearch;
+use Symfony\AI\Agent\Toolbox\ToolSearch\KeywordToolSearch;
 use Symfony\AI\AiBundle\DependencyInjection\DebugCompilerPass;
 use Symfony\AI\AiBundle\DependencyInjection\DoctrineVectorDistancePass;
 use Symfony\AI\AiBundle\DependencyInjection\FilePromptTemplateFactory;
@@ -119,6 +123,7 @@ use Symfony\AI\Platform\ModelClientInterface;
 use Symfony\AI\Platform\Platform;
 use Symfony\AI\Platform\PlatformInterface;
 use Symfony\AI\Platform\ResultConverterInterface;
+use Symfony\AI\Platform\Tool\ToolEffectHints;
 use Symfony\AI\Store\Bridge\AzureSearch\SearchStore as AzureSearchStore;
 use Symfony\AI\Store\Bridge\AzureSearch\StoreFactory as AzureSearchStoreFactory;
 use Symfony\AI\Store\Bridge\Cache\Store as CacheStore;
@@ -1605,6 +1610,13 @@ final class AiBundle extends AbstractBundle
                     ->setDecoratedService('ai.toolbox.'.$name, priority: -1024);
             }
 
+            if (null !== $config['tools']['search']) {
+                $container->setDefinition('ai.searchable_toolbox.'.$name, new Definition(SearchableToolbox::class))
+                    ->setArguments([new Reference('.inner'), $this->createToolSearchReference($name, $config['tools']['search'], $container)])
+                    ->addTag('kernel.reset', ['method' => 'reset'])
+                    ->setDecoratedService('ai.toolbox.'.$name, priority: -2048);
+            }
+
             $agentDefinition
                 ->setArgument('$toolbox', new Reference('ai.toolbox.'.$name))
                 ->setArgument('$maxToolCalls', $config['max_tool_calls'])
@@ -1628,7 +1640,11 @@ final class AiBundle extends AbstractBundle
                             $container->setDefinition('ai.toolbox.'.$name.'.subagent.'.$tool['name'], $subagentDefinition);
                             $reference = new Reference('ai.toolbox.'.$name.'.subagent.'.$tool['name']);
                         }
-                        $memoryFactoryDefinition->addMethodCall('addTool', [$reference, $tool['name'], $tool['description'], $tool['method'] ?? '__invoke']);
+                        $arguments = [$reference, $tool['name'], $tool['description'], $tool['method'] ?? '__invoke'];
+                        if ($tool['deferred']) {
+                            array_push($arguments, [], new Definition(ToolEffectHints::class), true);
+                        }
+                        $memoryFactoryDefinition->addMethodCall('addTool', $arguments);
                     }
                     $tools[] = $reference;
                 }
@@ -1765,7 +1781,7 @@ final class AiBundle extends AbstractBundle
     /**
      * One toolset and toolbox per configured MCP server, on top of the bundle's own connection.
      *
-     * @param list<array{mcp_server: string, prefix?: string}> $servers
+     * @param list<array{mcp_server: string, prefix?: string, deferred?: bool}> $servers
      *
      * @return list<Reference>
      */
@@ -1805,10 +1821,37 @@ final class AiBundle extends AbstractBundle
                 ->addTag('ai.profiler_toolbox')
                 ->addTag('kernel.reset', ['method' => 'reset']);
 
+            if ($server['deferred'] ?? false) {
+                $flaggedId = $toolboxId.'.flagged';
+                $container->setDefinition($flaggedId, new Definition(DeferredToolsToolbox::class, [new Reference($deferredId)]));
+
+                $references[] = new Reference($flaggedId);
+
+                continue;
+            }
+
             $references[] = new Reference($deferredId);
         }
 
         return $references;
+    }
+
+    private function createToolSearchReference(string $agentName, string $search, ContainerBuilder $container): Reference
+    {
+        $class = match ($search) {
+            'keyword' => KeywordToolSearch::class,
+            'bm25' => Bm25ToolSearch::class,
+            default => null,
+        };
+
+        if (null === $class) {
+            return new Reference($search);
+        }
+
+        $id = 'ai.tool_search.'.$agentName;
+        $container->setDefinition($id, new Definition($class));
+
+        return new Reference($id);
     }
 
     /**
