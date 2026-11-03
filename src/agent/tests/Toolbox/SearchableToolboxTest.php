@@ -130,6 +130,27 @@ final class SearchableToolboxTest extends TestCase
         $this->assertSame('No tool names given. Use "select:name_a,name_b".', $result->getResult());
     }
 
+    public function testProviderSearchPassesDeferredToolsOnUntouched()
+    {
+        $toolbox = new SearchableToolbox($this->createInnerToolbox());
+        $toolbox->useProviderSearch(true);
+
+        $this->assertSame(['send_email', 'get_invoice'], $this->getToolNames($toolbox));
+        foreach ($toolbox->getTools() as $tool) {
+            $this->assertTrue($tool->isDeferred());
+        }
+    }
+
+    public function testResetSwitchesProviderSearchOff()
+    {
+        $toolbox = new SearchableToolbox($this->createInnerToolbox());
+        $toolbox->useProviderSearch(true);
+
+        $toolbox->reset();
+
+        $this->assertSame([SearchableToolbox::SEARCH_TOOL_NAME], $this->getToolNames($toolbox));
+    }
+
     public function testSearchToolHasQueryParameter()
     {
         $toolbox = new SearchableToolbox($this->createInnerToolbox());

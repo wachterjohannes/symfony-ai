@@ -25,6 +25,7 @@ use Symfony\AI\Agent\Agent;
 use Symfony\AI\Agent\AgentInterface;
 use Symfony\AI\Agent\Bridge\Mcp\McpToolbox;
 use Symfony\AI\Agent\Input;
+use Symfony\AI\Agent\InputProcessor\ToolSearchInputProcessor;
 use Symfony\AI\Agent\Memory\MemoryInputProcessor;
 use Symfony\AI\Agent\Memory\StaticMemoryProvider;
 use Symfony\AI\Agent\MessageStore\InMemoryMessageStore;
@@ -713,6 +714,26 @@ class AiBundleTest extends TestCase
         $this->assertSame([['method' => 'reset']], $searchable->getTag('kernel.reset'));
         $this->assertSame('ai.tool_search.my_agent', (string) $searchable->getArgument(1));
         $this->assertSame($searchClass, $container->getDefinition('ai.tool_search.my_agent')->getClass());
+    }
+
+    public function testToolSearchFallbackRegistersTheInputProcessorOfTheAgent()
+    {
+        $container = $this->buildContainer([
+            'ai' => [
+                'agent' => [
+                    'my_agent' => [
+                        'model' => 'gpt-4',
+                        'tools' => ['search' => 'keyword'],
+                    ],
+                ],
+            ],
+        ]);
+
+        $processor = $container->getDefinition('ai.agent.my_agent.tool_search_processor');
+
+        $this->assertSame(ToolSearchInputProcessor::class, $processor->getClass());
+        $this->assertSame('ai.searchable_toolbox.my_agent', (string) $processor->getArgument(1));
+        $this->assertSame([['agent' => 'ai.agent.my_agent', 'priority' => 0]], $processor->getTag('ai.agent.input_processor'));
     }
 
     public function testToolSearchFallbackAcceptsACustomService()

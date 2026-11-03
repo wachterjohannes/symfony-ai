@@ -31,6 +31,7 @@ use Symfony\AI\Agent\Bridge\Redis\MessageStore as RedisMessageStore;
 use Symfony\AI\Agent\Bridge\Session\MessageStore as SessionMessageStore;
 use Symfony\AI\Agent\Bridge\SurrealDb\MessageStore as SurrealDbMessageStore;
 use Symfony\AI\Agent\InputProcessor\SystemPromptInputProcessor;
+use Symfony\AI\Agent\InputProcessor\ToolSearchInputProcessor;
 use Symfony\AI\Agent\InputProcessorInterface;
 use Symfony\AI\Agent\Memory\MemoryInputProcessor;
 use Symfony\AI\Agent\Memory\StaticMemoryProvider;
@@ -1615,6 +1616,13 @@ final class AiBundle extends AbstractBundle
                     ->setArguments([new Reference('.inner'), $this->createToolSearchReference($name, $config['tools']['search'], $container)])
                     ->addTag('kernel.reset', ['method' => 'reset'])
                     ->setDecoratedService('ai.toolbox.'.$name, priority: -2048);
+
+                // Models with a native tool search search the deferred tools themselves
+                $container->setDefinition('ai.agent.'.$name.'.tool_search_processor', new Definition(ToolSearchInputProcessor::class, [
+                    new Reference($config['platform']),
+                    new Reference('ai.searchable_toolbox.'.$name),
+                ]))
+                    ->addTag('ai.agent.input_processor', ['agent' => $agentId, 'priority' => 0]);
             }
 
             $agentDefinition

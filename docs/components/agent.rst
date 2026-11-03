@@ -1010,6 +1010,14 @@ at hand. It is the fallback for providers without a native tool search, see `Def
 Tools that are not deferred stay exposed, next to ``tool_search``. Once the model searched for a deferred tool, the
 matching tools are added to the exposed tools and can be called in one of the next steps of the same tool calling loop.
 
+Models with a native tool search, like Claude 4.5 and newer, search the deferred tools themselves. To let them do so,
+register the :class:`Symfony\\AI\\Agent\\InputProcessor\\ToolSearchInputProcessor`, which switches the toolbox off for
+those models::
+
+    $agent = new Agent($platform, $model, [new ToolSearchInputProcessor($platform, $toolbox)], toolbox: $toolbox);
+
+Without the processor, the toolbox always searches itself.
+
 The number of tools a search returns is configurable, and a toolbox with few deferred tools can skip the search::
 
     $toolbox = new SearchableToolbox($innerToolbox, maxResults: 3, activationThreshold: 4);

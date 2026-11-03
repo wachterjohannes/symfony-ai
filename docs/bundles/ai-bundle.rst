@@ -1297,8 +1297,9 @@ tool search instead of receiving every definition with every request. Mark a who
                         - { service: 'app.clock', name: 'clock', description: 'Get the current time' }
                         - { mcp_server: 'research.filesystem', deferred: true }
 
-Providers with a native tool search, currently Anthropic, receive the deferred flag and search on their side. For all
-other providers, ``search`` hides the deferred tools behind a ``tool_search`` tool of the agent. Built-in values are
+Models with a native tool search, currently Claude 4.5 and newer, receive the deferred flag and search on the provider
+side, which keeps the prompt cache. For all other models, ``search`` hides the deferred tools behind a ``tool_search``
+tool of the agent. Built-in values are
 ``keyword`` and ``bm25``, or the service ID of a custom ``ToolSearchInterface``. Without ``search``, providers
 without a native tool search receive all tools.
 

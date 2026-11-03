@@ -25,9 +25,10 @@ use Symfony\Contracts\Service\ResetInterface;
  * a search tool are advertised. Tools found by a search are added to the exposed tools, so the model
  * can call them in one of the next steps of the same tool calling loop.
  *
- * This is the fallback for providers without a native tool search, which receive the deferred flag
- * of the tools instead. The tools returned by this toolbox are never deferred, so a provider does not
- * search a second time.
+ * This is the fallback for providers without a native tool search. The
+ * {@see \Symfony\AI\Agent\InputProcessor\ToolSearchInputProcessor} switches it off for models that search
+ * themselves, which then receive the tools with their deferred flag. The tools returned by this toolbox are
+ * never deferred, so a provider does not search a second time.
  *
  * The names of all hidden tools are listed in the description of the search tool. A query of the form
  * "select:name_a,name_b" activates tools by name. Exposing found tools changes the tool list between
@@ -46,6 +47,8 @@ final class SearchableToolbox implements ToolboxInterface, ResetInterface
      */
     private array $foundTools = [];
 
+    private bool $providerSearches = false;
+
     /**
      * @param int $activationThreshold this many deferred tools or fewer are exposed directly,
      *                                 without paying for the search tool call
@@ -58,11 +61,19 @@ final class SearchableToolbox implements ToolboxInterface, ResetInterface
     ) {
     }
 
+    /**
+     * Passes the tools on untouched, so the provider searches the deferred ones itself.
+     */
+    public function useProviderSearch(bool $providerSearches): void
+    {
+        $this->providerSearches = $providerSearches;
+    }
+
     public function getTools(): array
     {
         $tools = $this->innerToolbox->getTools();
         $deferred = $this->deferredTools();
-        if ([] === $deferred) {
+        if ($this->providerSearches || [] === $deferred) {
             return $tools;
         }
 
@@ -108,6 +119,7 @@ final class SearchableToolbox implements ToolboxInterface, ResetInterface
     public function reset(): void
     {
         $this->foundTools = [];
+        $this->providerSearches = false;
     }
 
     private function select(ToolCall $toolCall, string $names): ToolResult
