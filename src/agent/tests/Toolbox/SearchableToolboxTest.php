@@ -56,6 +56,59 @@ final class SearchableToolboxTest extends TestCase
         $this->assertSame([SearchableToolbox::SEARCH_TOOL_NAME], $this->getToolNames($toolbox));
     }
 
+    public function testSearchToolDescriptionListsSearchableToolNames()
+    {
+        $toolbox = new SearchableToolbox($this->createInnerToolbox(), alwaysExposedTools: ['get_invoice']);
+
+        $description = $toolbox->getTools()[0]->getDescription();
+
+        $this->assertStringContainsString('send_email', $description);
+        $this->assertStringNotContainsString('get_invoice', $description);
+    }
+
+    public function testSearchToolDescriptionStaysStableAfterSearch()
+    {
+        $toolbox = new SearchableToolbox($this->createInnerToolbox());
+        $before = $toolbox->getTools()[0]->getDescription();
+
+        $toolbox->execute(new ToolCall('id', SearchableToolbox::SEARCH_TOOL_NAME, ['query' => 'send an email']));
+
+        $this->assertSame($before, $toolbox->getTools()[0]->getDescription());
+    }
+
+    public function testSelectExposesToolsByName()
+    {
+        $toolbox = new SearchableToolbox($this->createInnerToolbox());
+
+        $result = $toolbox->execute(new ToolCall('id', SearchableToolbox::SEARCH_TOOL_NAME, ['query' => 'select:get_invoice, send_email']));
+
+        $this->assertSame(
+            "The following tools are now available to you and can be called directly:\n- get_invoice: Fetch an invoice by its number\n- send_email: Send an email to a recipient",
+            $result->getResult(),
+        );
+        $this->assertSame([SearchableToolbox::SEARCH_TOOL_NAME, 'send_email', 'get_invoice'], $this->getToolNames($toolbox));
+    }
+
+    public function testSelectReportsUnknownTools()
+    {
+        $toolbox = new SearchableToolbox($this->createInnerToolbox());
+
+        $result = $toolbox->execute(new ToolCall('id', SearchableToolbox::SEARCH_TOOL_NAME, ['query' => 'select:send_email,nope']));
+
+        $this->assertStringContainsString('- send_email:', $result->getResult());
+        $this->assertStringContainsString('Unknown tools: nope.', $result->getResult());
+        $this->assertSame([SearchableToolbox::SEARCH_TOOL_NAME, 'send_email'], $this->getToolNames($toolbox));
+    }
+
+    public function testSelectWithoutNames()
+    {
+        $toolbox = new SearchableToolbox($this->createInnerToolbox());
+
+        $result = $toolbox->execute(new ToolCall('id', SearchableToolbox::SEARCH_TOOL_NAME, ['query' => 'select:']));
+
+        $this->assertSame('No tool names given. Use "select:name_a,name_b".', $result->getResult());
+    }
+
     public function testSearchToolHasQueryParameter()
     {
         $toolbox = new SearchableToolbox($this->createInnerToolbox());

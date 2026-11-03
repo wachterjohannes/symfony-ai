@@ -1014,10 +1014,19 @@ configurable::
 
     $toolbox = new SearchableToolbox($innerToolbox, maxResults: 3, alwaysExposedTools: ['clock']);
 
-The default search implementation :class:`Symfony\\AI\\Agent\\Toolbox\\ToolSearch\\Bm25ToolSearch` ranks the tools with
-the BM25 scoring function over their name, description and parameters, without requiring embeddings or any other
-external service. To search differently, e.g. based on embeddings, implement
-:class:`Symfony\\AI\\Agent\\Toolbox\\ToolSearch\\ToolSearchInterface` and pass it as second argument.
+The description of ``tool_search`` lists the names of all hidden tools, so the model knows what it can look for.
+The model can search with keywords or load tools by name with a query like ``select:convert_currency,get_invoice``.
+
+The default search implementation :class:`Symfony\\AI\\Agent\\Toolbox\\ToolSearch\\KeywordToolSearch` matches the
+query terms against the parts of the tool names and their descriptions, and returns a tool directly when the query
+equals its name. :class:`Symfony\\AI\\Agent\\Toolbox\\ToolSearch\\Bm25ToolSearch` ranks the tools with the BM25 scoring
+function over their name, description and parameters instead. To search differently, e.g. based on embeddings,
+implement :class:`Symfony\\AI\\Agent\\Toolbox\\ToolSearch\\ToolSearchInterface` and pass it as second argument.
+
+.. warning::
+
+    The exposed tools change whenever the model finds new tools. Providers that cache the tool definitions of a
+    request therefore have to rebuild their prompt cache after each search.
 
 .. note::
 
