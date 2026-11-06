@@ -257,12 +257,14 @@ return static function (DefinitionConfigurator $configurator): void {
                                 ->ifArray()
                                 ->then(static function (array $v): array {
                                     $services = $v['services'] ?? $v;
-                                    unset($services['enabled'], $services['execution_strategy']);
+                                    unset($services['enabled'], $services['execution_strategy'], $services['search']);
                                     $executionStrategy = $v['execution_strategy'] ?? null;
+                                    $search = $v['search'] ?? null;
 
                                     return [
-                                        'enabled' => $v['enabled'] ?? ([] !== $services || null !== $executionStrategy),
+                                        'enabled' => $v['enabled'] ?? ([] !== $services || null !== $executionStrategy || null !== $search),
                                         'execution_strategy' => $executionStrategy,
+                                        'search' => $search,
                                         'services' => $services,
                                     ];
                                 })
@@ -273,9 +275,17 @@ return static function (DefinitionConfigurator $configurator): void {
                                     ->info('The tool execution strategy. Built-in options are "sequential" (default) and "fiber". A custom service ID implementing ToolExecutorInterface can also be provided.')
                                     ->defaultNull()
                                 ->end()
+                                ->scalarNode('search')
+                                    ->info('Fallback for providers without a native tool search: hides the deferred tools behind a "tool_search" tool. Built-in options are "keyword" and "bm25". A custom service ID implementing ToolSearchInterface can also be provided.')
+                                    ->defaultNull()
+                                ->end()
                                 ->arrayNode('services')
                                     ->arrayPrototype()
                                         ->children()
+                                            ->booleanNode('deferred')
+                                                ->info('Only make the tool available to the model through a tool search. With "service" or "agent", "name" and "description" are required, or use #[AsTool(deferred: true)].')
+                                                ->defaultFalse()
+                                            ->end()
                                             ->stringNode('service')->cannotBeEmpty()->end()
                                             ->stringNode('agent')->cannotBeEmpty()->end()
                                             ->stringNode('mcp_server')
@@ -309,6 +319,16 @@ return static function (DefinitionConfigurator $configurator): void {
                                                 return 1 !== $configured;
                                             })
                                             ->thenInvalid('Exactly one of "service", "agent" or "mcp_server" must be configured.')
+                                        ->end()
+                                        ->validate()
+                                            ->ifTrue(static function ($v) {
+                                                if (!$v['deferred'] || isset($v['mcp_server'])) {
+                                                    return false;
+                                                }
+
+                                                return !isset($v['name'], $v['description']) && !isset($v['agent'], $v['description']);
+                                            })
+                                            ->thenInvalid('The "deferred" option requires "name" and "description", or the #[AsTool(deferred: true)] attribute on the tool.')
                                         ->end()
                                         ->validate()
                                             ->ifTrue(static function ($v) {

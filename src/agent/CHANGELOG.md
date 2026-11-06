@@ -49,6 +49,7 @@ CHANGELOG
  * [BC BREAK] Change `AgentInterface::call()` to return a lazy, iterable `Execution` that is also the `ResultInterface` it produces — read it eagerly (`getContent()`, `getResult()`), iterate it to observe every model request, tool call and streamed delta as a `Progress` update, or register `onProgress()`/`onResult()` callbacks
  * [BC BREAK] Remove `Toolbox\StreamListener`; streamed rounds are consumed by the agent itself and their deltas are reported as `Progress` updates of the `delta` stage, surfaced by the streamed execution's `getContent()`
  * Add the typed accessors `asText()`, `asObject()`, `asBinary()`, `asFile()`, `asDataUri()`, `asToolCalls()`, `asStream()`, `asTextStream()`, `asStreamedObject()` and `asPartialJsonStream()` to `Execution`, narrowing the produced result or its streamed deltas like `DeferredResult` does
+ * Add `Toolbox\SearchableToolbox`, the fallback for providers without a native tool search: it hides the deferred tools behind a `tool_search` tool the model uses to find them, ranked by the zero-dependency `Toolbox\ToolSearch\KeywordToolSearch` or `Bm25ToolSearch`, is switched off for models with a native tool search by the `InputProcessor\ToolSearchInputProcessor`, and is configured with the `tools.search` option of the AI bundle
 
 0.12
 ----

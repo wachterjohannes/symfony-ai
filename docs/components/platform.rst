@@ -156,8 +156,8 @@ Supported Models & Platforms
   * `OpenAI's GPT Image`_ with `OpenAI`_ as Platform (generation and editing)
   * `OpenAI's Whisper`_ with `OpenAI`_ and `Azure`_ as Platform
   * `Mistral OCR`_ with `Mistral`_ as Platform
-  * `TypeSafe's Jev`_ with `TypeSafe`_ as Platform, see :doc:`platform/typesafe`
-  * Decision models (e.g. Ollama's ``nimble``) with `Ollama`_ as Platform, queried with the ``Evaluation`` of the ``Decision`` bridge
+  * `TypeSafe's Jev`_ with `TypeSafe`_ and `OpenRouter`_ as Platform, see :doc:`platform/typesafe`
+  * Decision models (e.g. Ollama's ``nimble``) with `Ollama`_ and `OpenRouter`_ as Platform, queried with the ``Evaluation`` of the ``Decision`` bridge
   * OCR and document parsing (invoices, resumes, identity documents) with `Eden AI`_ as Platform
   * `LM Studio Catalog`_ and `HuggingFace`_ Models  with `LM Studio`_ as Platform.
   * All models provided by `HuggingFace`_ can be listed with a command in the examples folder,
@@ -373,7 +373,9 @@ iterating providers, it wants to be a router.
 
 Provider-level events (:class:`Symfony\\AI\\Platform\\Event\\InvocationEvent` and
 :class:`Symfony\\AI\\Platform\\Event\\ResultEvent`) still fire inside the selected
-provider for per-invocation concerns.
+provider for per-invocation concerns. They name the provider serving the call through
+``getProvider()``, as the result conversion events below do. On ``ModelRoutingEvent``,
+which fires before routing, ``getProvider()`` only returns a provider pinned by a listener.
 
 Result Conversion Events
 ~~~~~~~~~~~~~~~~~~~~~~~~

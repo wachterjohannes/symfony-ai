@@ -1278,6 +1278,31 @@ request asks it again. To find out why an agent has fewer tools than expected, c
 ``php bin/console debug:mcp --client=research --server=filesystem``, which connects to the server and
 prints what it advertises.
 
+Deferred Tools
+~~~~~~~~~~~~~~
+
+An agent with many tools, e.g. from MCP servers, can mark tools as deferred. The model then only gets them through a
+tool search instead of receiving every definition with every request. Mark a whole MCP server, or a service with
+``name`` and ``description``, with ``deferred``. Tools tagged with ``ai.tool`` use ``#[AsTool(deferred: true)]``:
+
+.. code-block:: yaml
+
+    # config/packages/ai.yaml
+    ai:
+        agent:
+            my_agent:
+                tools:
+                    search: keyword # only for providers without a native tool search
+                    services:
+                        - { service: 'app.clock', name: 'clock', description: 'Get the current time' }
+                        - { mcp_server: 'research.filesystem', deferred: true }
+
+Models with a native tool search, currently Claude 4.5 and newer, receive the deferred flag and search on the provider
+side, which keeps the prompt cache. For all other models, ``search`` hides the deferred tools behind a ``tool_search``
+tool of the agent. Built-in values are
+``keyword`` and ``bm25``, or the service ID of a custom ``ToolSearchInterface``. Without ``search``, providers
+without a native tool search receive all tools.
+
 Token Usage Tracking
 --------------------
 

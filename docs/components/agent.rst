@@ -964,6 +964,84 @@ tools option with a list of tool names::
 
     $this->agent->call($messages, ['tools' => ['tavily_search']]);
 
+Deferred Tools
+~~~~~~~~~~~~~~
+
+A deferred tool is not sent to the model upfront. The model finds it with the tool search of the provider first.
+This keeps the context small for agents with many tools, e.g. when attaching MCP servers. Mark single tools with the
+``deferred`` argument::
+
+    #[AsTool('convert_currency', 'Convert an amount from one currency into another', deferred: true)]
+    final class CurrencyConverter
+    {
+        // ...
+    }
+
+To defer all tools of a toolbox, or a selection of them, wrap it in the
+:class:`Symfony\\AI\\Agent\\Toolbox\\DeferredToolbox`::
+
+    use Symfony\AI\Agent\Toolbox\DeferredToolbox;
+
+    $toolbox = new ChainToolbox([new Toolbox([new Clock()]), new DeferredToolbox($mcpToolbox)]);
+
+    $toolbox = new DeferredToolbox($mcpToolbox, ['mcp_search', 'mcp_fetch']);
+
+The provider has to support tool search, which currently the Anthropic bridge does for Claude 4.5 models and newer, see
+:doc:`platform/anthropic-server-tools`. Other providers ignore the flag and receive all tools. Keep a few frequently
+used tools non-deferred.
+
+Tool Search
+~~~~~~~~~~~
+
+Sending the definition of every tool with every request costs tokens and, with a growing number of tools, degrades the
+model's ability to pick the right one. The :class:`Symfony\\AI\\Agent\\Toolbox\\SearchableToolbox` decorator therefore
+hides the deferred tools behind a ``tool_search`` tool that the model can use to find the tools it needs for the task
+at hand. It is the fallback for providers without a native tool search, see `Deferred Tools`_ for marking the tools::
+
+    use Symfony\AI\Agent\Agent;
+    use Symfony\AI\Agent\Toolbox\SearchableToolbox;
+
+    // Platform, LLM & Toolbox instantiation
+
+    $toolbox = new SearchableToolbox($innerToolbox);
+
+    $agent = new Agent($platform, $model, toolbox: $toolbox);
+
+Tools that are not deferred stay exposed, next to ``tool_search``. Once the model searched for a deferred tool, the
+matching tools are added to the exposed tools and can be called in one of the next steps of the same tool calling loop.
+
+Models with a native tool search, like Claude 4.5 and newer, search the deferred tools themselves. To let them do so,
+register the :class:`Symfony\\AI\\Agent\\InputProcessor\\ToolSearchInputProcessor`, which switches the toolbox off for
+those models::
+
+    $agent = new Agent($platform, $model, [new ToolSearchInputProcessor($platform, $toolbox)], toolbox: $toolbox);
+
+Without the processor, the toolbox always searches itself.
+
+The number of tools a search returns is configurable, and a toolbox with few deferred tools can skip the search::
+
+    $toolbox = new SearchableToolbox($innerToolbox, maxResults: 3, activationThreshold: 4);
+
+The description of ``tool_search`` lists the names of all hidden tools, so the model knows what it can look for.
+The model can search with keywords or load tools by name with a query like ``select:convert_currency,get_invoice``.
+
+The default search implementation :class:`Symfony\\AI\\Agent\\Toolbox\\ToolSearch\\KeywordToolSearch` matches the
+query terms against the parts of the tool names and their descriptions, and returns a tool directly when the query
+equals its name. :class:`Symfony\\AI\\Agent\\Toolbox\\ToolSearch\\Bm25ToolSearch` ranks the tools with the BM25 scoring
+function over their name, description and parameters instead. To search differently, e.g. based on embeddings,
+implement :class:`Symfony\\AI\\Agent\\Toolbox\\ToolSearch\\ToolSearchInterface` and pass it as second argument.
+
+.. warning::
+
+    The exposed tools change whenever the model finds new tools. Providers that cache the tool definitions of a
+    request therefore have to rebuild their prompt cache after each search.
+
+.. note::
+
+    The decorator remembers the tools found so far, so that they stay available for the rest of the conversation. In a
+    long-running process, call ``reset()`` before starting a new conversation. As a service in a Symfony application it
+    implements ``Symfony\Contracts\Service\ResetInterface`` and is therefore reset between requests and messages.
+
 Tool Result Interception
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
