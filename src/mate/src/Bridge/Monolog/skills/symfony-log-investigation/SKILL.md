@@ -31,6 +31,12 @@ Hand back to the profiler as soon as it is one request. A log line gives you a t
 
 The profile only exists if the request was recorded (usually dev) and the storage has not been cleared. If there is none, stay in the logs and say so.
 
+When you need independent results at once, such as two searches with different terms, run them in one call instead of separate `tools:call` round-trips (see the `mate-tools-call-batch` skill). Do not batch calls that depend on each other, such as a profiler list that needs the URL from a log result.
+
+```bash
+vendor/bin/mate tools:call-batch --json='[{"tool": "monolog-search", "params": {"term": "Timeout", "level": "error"}}, {"tool": "monolog-search", "params": {"term": "Deadlock", "level": "error"}}]'
+```
+
 ## Reading
 
 - Correlate `channel` + `level` + `datetime`. The channel tells you the subsystem (`doctrine` = DB, `security` = auth, `request`/`php` = framework), the level tells you severity, the timestamp anchors it to a deploy or an incident.
