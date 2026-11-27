@@ -39,7 +39,11 @@
         "phpstan/phpstan": "^2.1",
         "phpstan/phpstan-phpunit": "^2.0",
         "phpstan/phpstan-strict-rules": "^2.0",
-        "phpunit/phpunit": "^11.5.53"
+        "phpunit/phpunit": "^11.5.53",
+        "symfony/ai-platform-bundle": "^1.0",
+        "symfony/config": "^7.4|^8.0",
+        "symfony/dependency-injection": "^7.4|^8.0",
+        "symfony/http-kernel": "^7.4|^8.0"
     },
     "minimum-stability": "dev",
     "autoload": {
@@ -61,5 +65,8 @@
             "name": "symfony/ai",
             "url": "https://github.com/symfony/ai"
         }
+    },
+    "suggest": {
+        "symfony/ai-platform-bundle": "To register this platform in a Symfony application via OpenAiBundle (no framework-bundle needed)"
     }
 }

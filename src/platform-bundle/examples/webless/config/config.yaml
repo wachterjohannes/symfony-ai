@@ -1,0 +1,6 @@
+# The whole application configuration. No "framework:" key: there is no FrameworkBundle.
+ai_openai:
+    api_key: '%env(OPENAI_API_KEY)%'
+
+parameters:
+    env(OPENAI_API_KEY): ''
