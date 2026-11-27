@@ -9,14 +9,14 @@
  * file that was distributed with this source code.
  */
 
-namespace Symfony\AI\PlatformBundle\Tests;
+namespace Symfony\AI\Platform\Tests\Bundle;
 
 use PHPUnit\Framework\TestCase;
 use Symfony\AI\Platform\Bridge\OpenAi\OpenAiBundle;
+use Symfony\AI\Platform\Bundle\PlatformBundle;
 use Symfony\AI\Platform\PlatformInterface;
-use Symfony\AI\PlatformBundle\PlatformBundle;
-use Symfony\AI\PlatformBundle\Tests\Fixtures\ExposeServicesPass;
-use Symfony\AI\PlatformBundle\Tests\Fixtures\TestKernel;
+use Symfony\AI\Platform\Tests\Bundle\Fixtures\ExposeServicesPass;
+use Symfony\AI\Platform\Tests\Bundle\Fixtures\TestKernel;
 use Symfony\Bundle\FrameworkBundle\FrameworkBundle;
 use Symfony\Component\DependencyInjection\Compiler\PassConfig;
 use Symfony\Component\DependencyInjection\ContainerBuilder;

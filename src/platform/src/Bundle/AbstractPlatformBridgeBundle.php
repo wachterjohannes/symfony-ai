@@ -9,10 +9,10 @@
  * file that was distributed with this source code.
  */
 
-namespace Symfony\AI\PlatformBundle;
+namespace Symfony\AI\Platform\Bundle;
 
+use Symfony\AI\Platform\Bundle\DependencyInjection\Compiler\DefaultServicesPass;
 use Symfony\AI\Platform\PlatformInterface;
-use Symfony\AI\PlatformBundle\DependencyInjection\Compiler\DefaultServicesPass;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Definition;
 use Symfony\Component\DependencyInjection\Reference;

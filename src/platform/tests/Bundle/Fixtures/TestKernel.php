@@ -9,7 +9,7 @@
  * file that was distributed with this source code.
  */
 
-namespace Symfony\AI\PlatformBundle\Tests\Fixtures;
+namespace Symfony\AI\Platform\Tests\Bundle\Fixtures;
 
 use Symfony\Component\Config\Loader\LoaderInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
@@ -55,12 +55,12 @@ final class TestKernel extends Kernel
 
     public function getCacheDir(): string
     {
-        return sys_get_temp_dir().'/ai-platform-bundle-tests/'.$this->id.'/cache';
+        return sys_get_temp_dir().'/ai-platform-tests/'.$this->id.'/cache';
     }
 
     public function getLogDir(): string
     {
-        return sys_get_temp_dir().'/ai-platform-bundle-tests/'.$this->id.'/log';
+        return sys_get_temp_dir().'/ai-platform-tests/'.$this->id.'/log';
     }
 
     protected function getContainerClass(): string

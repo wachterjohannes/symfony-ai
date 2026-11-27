@@ -9,10 +9,10 @@
  * file that was distributed with this source code.
  */
 
-namespace Symfony\AI\PlatformBundle;
+namespace Symfony\AI\Platform\Bundle;
 
-use Symfony\AI\PlatformBundle\Command\InvokeCommand;
-use Symfony\AI\PlatformBundle\DependencyInjection\Compiler\PlatformRegistryPass;
+use Symfony\AI\Platform\Bundle\Command\InvokeCommand;
+use Symfony\AI\Platform\Bundle\DependencyInjection\Compiler\PlatformRegistryPass;
 use Symfony\Component\Config\Definition\Configurator\DefinitionConfigurator;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\DependencyInjection\ContainerBuilder;

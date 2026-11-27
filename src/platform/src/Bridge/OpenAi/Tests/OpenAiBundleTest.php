@@ -13,8 +13,8 @@ namespace Symfony\AI\Platform\Bridge\OpenAi\Tests;
 
 use PHPUnit\Framework\TestCase;
 use Symfony\AI\Platform\Bridge\OpenAi\OpenAiBundle;
+use Symfony\AI\Platform\Bundle\DependencyInjection\Compiler\DefaultServicesPass;
 use Symfony\AI\Platform\PlatformInterface;
-use Symfony\AI\PlatformBundle\DependencyInjection\Compiler\DefaultServicesPass;
 use Symfony\Component\Config\Definition\Exception\InvalidConfigurationException;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Reference;

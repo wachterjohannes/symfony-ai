@@ -12,7 +12,7 @@
 namespace App;
 
 use Symfony\AI\Platform\Bridge\OpenAi\OpenAiBundle;
-use Symfony\AI\PlatformBundle\PlatformBundle;
+use Symfony\AI\Platform\Bundle\PlatformBundle;
 use Symfony\Component\Config\Loader\LoaderInterface;
 use Symfony\Component\Console\DependencyInjection\AddConsoleCommandPass;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
@@ -39,6 +39,12 @@ final class Kernel extends BaseKernel
     public function getProjectDir(): string
     {
         return \dirname(__DIR__);
+    }
+
+    public function getCacheDir(): string
+    {
+        // The compiled container differs with DEMO_MOCK_HTTP, so it must not share a cache.
+        return $this->getProjectDir().'/var/cache/'.$this->environment.('1' === ($_SERVER['DEMO_MOCK_HTTP'] ?? '') ? '-mock' : '');
     }
 
     protected function build(ContainerBuilder $container): void

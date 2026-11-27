@@ -76,12 +76,16 @@
         "phpstan/phpstan-strict-rules": "^2.0",
         "phpunit/phpunit": "^11.5.53",
         "symfony/cache": "^7.4|^8.0",
+        "symfony/config": "^7.4|^8.0",
         "symfony/console": "^7.4|^8.0",
+        "symfony/dependency-injection": "^7.4|^8.0",
         "symfony/dotenv": "^7.4|^8.0",
         "symfony/expression-language": "^7.4|^8.0",
         "symfony/finder": "^7.4|^8.0",
+        "symfony/framework-bundle": "^7.4|^8.0",
         "symfony/http-client": "^7.4|^8.0",
         "symfony/http-client-contracts": "^3.5",
+        "symfony/http-kernel": "^7.4|^8.0",
         "symfony/intl": "^7.4|^8.0",
         "symfony/process": "^7.4|^8.0",
         "symfony/stopwatch": "^7.4|^8.0",
@@ -115,5 +119,12 @@
             "name": "symfony/ai",
             "url": "https://github.com/symfony/ai"
         }
+    },
+    "suggest": {
+        "symfony/config": "To use the PlatformBundle and bridge bundles",
+        "symfony/console": "To use the ai:platform:invoke command",
+        "symfony/dependency-injection": "To use the PlatformBundle and bridge bundles",
+        "symfony/http-client": "Used as default HTTP client by bridge bundles when no \"http_client\" service exists",
+        "symfony/http-kernel": "To use the PlatformBundle and bridge bundles, no symfony/framework-bundle needed"
     }
 }

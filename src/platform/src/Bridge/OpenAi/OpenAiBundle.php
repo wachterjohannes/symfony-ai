@@ -11,8 +11,8 @@
 
 namespace Symfony\AI\Platform\Bridge\OpenAi;
 
+use Symfony\AI\Platform\Bundle\AbstractPlatformBridgeBundle;
 use Symfony\AI\Platform\Platform;
-use Symfony\AI\PlatformBundle\AbstractPlatformBridgeBundle;
 use Symfony\Component\Config\Definition\Configurator\DefinitionConfigurator;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Definition;

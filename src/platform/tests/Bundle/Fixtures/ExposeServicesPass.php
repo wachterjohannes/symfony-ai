@@ -9,7 +9,7 @@
  * file that was distributed with this source code.
  */
 
-namespace Symfony\AI\PlatformBundle\Tests\Fixtures;
+namespace Symfony\AI\Platform\Tests\Bundle\Fixtures;
 
 use Symfony\AI\Platform\PlatformInterface;
 use Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface;
