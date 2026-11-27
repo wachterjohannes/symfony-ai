@@ -1,0 +1,21 @@
+#!/usr/bin/env php
+<?php
+
+use App\Kernel;
+use Symfony\Component\Console\Application;
+use Symfony\Component\Console\Input\ArgvInput;
+
+require_once __DIR__.'/../vendor/autoload.php';
+
+// The demo's whole point: none of this needs symfony/framework-bundle.
+if (class_exists('Symfony\Bundle\FrameworkBundle\FrameworkBundle')) {
+    fwrite(\STDERR, "FrameworkBundle is installed - this demo is meant to run without it.\n");
+}
+
+$input = new ArgvInput();
+$kernel = new Kernel($_SERVER['APP_ENV'] ?? 'dev', (bool) ($_SERVER['APP_DEBUG'] ?? true));
+$kernel->boot();
+
+$application = new Application('webless AI demo');
+$application->setCommandLoader($kernel->getContainer()->get('console.command_loader'));
+$application->run($input);

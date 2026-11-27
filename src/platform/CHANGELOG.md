@@ -4,6 +4,7 @@ CHANGELOG
 1.0
 ---
 
+ * Add `Bundle\PlatformBundle`, `Bundle\AbstractPlatformBridgeBundle` and the `ai:platform:invoke` command, usable without `symfony/framework-bundle`; requires the optional `symfony/config`, `symfony/dependency-injection` and `symfony/http-kernel`
  * Add the status code and the request URL, without its query and credentials, to the message of the exceptions `HttpStatusErrorHandlingTrait` throws
  * Throw a `BadRequestException` on HTTP 422 in `HttpStatusErrorHandlingTrait` and read the `detail` of FastAPI error bodies, which Mistral sends for validation errors
  * Add the serving provider to `InvocationEvent` and `ResultEvent`, as `ResultConvertedEvent` and `ResultErrorEvent` already have it, so a listener can attribute these events to the provider serving the call
